@@ -479,7 +479,10 @@ ON admin_bet_type_settings
 FOR ALL
 USING (
   auth.is_admin() AND 
-  admin_id = auth.uid()
+  admin_id = auth.uid() AND
+  (user_id IS NULL OR user_id IN (
+    SELECT id FROM users WHERE created_by = auth.uid()
+  ))
 );
 
 -- 14. Policies cho bảng AdminStationSettings
@@ -506,7 +509,10 @@ ON admin_station_settings
 FOR ALL
 USING (
   auth.is_admin() AND 
-  admin_id = auth.uid()
+  admin_id = auth.uid() AND
+  (user_id IS NULL OR user_id IN (
+    SELECT id FROM users WHERE created_by = auth.uid()
+  ))
 );
 
 -- 15. Policies cho bảng NumberCombinations

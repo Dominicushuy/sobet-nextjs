@@ -192,6 +192,7 @@ CREATE TABLE verifications (
 CREATE TABLE admin_bet_type_settings (
   id SERIAL PRIMARY KEY,
   admin_id UUID NOT NULL REFERENCES users(id),
+  user_id UUID REFERENCES users(id),
   bet_type_id INTEGER NOT NULL REFERENCES bet_types(id),
   payout_rate JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -204,6 +205,7 @@ CREATE TABLE admin_station_settings (
   id SERIAL PRIMARY KEY,
   admin_id UUID NOT NULL REFERENCES users(id),
   station_id INTEGER NOT NULL REFERENCES stations(id),
+  user_id UUID REFERENCES users(id),
   multiplier NUMERIC(10, 2) NOT NULL DEFAULT 0.8,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
