@@ -469,6 +469,15 @@ USING (
   admin_id = auth.uid()
 );
 
+CREATE POLICY "Users can view bet type settings that apply to them"
+ON admin_bet_type_settings
+FOR SELECT
+USING (
+  auth.is_regular_user() AND
+  (user_id = auth.uid() OR user_id IS NULL) AND
+  is_enabled_for_users = TRUE
+);
+
 CREATE POLICY "Super admin can modify admin bet type settings"
 ON admin_bet_type_settings
 FOR ALL
@@ -497,6 +506,15 @@ FOR SELECT
 USING (
   auth.is_admin() AND 
   admin_id = auth.uid()
+);
+
+CREATE POLICY "Users can view station settings that apply to them"
+ON admin_station_settings
+FOR SELECT
+USING (
+  auth.is_regular_user() AND
+  (user_id = auth.uid() OR user_id IS NULL) AND
+  is_enabled_for_users = TRUE
 );
 
 CREATE POLICY "Super admin can modify admin station settings"
@@ -530,3 +548,38 @@ CREATE POLICY "Super admin can modify number combinations"
 ON number_combinations
 FOR ALL
 USING (auth.is_super_admin());
+
+-- 16. Policies cho bảng UserGlobalSettings
+CREATE POLICY "Super admin can view all user global settings"
+ON user_global_settings
+FOR SELECT
+USING (auth.is_super_admin());
+
+CREATE POLICY "Admin can view user global settings for users they created"
+ON user_global_settings
+FOR SELECT
+USING (
+  auth.is_admin() AND
+  admin_id = auth.uid()
+);
+
+CREATE POLICY "Users can view their own global settings"
+ON user_global_settings
+FOR SELECT
+USING (user_id = auth.uid());
+
+CREATE POLICY "Super admin can modify user global settings"
+ON user_global_settings
+FOR ALL
+USING (auth.is_super_admin());
+
+CREATE POLICY "Admin can manage global settings for users they created"
+ON user_global_settings
+FOR ALL
+USING (
+  auth.is_admin() AND
+  admin_id = auth.uid() AND
+  user_id IN (
+    SELECT id FROM users WHERE created_by = auth.uid()
+  )
+);

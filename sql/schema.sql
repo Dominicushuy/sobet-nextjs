@@ -33,6 +33,7 @@ CREATE TABLE admin_settings (
   admin_id UUID NOT NULL REFERENCES users(id),
   max_users INTEGER NOT NULL DEFAULT 10,
   bet_multiplier NUMERIC(10, 2) NOT NULL DEFAULT 0.8,
+  commission_rate NUMERIC(5, 2) NOT NULL DEFAULT 4.0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (admin_id)
@@ -195,9 +196,10 @@ CREATE TABLE admin_bet_type_settings (
   user_id UUID REFERENCES users(id),
   bet_type_id INTEGER NOT NULL REFERENCES bet_types(id),
   payout_rate JSONB NOT NULL,
+  is_enabled_for_users BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (admin_id, bet_type_id)
+  UNIQUE (admin_id, bet_type_id, user_id) -- Thêm user_id vào constraint
 );
 
 -- Bảng AdminStationSettings (Cài đặt hệ số nhân cho từng đài)
@@ -207,7 +209,20 @@ CREATE TABLE admin_station_settings (
   station_id INTEGER NOT NULL REFERENCES stations(id),
   user_id UUID REFERENCES users(id),
   multiplier NUMERIC(10, 2) NOT NULL DEFAULT 0.8,
+  is_enabled_for_users BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (admin_id, station_id)
+  UNIQUE (admin_id, station_id, user_id) -- Thêm user_id vào constraint
+);
+
+-- Bảng UserGlobalSettings (Cài đặt chung cho User)
+CREATE TABLE user_global_settings (
+  id SERIAL PRIMARY KEY,
+  admin_id UUID NOT NULL REFERENCES users(id),
+  user_id UUID NOT NULL REFERENCES users(id),
+  bet_multiplier NUMERIC(10, 2),
+  commission_rate NUMERIC(5, 2),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (admin_id, user_id)
 );
