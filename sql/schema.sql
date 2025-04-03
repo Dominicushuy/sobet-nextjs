@@ -1,3 +1,5 @@
+-- schema.sql - Tạo cấu trúc cơ sở dữ liệu cho hệ thống quản lý cược xổ số
+
 -- Extension cho UUID
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -41,6 +43,7 @@ CREATE TABLE regions (
   id SERIAL PRIMARY KEY,
   name VARCHAR(50) NOT NULL UNIQUE,
   code VARCHAR(20) NOT NULL UNIQUE,
+  aliases TEXT[] NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -88,6 +91,22 @@ CREATE TABLE bet_types (
   payout_rate JSONB NOT NULL,
   combinations JSONB NOT NULL,
   is_permutation BOOLEAN NOT NULL DEFAULT FALSE,
+  special_calc VARCHAR(50),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Bảng NumberCombinations (Các kiểu chọn tổ hợp số)
+CREATE TABLE number_combinations (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  aliases TEXT[] NOT NULL,
+  definition TEXT NOT NULL,
+  syntax VARCHAR(255) NOT NULL,
+  applicable_bet_types TEXT[] NOT NULL,
+  examples TEXT[] NOT NULL,
+  calculation_method TEXT NOT NULL,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

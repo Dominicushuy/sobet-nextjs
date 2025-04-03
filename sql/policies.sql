@@ -1,3 +1,5 @@
+-- policies.sql - Row Level Security (RLS) Policies cho hệ thống quản lý cược xổ số
+
 -- Bật RLS cho tất cả bảng
 DO $$
 DECLARE
@@ -506,3 +508,19 @@ USING (
   auth.is_admin() AND 
   admin_id = auth.uid()
 );
+
+-- 15. Policies cho bảng NumberCombinations
+CREATE POLICY "Anyone can view active number combinations"
+ON number_combinations
+FOR SELECT
+USING (is_active = TRUE);
+
+CREATE POLICY "Admin or super admin can view all number combinations"
+ON number_combinations
+FOR SELECT
+USING (auth.is_admin_or_super_admin());
+
+CREATE POLICY "Super admin can modify number combinations"
+ON number_combinations
+FOR ALL
+USING (auth.is_super_admin());

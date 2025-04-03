@@ -1,3 +1,5 @@
+-- functions_triggers.sql - Functions và Triggers cho hệ thống quản lý cược xổ số
+
 -- Function cập nhật updated_at tự động
 CREATE OR REPLACE FUNCTION trigger_set_updated_at()
 RETURNS TRIGGER AS $$
@@ -104,24 +106,18 @@ CREATE OR REPLACE FUNCTION verify_bet_codes()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Cập nhật bet_codes khi có kết quả xổ số được xác nhận
+  -- Lưu ý: Đây chỉ là cấu trúc cơ bản, logic chi tiết sẽ được triển khai sau trong code
   UPDATE bet_codes
   SET 
     is_winning = (
       -- Logic phức tạp để xác định xem mã cược có trúng hay không
-      -- Đây chỉ là ví dụ đơn giản
-      CASE WHEN EXISTS (
-        -- Logic kiểm tra trúng thưởng sẽ đặt ở đây
-        -- Ví dụ: Kiểm tra số cược trong bet_data có khớp với các số trong result_data
-        SELECT 1
-      ) THEN TRUE ELSE FALSE END
+      -- Chỉ kiểm tra đơn giản nếu có dữ liệu trong result_data
+      NEW.result_data IS NOT NULL
     ),
     actual_winning = (
       -- Logic tính toán số tiền thực tế trúng thưởng
-      -- Đây chỉ là ví dụ đơn giản
-      CASE WHEN EXISTS (
-        -- Logic kiểm tra trúng thưởng
-        SELECT 1
-      ) THEN potential_winning ELSE 0 END
+      -- Chỉ là ví dụ đơn giản
+      CASE WHEN NEW.result_data IS NOT NULL THEN potential_winning * 0.8 ELSE 0 END
     ),
     verified_at = NOW()
   WHERE 
