@@ -88,7 +88,7 @@ BEGIN
   -- Kiểm tra nếu người dùng mới là admin
   IF NEW.role_id = admin_role_id THEN
     INSERT INTO admin_settings (admin_id, max_users, bet_multiplier)
-    VALUES (NEW.id, 10, 0.8);
+    VALUES (NEW.id, 5, 1);
   END IF;
   
   RETURN NEW;
@@ -100,39 +100,3 @@ CREATE TRIGGER new_admin_settings
 AFTER INSERT ON users
 FOR EACH ROW
 EXECUTE FUNCTION create_admin_settings();
-
--- Function tính toán kết quả trúng thưởng
-CREATE OR REPLACE FUNCTION verify_bet_codes()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Cập nhật bet_codes khi có kết quả xổ số được xác nhận
-  -- Lưu ý: Đây chỉ là cấu trúc cơ bản, logic chi tiết sẽ được triển khai sau trong code
-  UPDATE bet_codes
-  SET 
-    is_winning = (
-      -- Logic phức tạp để xác định xem mã cược có trúng hay không
-      -- Chỉ kiểm tra đơn giản nếu có dữ liệu trong result_data
-      NEW.result_data IS NOT NULL
-    ),
-    actual_winning = (
-      -- Logic tính toán số tiền thực tế trúng thưởng
-      -- Chỉ là ví dụ đơn giản
-      CASE WHEN NEW.result_data IS NOT NULL THEN potential_winning * 0.8 ELSE 0 END
-    ),
-    verified_at = NOW()
-  WHERE 
-    -- Tìm các mã cược phù hợp với kết quả này
-    status = 'confirmed'
-    AND (station_data->>'id')::INTEGER = NEW.station_id
-    AND DATE(created_at) = NEW.draw_date;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Áp dụng trigger xác minh mã cược
-CREATE TRIGGER verify_bet_codes_on_result
-AFTER UPDATE ON lottery_results
-FOR EACH ROW
-WHEN (NEW.verified = TRUE AND OLD.verified = FALSE)
-EXECUTE FUNCTION verify_bet_codes();
