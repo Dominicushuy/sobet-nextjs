@@ -79,7 +79,6 @@ export default [
       'no-extra-boolean-cast': 'warn',
 
       // Spacing and formatting
-      indent: ['warn', 2],
       semi: ['error', 'always'],
       quotes: ['warn', 'single'],
     },

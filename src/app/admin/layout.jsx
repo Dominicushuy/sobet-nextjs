@@ -1,5 +1,5 @@
 import AdminLayout from '@/components/layouts/AdminLayout';
 
-export default function DashboardLayout({ children }) {
+export default function AdminDashboardLayout({ children }) {
   return <AdminLayout>{children}</AdminLayout>;
 }

@@ -8,16 +8,13 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
-  Users,
   FileText,
-  Database,
   BarChart,
   Settings,
   User,
   Menu,
   X,
   LogOut,
-  Monitor,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -30,48 +27,33 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-// Navigation items for admin role
+// Navigation items for user role
 const navItems = [
   {
     title: 'Tổng quan',
-    href: '/admin/dashboard',
+    href: '/dashboard',
     icon: LayoutDashboard,
   },
   {
-    title: 'Người dùng',
-    href: '/admin/users',
-    icon: Users,
-  },
-  {
     title: 'Mã cược',
-    href: '/admin/bet-codes',
+    href: '/bet-codes',
     icon: FileText,
   },
   {
-    title: 'Kết quả xổ số',
-    href: '/admin/lottery-results',
-    icon: Database,
-  },
-  {
     title: 'Thống kê',
-    href: '/admin/stats',
+    href: '/stats',
     icon: BarChart,
   },
   {
-    title: 'Theo dõi',
-    href: '/admin/monitoring',
-    icon: Monitor,
-  },
-  {
     title: 'Cài đặt',
-    href: '/admin/settings',
+    href: '/settings',
     icon: Settings,
   },
 ];
 
-export default function AdminLayout({ children }) {
+export default function UserLayout({ children }) {
   const pathname = usePathname();
-  const { user, role, signOut, loading } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -87,17 +69,6 @@ export default function AdminLayout({ children }) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  // Kiểm tra nếu role không phải admin hoặc super_admin, không hiển thị giao diện
-  if (!user || (role !== 'admin' && role !== 'super_admin')) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center">
-        <h1 className="text-2xl font-bold mb-4">Không có quyền truy cập</h1>
-        <p className="mb-4">Bạn không có quyền truy cập vào trang này</p>
-        <Button onClick={signOut}>Đăng xuất</Button>
       </div>
     );
   }
@@ -126,16 +97,8 @@ export default function AdminLayout({ children }) {
             >
               {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </Button>
-            <Link
-              href="/admin/dashboard"
-              className="flex items-center space-x-2"
-            >
-              <span className="text-xl font-bold">Xổ Số Admin</span>
-              {role === 'super_admin' && (
-                <span className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground">
-                  Super Admin
-                </span>
-              )}
+            <Link href="/dashboard" className="flex items-center space-x-2">
+              <span className="text-xl font-bold">Xổ Số Portal</span>
             </Link>
           </div>
 
@@ -156,13 +119,13 @@ export default function AdminLayout({ children }) {
                 <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/admin/profile">
+                  <Link href="/profile">
                     <User className="mr-2 h-4 w-4" />
                     <span>Hồ sơ</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/admin/settings">
+                  <Link href="/settings">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Cài đặt</span>
                   </Link>
