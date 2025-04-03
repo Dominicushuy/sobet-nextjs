@@ -407,7 +407,7 @@ const MobileSidebar = ({ isOpen, setIsOpen }) => {
 };
 
 // Main Layout Component
-const SuperAdminLayout = ({ children }) => {
+const AdminLayout = ({ children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -461,4 +461,4 @@ const SuperAdminLayout = ({ children }) => {
   );
 };
 
-export default SuperAdminLayout;
+export default AdminLayout;

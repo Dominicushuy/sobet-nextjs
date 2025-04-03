@@ -1,5 +1,5 @@
-import SuperAdminLayout from '@/components/layouts/SuperAdminLayout';
+import AdminLayout from '@/components/layouts/AdminLayout';
 
 export default function DashboardLayout({ children }) {
-  return <SuperAdminLayout>{children}</SuperAdminLayout>;
+  return <AdminLayout>{children}</AdminLayout>;
 }
