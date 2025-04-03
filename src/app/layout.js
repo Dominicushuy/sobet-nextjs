@@ -1,6 +1,6 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -14,7 +14,14 @@ export default function RootLayout({ children }) {
     <html lang="vi">
       <body className={`${inter.className} bg-gray-100 dark:bg-gray-900`}>
         {children}
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          theme="light"
+          expand={false}
+          duration={4000}
+        />
       </body>
     </html>
   );

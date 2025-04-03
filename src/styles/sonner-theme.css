@@ -1,0 +1,57 @@
+/* src/styles/sonner-theme.css */
+/* Import file này trong globals.css */
+
+/* Cơ bản */
+[data-sonner-toaster] {
+  --border-radius: var(--radius); /* Dùng radius từ theme của bạn */
+  --font-family: inherit;
+}
+
+/* Type: Default */
+[data-sonner-toast] {
+  --normal-bg: hsl(var(--background));
+  --normal-border: hsl(var(--border));
+  --normal-text: hsl(var(--foreground));
+}
+
+/* Type: Success */
+[data-sonner-toast][data-type="success"] {
+  --toast-bg: #f0fdf4; /* green-50 */
+  --toast-border: #bbf7d0; /* green-200 */
+  --toast-text: #166534; /* green-800 */
+}
+
+/* Type: Error */
+[data-sonner-toast][data-type="error"] {
+  --toast-bg: #fef2f2; /* red-50 */
+  --toast-border: #fecaca; /* red-200 */
+  --toast-text: #b91c1c; /* red-800 */
+}
+
+/* Type: Warning */
+[data-sonner-toast][data-type="warning"] {
+  --toast-bg: #fffbeb; /* amber-50 */
+  --toast-border: #fde68a; /* amber-200 */
+  --toast-text: #92400e; /* amber-800 */
+}
+
+/* Type: Info */
+[data-sonner-toast][data-type="info"] {
+  --toast-bg: #eff6ff; /* blue-50 */
+  --toast-border: #bfdbfe; /* blue-200 */
+  --toast-text: #1e40af; /* blue-800 */
+}
+
+/* Nút đóng */
+[data-sonner-toast] [data-close-button] {
+  --normal-bg: transparent;
+  --normal-border: transparent;
+  --normal-text: hsl(var(--muted-foreground));
+}
+
+/* Dark mode overrides nếu cần */
+.dark [data-sonner-toast] {
+  --normal-bg: hsl(var(--card));
+  --normal-border: hsl(var(--border));
+  --normal-text: hsl(var(--card-foreground));
+}
