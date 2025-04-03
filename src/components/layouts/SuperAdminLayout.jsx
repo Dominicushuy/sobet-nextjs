@@ -18,7 +18,7 @@ import {
   Shield,
   Globe,
   FileText,
-  Dice,
+  Dice1,
   Sun,
   Moon,
   ChevronLeft,
@@ -34,12 +34,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 
@@ -324,7 +319,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
         </SidebarItem>
 
         <SidebarItem
-          icon={Dice}
+          icon={Dice1}
           label="Loại cược"
           isActive={pathname.startsWith('/bet-types')}
           isCollapsed={isCollapsed}
