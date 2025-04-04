@@ -1,3 +1,4 @@
+// src/app/admin/dashboard/page.jsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/providers/AuthProvider';
 import { Users, Database, BarChart3, CircleDollarSign } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
+import { useServerQuery } from '@/hooks/useServerAction';
+import { fetchUserCount, fetchBetCodesCount } from '@/app/actions/dashboard';
 
 export default function AdminDashboard() {
   const { user, isSuperAdmin } = useAuth();
@@ -15,78 +17,27 @@ export default function AdminDashboard() {
     setMounted(true);
   }, []);
 
-  // Truy vấn số lượng người dùng
-  const { data: usersCount, isLoading: isLoadingUsers } = useSupabaseQuery(
+  // Query user count
+  const { data: usersCount, isLoading: isLoadingUsers } = useServerQuery(
     ['usersCount', user?.id],
-    async (supabase) => {
-      if (!user?.id) return 0;
-
-      // Nếu là super_admin, lấy tất cả user
-      if (isSuperAdmin) {
-        const { count, error } = await supabase
-          .from('users')
-          .select('*', { count: 'exact', head: true });
-
-        if (error) throw error;
-        return count || 0;
-      } else {
-        // Nếu là admin, chỉ lấy user thuộc admin đó
-        const { count, error } = await supabase
-          .from('users')
-          .select('*', { count: 'exact', head: true })
-          .eq('created_by', user.id);
-
-        if (error) throw error;
-        return count || 0;
-      }
+    async () => {
+      return await fetchUserCount(user?.id, isSuperAdmin);
     },
     {
       enabled: !!user?.id && mounted,
     }
   );
 
-  // Truy vấn số lượng mã cược
-  const { data: betCodesCount, isLoading: isLoadingBetCodes } =
-    useSupabaseQuery(
-      ['adminBetCodesCount', user?.id],
-      async (supabase) => {
-        if (!user?.id) return 0;
-
-        // Nếu là super_admin, lấy tất cả bet codes
-        if (isSuperAdmin) {
-          const { count, error } = await supabase
-            .from('bet_codes')
-            .select('*', { count: 'exact', head: true });
-
-          if (error) throw error;
-          return count || 0;
-        } else {
-          // Nếu là admin, lấy bet codes của tất cả user thuộc quyền quản lý
-          const { data: userIds, error: userIdsError } = await supabase
-            .from('users')
-            .select('id')
-            .eq('created_by', user.id);
-
-          if (userIdsError) throw userIdsError;
-
-          if (userIds.length === 0) return 0;
-
-          const { count, error } = await supabase
-            .from('bet_codes')
-            .select('*', { count: 'exact', head: true })
-            .in(
-              'user_id',
-              userIds.map((u) => u.id)
-            );
-
-          if (error) throw error;
-          return count || 0;
-        }
-      },
-      {
-        enabled: !!user?.id && mounted,
-      }
-    );
+  // Query bet codes count
+  const { data: betCodesCount, isLoading: isLoadingBetCodes } = useServerQuery(
+    ['adminBetCodesCount', user?.id],
+    async () => {
+      return await fetchBetCodesCount(user?.id, isSuperAdmin);
+    },
+    {
+      enabled: !!user?.id && mounted,
+    }
+  );
 
   if (!mounted) {
     return null;

@@ -1,10 +1,9 @@
+// src/app/admin/admins/page.jsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
 import {
   PlusCircle,
   Search,
@@ -42,6 +41,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/providers/AuthProvider';
+import { useServerQuery, useServerMutation } from '@/hooks/useServerAction';
+import {
+  fetchAdmins,
+  createAdmin,
+  updateAdmin,
+  updateAdminPassword,
+  updateAdminSettings,
+  toggleAdminStatus,
+} from '@/app/actions/admin';
 
 export default function AdminsManagementPage() {
   const { isSuperAdmin } = useAuth();
@@ -53,12 +61,14 @@ export default function AdminsManagementPage() {
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
+    id: '',
     username: '',
     email: '',
     full_name: '',
     password: '',
     confirm_password: '',
     max_users: 10,
+    is_active: true,
   });
 
   // Fetch admins list
@@ -66,18 +76,131 @@ export default function AdminsManagementPage() {
     data: admins = [],
     isLoading,
     refetch,
-  } = useQuery({
-    queryKey: ['admins', searchQuery],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
-      const { data } = await axios.get(`/api/admins?${params}`);
-      return data;
+  } = useServerQuery(
+    ['admins', searchQuery],
+    async () => {
+      const result = await fetchAdmins(searchQuery);
+      if (result.error) {
+        toast.error('Error fetching admins: ' + result.error);
+        return [];
+      }
+      return result.data;
     },
-    enabled: isSuperAdmin,
-  });
+    {
+      enabled: isSuperAdmin,
+    }
+  );
 
-  // Tìm kiếm Admin
+  // Create admin mutation
+  const createAdminMutation = useServerMutation(
+    ['createAdmin'],
+    async (data) => {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+      return await createAdmin(formData);
+    },
+    {
+      onSuccess: () => {
+        toast.success('Tạo tài khoản admin mới thành công');
+        setIsCreateDialogOpen(false);
+        resetFormData();
+        refetch();
+      },
+      onError: (error) => {
+        toast.error(`Đã xảy ra lỗi: ${error.message}`);
+      },
+    }
+  );
+
+  // Update admin mutation
+  const updateAdminMutation = useServerMutation(
+    ['updateAdmin'],
+    async (data) => {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+      return await updateAdmin(formData);
+    },
+    {
+      onSuccess: () => {
+        toast.success('Cập nhật thông tin admin thành công');
+        setIsCreateDialogOpen(false);
+        resetFormData();
+        refetch();
+      },
+      onError: (error) => {
+        toast.error(`Đã xảy ra lỗi: ${error.message}`);
+      },
+    }
+  );
+
+  // Update admin password mutation
+  const updatePasswordMutation = useServerMutation(
+    ['updateAdminPassword'],
+    async (data) => {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+      return await updateAdminPassword(formData);
+    },
+    {
+      onSuccess: () => {
+        toast.success('Đổi mật khẩu thành công');
+        setIsPasswordDialogOpen(false);
+        resetFormData();
+      },
+      onError: (error) => {
+        toast.error(`Đã xảy ra lỗi: ${error.message}`);
+      },
+    }
+  );
+
+  // Update admin settings mutation
+  const updateSettingsMutation = useServerMutation(
+    ['updateAdminSettings'],
+    async (data) => {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+      return await updateAdminSettings(formData);
+    },
+    {
+      onSuccess: () => {
+        toast.success('Cập nhật cài đặt thành công');
+        setIsSettingsDialogOpen(false);
+        refetch();
+      },
+      onError: (error) => {
+        toast.error(`Đã xảy ra lỗi: ${error.message}`);
+      },
+    }
+  );
+
+  // Toggle admin status mutation
+  const toggleStatusMutation = useServerMutation(
+    ['toggleAdminStatus'],
+    async ({ id, currentStatus }) => {
+      return await toggleAdminStatus(id, currentStatus);
+    },
+    {
+      onSuccess: (data, { currentStatus }) => {
+        toast.success(
+          `Đã ${currentStatus ? 'khóa' : 'kích hoạt'} tài khoản admin`
+        );
+        refetch();
+      },
+      onError: (error) => {
+        toast.error(`Đã xảy ra lỗi: ${error.message}`);
+      },
+    }
+  );
+
+  // Handle search
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
@@ -85,190 +208,155 @@ export default function AdminsManagementPage() {
   // Reset form data
   const resetFormData = () => {
     setFormData({
+      id: '',
       username: '',
       email: '',
       full_name: '',
       password: '',
       confirm_password: '',
       max_users: 10,
+      is_active: true,
     });
     setSelectedAdmin(null);
   };
 
-  // Mở dialog tạo Admin mới
+  // Open create dialog
   const openCreateDialog = () => {
     resetFormData();
     setIsEditing(false);
     setIsCreateDialogOpen(true);
   };
 
-  // Mở dialog chỉnh sửa Admin
+  // Open edit dialog
   const openEditDialog = (admin) => {
     setSelectedAdmin(admin);
     setFormData({
+      id: admin.id,
       username: admin.username || '',
       email: admin.email || '',
       full_name: admin.full_name || '',
       password: '',
       confirm_password: '',
       max_users: admin.settings?.max_users || 10,
+      is_active: admin.is_active,
     });
     setIsEditing(true);
     setIsCreateDialogOpen(true);
   };
 
-  // Mở dialog đổi mật khẩu
+  // Open password dialog
   const openPasswordDialog = (admin) => {
     setSelectedAdmin(admin);
     setFormData({
       ...formData,
+      id: admin.id,
       password: '',
       confirm_password: '',
     });
     setIsPasswordDialogOpen(true);
   };
 
-  // Mở dialog cài đặt số lượng User
+  // Open settings dialog
   const openSettingsDialog = (admin) => {
     setSelectedAdmin(admin);
     setFormData({
       ...formData,
+      id: admin.id,
       max_users: admin.settings?.max_users || 10,
     });
     setIsSettingsDialogOpen(true);
   };
 
-  // Xử lý thay đổi trạng thái Admin
+  // Handle toggle admin status
   const handleToggleStatus = async (admin) => {
-    try {
-      await axios.put(`/api/admins/${admin.id}`, {
-        ...admin,
-        is_active: !admin.is_active,
-      });
-
-      toast.success(
-        `Đã ${admin.is_active ? 'khóa' : 'kích hoạt'} tài khoản admin`
-      );
-      refetch();
-    } catch (error) {
-      toast.error('Đã xảy ra lỗi khi cập nhật trạng thái admin');
-      console.error(error);
-    }
+    toggleStatusMutation.mutate({
+      id: admin.id,
+      currentStatus: admin.is_active,
+    });
   };
 
-  // Xử lý tạo/chỉnh sửa Admin
+  // Handle save admin
   const handleSaveAdmin = async () => {
-    try {
-      // Validate form
-      if (!formData.username || !formData.email) {
-        toast.error('Vui lòng nhập đầy đủ thông tin tài khoản');
-        return;
-      }
-
-      if (!isEditing && (!formData.password || formData.password.length < 6)) {
-        toast.error('Mật khẩu phải có ít nhất 6 ký tự');
-        return;
-      }
-
-      if (!isEditing && formData.password !== formData.confirm_password) {
-        toast.error('Mật khẩu xác nhận không khớp');
-        return;
-      }
-
-      if (isEditing) {
-        // Update existing admin
-        await axios.put(`/api/admins/${selectedAdmin.id}`, {
-          username: formData.username,
-          email: formData.email,
-          full_name: formData.full_name,
-        });
-
-        // Update admin settings
-        await axios.put(`/api/admins/${selectedAdmin.id}/settings`, {
-          max_users: formData.max_users,
-        });
-
-        toast.success('Cập nhật thông tin admin thành công');
-      } else {
-        // Create new admin
-        await axios.post('/api/admins', {
-          username: formData.username,
-          email: formData.email,
-          full_name: formData.full_name,
-          password: formData.password,
-        });
-
-        toast.success('Tạo tài khoản admin mới thành công');
-      }
-
-      setIsCreateDialogOpen(false);
-      resetFormData();
-      refetch();
-    } catch (error) {
-      toast.error(
-        `Đã xảy ra lỗi: ${error.response?.data?.error || error.message}`
-      );
-      console.error(error);
+    // Validate form
+    if (!formData.username || !formData.email) {
+      toast.error('Vui lòng nhập đầy đủ thông tin tài khoản');
+      return;
     }
-  };
 
-  // Xử lý đổi mật khẩu
-  const handleChangePassword = async () => {
-    try {
-      if (!formData.password || formData.password.length < 6) {
-        toast.error('Mật khẩu phải có ít nhất 6 ký tự');
-        return;
-      }
-
-      if (formData.password !== formData.confirm_password) {
-        toast.error('Mật khẩu xác nhận không khớp');
-        return;
-      }
-
-      await axios.put(`/api/admins/${selectedAdmin.id}/password`, {
-        password: formData.password,
-      });
-
-      toast.success('Đổi mật khẩu thành công');
-      setIsPasswordDialogOpen(false);
-      resetFormData();
-    } catch (error) {
-      toast.error(
-        `Đã xảy ra lỗi: ${error.response?.data?.error || error.message}`
-      );
-      console.error(error);
+    if (!isEditing && (!formData.password || formData.password.length < 6)) {
+      toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
     }
-  };
 
-  // Xử lý cập nhật số lượng User tối đa
-  const handleUpdateSettings = async () => {
-    try {
-      if (isNaN(formData.max_users) || formData.max_users < 0) {
-        toast.error('Số lượng user tối đa phải là số dương');
-        return;
-      }
+    if (!isEditing && formData.password !== formData.confirm_password) {
+      toast.error('Mật khẩu xác nhận không khớp');
+      return;
+    }
 
-      await axios.put(`/api/admins/${selectedAdmin.id}/settings`, {
+    if (isEditing) {
+      // Update existing admin
+      updateAdminMutation.mutate({
+        id: formData.id,
+        username: formData.username,
+        email: formData.email,
+        full_name: formData.full_name,
+        is_active: formData.is_active,
         max_users: formData.max_users,
       });
-
-      toast.success('Cập nhật cài đặt thành công');
-      setIsSettingsDialogOpen(false);
-      refetch();
-    } catch (error) {
-      toast.error(
-        `Đã xảy ra lỗi: ${error.response?.data?.error || error.message}`
-      );
-      console.error(error);
+    } else {
+      // Create new admin
+      createAdminMutation.mutate({
+        username: formData.username,
+        email: formData.email,
+        full_name: formData.full_name,
+        password: formData.password,
+        max_users: formData.max_users,
+      });
     }
+  };
+
+  // Handle change password
+  const handleChangePassword = async () => {
+    if (!formData.password || formData.password.length < 6) {
+      toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    if (formData.password !== formData.confirm_password) {
+      toast.error('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    updatePasswordMutation.mutate({
+      id: selectedAdmin.id,
+      password: formData.password,
+    });
+  };
+
+  // Handle update settings
+  const handleUpdateSettings = async () => {
+    if (isNaN(formData.max_users) || formData.max_users < 0) {
+      toast.error('Số lượng user tối đa phải là số dương');
+      return;
+    }
+
+    updateSettingsMutation.mutate({
+      id: selectedAdmin.id,
+      max_users: formData.max_users,
+    });
   };
 
   // Handle input change
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: name === 'max_users' ? parseInt(value, 10) || 0 : value,
+      [name]:
+        type === 'checkbox'
+          ? checked
+          : name === 'max_users'
+            ? parseInt(value, 10) || 0
+            : value,
     });
   };
 
@@ -535,8 +623,19 @@ export default function AdminsManagementPage() {
             >
               Hủy
             </Button>
-            <Button onClick={handleSaveAdmin}>
-              {isEditing ? 'Cập nhật' : 'Tạo mới'}
+            <Button
+              onClick={handleSaveAdmin}
+              disabled={
+                createAdminMutation.isLoading || updateAdminMutation.isLoading
+              }
+            >
+              {isEditing
+                ? updateAdminMutation.isLoading
+                  ? 'Đang cập nhật...'
+                  : 'Cập nhật'
+                : createAdminMutation.isLoading
+                  ? 'Đang tạo...'
+                  : 'Tạo mới'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -589,7 +688,14 @@ export default function AdminsManagementPage() {
             >
               Hủy
             </Button>
-            <Button onClick={handleChangePassword}>Cập nhật mật khẩu</Button>
+            <Button
+              onClick={handleChangePassword}
+              disabled={updatePasswordMutation.isLoading}
+            >
+              {updatePasswordMutation.isLoading
+                ? 'Đang cập nhật...'
+                : 'Cập nhật mật khẩu'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -632,7 +738,14 @@ export default function AdminsManagementPage() {
             >
               Hủy
             </Button>
-            <Button onClick={handleUpdateSettings}>Cập nhật cài đặt</Button>
+            <Button
+              onClick={handleUpdateSettings}
+              disabled={updateSettingsMutation.isLoading}
+            >
+              {updateSettingsMutation.isLoading
+                ? 'Đang cập nhật...'
+                : 'Cập nhật cài đặt'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

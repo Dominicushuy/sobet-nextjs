@@ -1,11 +1,16 @@
 // src/providers/AuthProvider.jsx
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
-import axios from 'axios';
 import { toast } from 'sonner';
+import { getSession, signOut as serverSignOut } from '@/app/actions/auth';
 
 const AuthContext = createContext();
 
@@ -19,102 +24,63 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
 
-  const fetchUserData = async () => {
+  const fetchSession = useCallback(async () => {
     try {
-      console.log('Fetching user data from API...');
-      const { data } = await axios.get('/api/auth/user');
-      console.log('User data received:', data);
+      console.log('Fetching session...');
+      const { user, userData, error } = await getSession();
 
-      if (data && data.roles) {
-        setRole(data.roles.name);
-        return data.roles.name;
+      if (error) {
+        console.error('Error getting session:', error);
+        setUser(null);
+        setUserData(null);
+        setRole(null);
+        setLoading(false);
+        return;
       }
-      return null;
+
+      if (user) {
+        setUser(user);
+        setUserData(userData);
+        setRole(userData?.roles?.name);
+      } else {
+        setUser(null);
+        setUserData(null);
+        setRole(null);
+      }
     } catch (error) {
-      console.error(
-        'Error fetching user data from API:',
-        error.response?.data || error.message
-      );
-      return null;
+      console.error('Auth provider error:', error);
+      setUser(null);
+      setUserData(null);
+      setRole(null);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const getSession = async () => {
-      try {
-        console.log('Getting session...');
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+    fetchSession();
 
-        console.log('Session result:', {
-          session: session?.user?.id ? 'exists' : 'none',
-          error,
-        });
+    // Setup interval to refresh session periodically
+    const interval = setInterval(
+      () => {
+        if (user) fetchSession();
+      },
+      10 * 60 * 1000
+    ); // Every 10 minutes
 
-        if (error) {
-          console.error('Error getting session:', error);
-          setUser(null);
-          setRole(null);
-          setLoading(false);
-          return;
-        }
-
-        if (session?.user) {
-          setUser(session.user);
-          await fetchUserData();
-        } else {
-          setUser(null);
-          setRole(null);
-        }
-      } catch (error) {
-        console.error('Auth provider error:', error);
-        setUser(null);
-        setRole(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event);
-
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          if (session?.user) {
-            console.log('User session detected:', session.user.id);
-            setUser(session.user);
-            await fetchUserData();
-          }
-        } else if (event === 'SIGNED_OUT') {
-          console.log('User signed out');
-          setUser(null);
-          setRole(null);
-        }
-
-        setLoading(false);
-      }
-    );
-
-    // Get initial session
-    getSession();
-
-    return () => {
-      console.log('Cleaning up auth listener');
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase]);
+    return () => clearInterval(interval);
+  }, [fetchSession, user]);
 
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
+      const { error } = await serverSignOut();
+
       if (error) {
         toast.error('Đã xảy ra lỗi khi đăng xuất');
         console.error('Error signing out:', error);
@@ -123,6 +89,7 @@ export const AuthProvider = ({ children }) => {
 
       toast.success('Đăng xuất thành công');
       setUser(null);
+      setUserData(null);
       setRole(null);
       router.push('/login');
     } catch (error) {
@@ -140,13 +107,12 @@ export const AuthProvider = ({ children }) => {
 
   const refreshSession = async () => {
     console.log('Refreshing session...');
-    if (user?.id) {
-      await fetchUserData();
-    }
+    await fetchSession();
   };
 
   const value = {
     user,
+    userData,
     role,
     loading,
     signOut,

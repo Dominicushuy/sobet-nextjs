@@ -1,24 +1,45 @@
+// src/hooks/useServerAction.js
 'use client';
 
+import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@/utils/supabase/client';
 
-export function useSupabaseQuery(key, queryFn, options = {}) {
-  const supabase = createClient();
+export function useServerQuery(key, serverAction, options = {}) {
+  const fetchData = useCallback(async () => {
+    const result = await serverAction();
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data;
+  }, [serverAction]);
 
   return useQuery({
     queryKey: Array.isArray(key) ? key : [key],
-    queryFn: () => queryFn(supabase),
+    queryFn: fetchData,
     ...options,
   });
 }
 
-export function useSupabaseMutation(key, mutationFn, options = {}) {
-  const supabase = createClient();
+export function useServerMutation(key, serverAction, options = {}) {
   const queryClient = useQueryClient();
 
+  const mutate = useCallback(
+    async (variables) => {
+      const result = await serverAction(variables);
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      return result.data;
+    },
+    [serverAction]
+  );
+
   return useMutation({
-    mutationFn: (variables) => mutationFn(supabase, variables),
+    mutationFn: mutate,
     onSuccess: (data, variables, context) => {
       // Invalidate queries that depend on this data
       if (options.invalidate) {

@@ -1,3 +1,4 @@
+// src/app/dashboard/page.jsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/providers/AuthProvider';
 import { FileText, BarChart3, CircleDollarSign, Percent } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
+import { useServerQuery } from '@/hooks/useServerAction';
+import { fetchBetCodesCount } from '@/app/actions/dashboard';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -15,24 +17,16 @@ export default function Dashboard() {
     setMounted(true);
   }, []);
 
-  // Truy vấn số lượng mã cược
-  const { data: betCodesCount, isLoading: isLoadingBetCodes } =
-    useSupabaseQuery(
-      ['betCodesCount', user?.id],
-      async (supabase) => {
-        if (!user?.id) return 0;
-        const { count, error } = await supabase
-          .from('bet_codes')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-        return count || 0;
-      },
-      {
-        enabled: !!user?.id && mounted,
-      }
-    );
+  // Query bet codes count
+  const { data: betCodesCount, isLoading: isLoadingBetCodes } = useServerQuery(
+    ['betCodesCount', user?.id],
+    async () => {
+      return await fetchBetCodesCount(user?.id, false, true);
+    },
+    {
+      enabled: !!user?.id && mounted,
+    }
+  );
 
   if (!mounted) {
     return null;

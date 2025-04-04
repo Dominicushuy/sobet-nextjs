@@ -1,3 +1,4 @@
+// src/app/login/page.jsx
 'use client';
 
 import { useState } from 'react';
@@ -5,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
+import { signIn } from '@/app/actions/auth';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -35,7 +36,6 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -49,34 +49,21 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      });
+      const formData = new FormData();
+      formData.append('email', values.email);
+      formData.append('password', values.password);
+
+      const { success, error, role } = await signIn(formData);
 
       if (error) {
         toast.error('Đăng nhập thất bại', {
-          description: error.message,
+          description: error,
         });
         return;
       }
 
-      // Lấy thông tin role của người dùng
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('role_id, roles:roles(name)')
-        .eq('id', data.user.id)
-        .single();
-
-      if (userError) {
-        toast.error('Không thể lấy thông tin người dùng');
-        return;
-      }
-
-      // Định tuyến dựa trên role
-      const roleName = userData.roles.name;
-
-      switch (roleName) {
+      // Route based on role
+      switch (role) {
         case 'super_admin':
           router.push('/admin/dashboard');
           break;

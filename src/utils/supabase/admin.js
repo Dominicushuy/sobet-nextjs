@@ -1,3 +1,5 @@
+// src/utils/supabase/admin.js
+
 import { createClient } from '@supabase/supabase-js';
 
 // Tạo client với service role key
