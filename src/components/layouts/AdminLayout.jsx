@@ -1,3 +1,4 @@
+// src/components/layouts/AdminLayout.jsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -27,6 +28,7 @@ export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Kiểm tra quyền truy cập một lần duy nhất sau khi loading hoàn tất
   useEffect(() => {
@@ -45,6 +47,19 @@ export default function AdminLayout({ children }) {
       }
     }
   }, [loading, user, role, router, hasCheckedAuth]);
+
+  // Hàm xử lý đăng xuất
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Lỗi khi đăng xuất. Vui lòng thử lại.');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   // Hiển thị loading khi đang kiểm tra
   if (loading || (user && !hasCheckedAuth)) {
@@ -190,11 +205,21 @@ export default function AdminLayout({ children }) {
             <Button
               variant="destructive"
               size={isSidebarOpen ? 'default' : 'icon'}
-              onClick={signOut}
+              onClick={handleSignOut}
+              disabled={isSigningOut}
               className={`${isSidebarOpen ? 'w-full' : 'ml-auto'}`}
             >
-              <LogOut className="h-4 w-4 mr-2" />
-              {isSidebarOpen && 'Đăng xuất'}
+              {isSigningOut ? (
+                <span className="flex items-center">
+                  <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  {isSidebarOpen && 'Đang đăng xuất...'}
+                </span>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {isSidebarOpen && 'Đăng xuất'}
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -260,9 +285,23 @@ export default function AdminLayout({ children }) {
 
             <div className="mt-4 flex items-center justify-between">
               <ThemeToggle />
-              <Button variant="destructive" size="sm" onClick={signOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Đăng xuất
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? (
+                  <span className="flex items-center">
+                    <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Đang đăng xuất...
+                  </span>
+                ) : (
+                  <>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Đăng xuất
+                  </>
+                )}
               </Button>
             </div>
           </div>

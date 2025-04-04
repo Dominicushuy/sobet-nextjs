@@ -1,3 +1,4 @@
+// src/components/layouts/UserLayout.jsx
 'use client';
 
 import { useState } from 'react';
@@ -26,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { toast } from 'sonner';
 
 // Navigation items for user role
 const navItems = [
@@ -55,6 +57,7 @@ export default function UserLayout({ children }) {
   const pathname = usePathname();
   const { user, signOut, loading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   if (loading) {
     return (
@@ -63,6 +66,19 @@ export default function UserLayout({ children }) {
       </div>
     );
   }
+
+  // Hàm xử lý đăng xuất
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Lỗi khi đăng xuất. Vui lòng thử lại.');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   // Lấy chữ cái đầu tiên của tên hoặc email người dùng
   const getInitials = () => {
@@ -122,9 +138,22 @@ export default function UserLayout({ children }) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Đăng xuất</span>
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="cursor-pointer"
+                >
+                  {isSigningOut ? (
+                    <span className="flex items-center">
+                      <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      <span>Đang đăng xuất...</span>
+                    </span>
+                  ) : (
+                    <>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Đăng xuất</span>
+                    </>
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -168,10 +197,20 @@ export default function UserLayout({ children }) {
             <Button
               variant="ghost"
               className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={signOut}
+              onClick={handleSignOut}
+              disabled={isSigningOut}
             >
-              <LogOut className="mr-2 h-5 w-5" />
-              Đăng xuất
+              {isSigningOut ? (
+                <span className="flex items-center">
+                  <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+                  Đang đăng xuất...
+                </span>
+              ) : (
+                <>
+                  <LogOut className="mr-2 h-5 w-5" />
+                  Đăng xuất
+                </>
+              )}
             </Button>
           </nav>
         </aside>

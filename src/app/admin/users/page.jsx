@@ -554,13 +554,18 @@ export default function UsersManagementPage() {
                               }
                               size="icon"
                               onClick={() => handleToggleStatus(userData)}
+                              disabled={toggleStatusMutation.isPending}
                               title={
                                 userData.is_active
                                   ? 'Khóa tài khoản'
                                   : 'Kích hoạt tài khoản'
                               }
                             >
-                              {userData.is_active ? (
+                              {toggleStatusMutation.isPending &&
+                              toggleStatusMutation.variables?.id ===
+                                userData.id ? (
+                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              ) : userData.is_active ? (
                                 <XCircle className="h-4 w-4" />
                               ) : (
                                 <CheckCircle className="h-4 w-4" />

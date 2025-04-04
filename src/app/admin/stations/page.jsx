@@ -455,9 +455,14 @@ export default function StationsManagementPage() {
                             }
                             size="icon"
                             onClick={() => handleToggleStatus(station)}
+                            disabled={toggleStatusMutation.isPending}
                             title={station.is_active ? 'Tạm dừng' : 'Kích hoạt'}
                           >
-                            {station.is_active ? (
+                            {toggleStatusMutation.isPending &&
+                            toggleStatusMutation.variables?.id ===
+                              station.id ? (
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            ) : station.is_active ? (
                               <XCircle className="h-4 w-4" />
                             ) : (
                               <CheckCircle className="h-4 w-4" />

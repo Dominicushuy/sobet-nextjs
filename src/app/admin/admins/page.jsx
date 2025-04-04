@@ -497,13 +497,17 @@ export default function AdminsManagementPage() {
                             }
                             size="icon"
                             onClick={() => handleToggleStatus(admin)}
+                            disabled={toggleStatusMutation.isPending}
                             title={
                               admin.is_active
                                 ? 'Khóa tài khoản'
                                 : 'Kích hoạt tài khoản'
                             }
                           >
-                            {admin.is_active ? (
+                            {toggleStatusMutation.isPending &&
+                            toggleStatusMutation.variables?.id === admin.id ? (
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            ) : admin.is_active ? (
                               <XCircle className="h-4 w-4" />
                             ) : (
                               <CheckCircle className="h-4 w-4" />
