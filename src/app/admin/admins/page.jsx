@@ -561,8 +561,15 @@ export default function AdminsManagementPage() {
                 type="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="admin@example.com"
+                placeholder="user@example.com"
+                disabled={isEditing}
+                className={isEditing ? 'opacity-70 cursor-not-allowed' : ''}
               />
+              {isEditing && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Email không thể thay đổi sau khi tạo tài khoản
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label htmlFor="full_name" className="text-sm font-medium">

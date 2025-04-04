@@ -116,7 +116,7 @@ export default function UsersManagementPage() {
   }, [user?.id, isSuperAdmin]);
 
   const {
-    data: userLimit = { data: { maxUsers: 0, currentCount: 0 } },
+    data: userLimitResponse = { data: { maxUsers: 0, currentCount: 0 } },
     isLoading: isLoadingLimit,
     refetch: refetchUserLimit,
   } = useServerQuery(['userLimit', user?.id, isSuperAdmin], getUserLimitData, {
@@ -126,6 +126,8 @@ export default function UsersManagementPage() {
       toast.error('Error fetching user limit: ' + error.message);
     },
   });
+
+  const userLimit = userLimitResponse?.data || { maxUsers: 0, currentCount: 0 };
 
   // Create user mutation
   const createUserMutation = useServerMutation(
@@ -655,7 +657,14 @@ export default function UsersManagementPage() {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="user@example.com"
+                disabled={isEditing}
+                className={isEditing ? 'opacity-70 cursor-not-allowed' : ''}
               />
+              {isEditing && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Email không thể thay đổi sau khi tạo tài khoản
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label htmlFor="full_name" className="text-sm font-medium">
