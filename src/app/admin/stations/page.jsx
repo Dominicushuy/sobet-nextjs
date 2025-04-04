@@ -1,7 +1,7 @@
 // src/app/admin/stations/page.jsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
   PlusCircle,
@@ -58,6 +58,14 @@ import {
   toggleStationStatus,
 } from '@/app/actions/station';
 
+// Định nghĩa các miền cố định
+const REGIONS = [
+  { id: null, code: 'all', name: 'Tất cả miền' },
+  { id: 1, code: 'north', name: 'Miền Bắc' },
+  { id: 2, code: 'central', name: 'Miền Trung' },
+  { id: 3, code: 'south', name: 'Miền Nam' },
+];
+
 export default function StationsManagementPage() {
   const { isSuperAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,16 +82,7 @@ export default function StationsManagementPage() {
     is_active: true,
   });
 
-  const { data: regionsResponse = { data: [] }, isLoading: isLoadingRegions } =
-    useServerQuery(['regions'], fetchStations, {
-      defaultData: { data: [] },
-      onError: (error) => {
-        toast.error('Lỗi khi tải dữ liệu miền: ' + error.message);
-      },
-    });
-
-  const regions = regionsResponse?.data || [];
-
+  // Fetch stations
   const {
     data: stationsResponse = { data: [] },
     isLoading: isLoadingStations,
@@ -94,14 +93,14 @@ export default function StationsManagementPage() {
       return await fetchStations(selectedRegion);
     },
     {
-      defaultData: { data: [] },
+      defaultData: [],
       onError: (error) => {
         toast.error('Lỗi khi tải dữ liệu đài xổ số: ' + error.message);
       },
     }
   );
 
-  const stations = stationsResponse?.data || [];
+  const stations = stationsResponse.data || [];
 
   // Create station mutation
   const createStationMutation = useServerMutation(
@@ -332,9 +331,9 @@ export default function StationsManagementPage() {
             />
           </div>
           <Select
-            value={selectedRegion || 'all'}
+            value={selectedRegion ? selectedRegion.toString() : 'all'}
             onValueChange={(value) =>
-              setSelectedRegion(value === 'all' ? null : value)
+              setSelectedRegion(value === 'all' ? null : parseInt(value))
             }
           >
             <SelectTrigger className="w-full sm:w-[180px]">
@@ -344,9 +343,11 @@ export default function StationsManagementPage() {
               </span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tất cả miền</SelectItem>
-              {regions.map((region) => (
-                <SelectItem key={region.id} value={region.id.toString()}>
+              {REGIONS.map((region) => (
+                <SelectItem
+                  key={region.code}
+                  value={region.id ? region.id.toString() : 'all'}
+                >
                   {region.name}
                 </SelectItem>
               ))}
@@ -361,7 +362,7 @@ export default function StationsManagementPage() {
         )}
       </div>
 
-      {isLoadingRegions || isLoadingStations ? (
+      {isLoadingStations ? (
         <div className="flex justify-center py-8">Đang tải dữ liệu...</div>
       ) : Object.keys(stationsByRegion).length === 0 ? (
         <Card>
@@ -519,7 +520,7 @@ export default function StationsManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Chọn miền</SelectItem>
-                  {regions.map((region) => (
+                  {REGIONS.filter((r) => r.id !== null).map((region) => (
                     <SelectItem key={region.id} value={region.id.toString()}>
                       {region.name}
                     </SelectItem>

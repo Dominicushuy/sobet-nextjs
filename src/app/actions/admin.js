@@ -10,10 +10,7 @@ export async function fetchAdmins(search = '') {
     const supabase = await createClient();
 
     // Truy vấn danh sách admin từ Supabase
-    let query = supabase
-      .from('users')
-      .select('*, roles:roles(name)')
-      .eq('roles.name', 'admin');
+    let query = supabase.from('users').select('*').eq('role_id', 2);
 
     // Thêm điều kiện tìm kiếm nếu có
     if (search) {

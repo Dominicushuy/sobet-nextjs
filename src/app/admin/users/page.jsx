@@ -453,9 +453,6 @@ export default function UsersManagementPage() {
                 </>
               )}
             </div>
-            <div className="text-sm bg-amber-100 text-amber-800 px-3 py-2 rounded-md">
-              Chế độ xem - Super Admin chỉ có thể xem danh sách người dùng
-            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2">
