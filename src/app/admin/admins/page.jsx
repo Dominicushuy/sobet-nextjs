@@ -71,9 +71,8 @@ export default function AdminsManagementPage() {
     is_active: true,
   });
 
-  // Fetch admins list
   const {
-    data: admins = [],
+    data: adminsResponse = { data: [] },
     isLoading,
     refetch,
     error: adminsError,
@@ -84,12 +83,14 @@ export default function AdminsManagementPage() {
     },
     {
       enabled: isSuperAdmin,
-      defaultData: [],
+      defaultData: { data: [] },
       onError: (error) => {
         toast.error('Error fetching admins: ' + error.message);
       },
     }
   );
+
+  const admins = adminsResponse?.data || [];
 
   // Create admin mutation
   const createAdminMutation = useServerMutation(

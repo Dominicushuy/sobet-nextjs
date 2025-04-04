@@ -19,15 +19,16 @@ export default function Dashboard() {
     return await fetchBetCodesCount(user?.id, false, true);
   }, [user?.id]);
 
-  // Query bet codes count
-  const { data: betCodesCount = 0, isLoading: isLoadingBetCodes } =
+  const { data: betCodesResponse = { data: 0 }, isLoading: isLoadingBetCodes } =
     useServerQuery(['betCodesCount', user?.id], getBetCodesCount, {
       enabled: !!user?.id,
-      defaultData: 0,
+      defaultData: { data: 0 },
       onError: (error) => {
         toast.error('Không thể tải số lượng mã cược: ' + error.message);
       },
     });
+
+  const betCodesCount = betCodesResponse?.data || 0;
 
   return (
     <div className="space-y-6">

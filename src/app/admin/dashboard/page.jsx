@@ -24,33 +24,31 @@ export default function AdminDashboard() {
     return await fetchBetCodesCount(user?.id, isSuperAdmin);
   }, [user?.id, isSuperAdmin]);
 
-  // Query user count
-  const { data: usersCount = 0, isLoading: isLoadingUsers } = useServerQuery(
-    ['usersCount', user?.id, isSuperAdmin],
-    getUserCount,
-    {
+  const { data: usersCountResponse = { data: 0 }, isLoading: isLoadingUsers } =
+    useServerQuery(['usersCount', user?.id, isSuperAdmin], getUserCount, {
       enabled: !!user?.id,
-      defaultData: 0,
+      defaultData: { data: 0 },
       onError: (error) => {
         toast.error('Không thể tải số lượng người dùng: ' + error.message);
       },
-    }
-  );
+    });
 
-  // Query bet codes count
-  const { data: betCodesCount = 0, isLoading: isLoadingBetCodes } =
+  const usersCount = usersCountResponse?.data || 0;
+
+  const { data: betCodesResponse = { data: 0 }, isLoading: isLoadingBetCodes } =
     useServerQuery(
       ['adminBetCodesCount', user?.id, isSuperAdmin],
       getBetCodesCount,
       {
         enabled: !!user?.id,
-        defaultData: 0,
+        defaultData: { data: 0 },
         onError: (error) => {
           toast.error('Không thể tải số lượng mã cược: ' + error.message);
         },
       }
     );
 
+  const betCodesCount = betCodesResponse?.data || 0;
   return (
     <div className="space-y-6">
       <div>

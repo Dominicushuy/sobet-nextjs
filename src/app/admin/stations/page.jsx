@@ -74,21 +74,18 @@ export default function StationsManagementPage() {
     is_active: true,
   });
 
-  // Fetch regions
-  const { data: regions = [], isLoading: isLoadingRegions } = useServerQuery(
-    ['regions'],
-    fetchStations,
-    {
-      defaultData: [],
+  const { data: regionsResponse = { data: [] }, isLoading: isLoadingRegions } =
+    useServerQuery(['regions'], fetchStations, {
+      defaultData: { data: [] },
       onError: (error) => {
         toast.error('Lỗi khi tải dữ liệu miền: ' + error.message);
       },
-    }
-  );
+    });
 
-  // Fetch stations
+  const regions = regionsResponse?.data || [];
+
   const {
-    data: stations = [],
+    data: stationsResponse = { data: [] },
     isLoading: isLoadingStations,
     refetch: refetchStations,
   } = useServerQuery(
@@ -97,12 +94,14 @@ export default function StationsManagementPage() {
       return await fetchStations(selectedRegion);
     },
     {
-      defaultData: [],
+      defaultData: { data: [] },
       onError: (error) => {
         toast.error('Lỗi khi tải dữ liệu đài xổ số: ' + error.message);
       },
     }
   );
+
+  const stations = stationsResponse?.data || [];
 
   // Create station mutation
   const createStationMutation = useServerMutation(

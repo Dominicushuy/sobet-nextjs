@@ -89,7 +89,7 @@ export default function UsersManagementPage() {
   }, [user?.id, searchQuery, currentPage, pageSize]);
 
   const {
-    data: usersData = { data: [], total: 0 },
+    data: usersResponse = { data: [], total: 0 },
     isLoading,
     refetch,
     error: usersError,
@@ -105,8 +105,8 @@ export default function UsersManagementPage() {
     }
   );
 
-  const users = usersData.data || [];
-  const totalUsers = usersData.total || 0;
+  const users = usersResponse?.data || [];
+  const totalUsers = usersResponse?.total || 0;
   const totalPages = Math.ceil(totalUsers / pageSize);
 
   // Get user limit info - now using a dedicated server action

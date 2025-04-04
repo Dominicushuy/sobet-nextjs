@@ -9,7 +9,7 @@ export function useServerQuery(key, serverAction, options = {}) {
     try {
       const result = await serverAction();
 
-      // Kiểm tra và xử lý lỗi
+      // Check and handle errors
       if (result.error) {
         console.error(
           `Query error [${Array.isArray(key) ? key.join(',') : key}]:`,
@@ -18,12 +18,8 @@ export function useServerQuery(key, serverAction, options = {}) {
         throw new Error(result.error);
       }
 
-      // Đảm bảo data được trả về, nếu không có thì trả về mảng rỗng hoặc giá trị mặc định
-      if (result.data === undefined || result.data === null) {
-        return options.defaultData || [];
-      }
-
-      return result.data;
+      // Return the entire result object
+      return result;
     } catch (error) {
       console.error(
         `Query exception [${Array.isArray(key) ? key.join(',') : key}]:`,
@@ -31,7 +27,7 @@ export function useServerQuery(key, serverAction, options = {}) {
       );
       throw error;
     }
-  }, [serverAction, key, options.defaultData]);
+  }, [serverAction, key]);
 
   return useQuery({
     queryKey: Array.isArray(key) ? key : [key],
@@ -53,12 +49,8 @@ export function useServerMutation(key, serverAction, options = {}) {
           throw new Error(result.error);
         }
 
-        // Nếu success = true nhưng không có data, trả về một object đơn giản
-        if (result.success && result.data === undefined) {
-          return { success: true };
-        }
-
-        return result.data || { success: true };
+        // Return the entire result object
+        return result;
       } catch (error) {
         console.error(`Mutation exception [${key}]:`, error);
         throw error;
@@ -69,7 +61,7 @@ export function useServerMutation(key, serverAction, options = {}) {
 
   return useMutation({
     mutationFn: mutate,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (result, variables, context) => {
       // Invalidate queries that depend on this data
       if (options.invalidate) {
         const invalidateKeys = Array.isArray(options.invalidate)
@@ -87,7 +79,7 @@ export function useServerMutation(key, serverAction, options = {}) {
 
       // Call custom onSuccess if provided
       if (options.onSuccess) {
-        options.onSuccess(data, variables, context);
+        options.onSuccess(result, variables, context);
       }
     },
     ...options,
