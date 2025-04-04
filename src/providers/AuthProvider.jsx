@@ -24,52 +24,54 @@ export const AuthProvider = ({ children }) => {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    // Lấy phiên hiện tại
-    const getSession = async () => {
-      try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+  // Lấy phiên hiện tại
+  const getSession = async () => {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
 
-        if (error) {
-          console.error('Error getting session:', error);
-          setUser(null);
-          setRole(null);
-          setLoading(false);
-          return;
-        }
+      console.log('session', session);
 
-        if (session) {
-          setUser(session.user);
-
-          // Lấy thông tin role
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('roles:roles(name)')
-            .eq('id', session.user.id)
-            .single();
-
-          if (userError) {
-            console.error('Error getting user role:', userError);
-            setRole(null);
-          } else {
-            setRole(userData.roles.name);
-          }
-        } else {
-          setUser(null);
-          setRole(null);
-        }
-      } catch (error) {
-        console.error('Auth provider error:', error);
+      if (error) {
+        console.error('Error getting session:', error);
         setUser(null);
         setRole(null);
-      } finally {
         setLoading(false);
+        return;
       }
-    };
 
+      if (session) {
+        setUser(session.user);
+
+        // Lấy thông tin role
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('roles:roles(name)')
+          .eq('id', session.user.id)
+          .single();
+
+        if (userError) {
+          console.error('Error getting user role:', userError);
+          setRole(null);
+        } else {
+          setRole(userData.roles.name);
+        }
+      } else {
+        setUser(null);
+        setRole(null);
+      }
+    } catch (error) {
+      console.error('Auth provider error:', error);
+      setUser(null);
+      setRole(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     getSession();
 
     // Lắng nghe sự thay đổi xác thực
@@ -78,12 +80,16 @@ export const AuthProvider = ({ children }) => {
         if (session) {
           setUser(session.user);
 
+          console.log('session', session);
+
           // Lấy thông tin role
           const { data: userData, error: userError } = await supabase
             .from('users')
             .select('roles:roles(name)')
             .eq('id', session.user.id)
             .single();
+
+          console.log('userData', userData);
 
           if (userError) {
             console.error('Error getting user role:', userError);

@@ -3,236 +3,272 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/providers/AuthProvider';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
   Users,
-  FileText,
-  Database,
-  BarChart,
   Settings,
-  User,
+  LogOut,
   Menu,
   X,
-  LogOut,
-  Monitor,
+  BarChart3,
+  FileText,
+  Database,
+  Shield,
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useAuth } from '@/providers/AuthProvider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-// Navigation items for admin role
-const navItems = [
-  {
-    title: 'Tổng quan',
-    href: '/admin/dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'Người dùng',
-    href: '/admin/users',
-    icon: Users,
-  },
-  {
-    title: 'Mã cược',
-    href: '/admin/bet-codes',
-    icon: FileText,
-  },
-  {
-    title: 'Kết quả xổ số',
-    href: '/admin/lottery-results',
-    icon: Database,
-  },
-  {
-    title: 'Thống kê',
-    href: '/admin/stats',
-    icon: BarChart,
-  },
-  {
-    title: 'Theo dõi',
-    href: '/admin/monitoring',
-    icon: Monitor,
-  },
-  {
-    title: 'Cài đặt',
-    href: '/admin/settings',
-    icon: Settings,
-  },
-];
-
 export default function AdminLayout({ children }) {
+  const { user, role, signOut, isSuperAdmin, isAdmin } = useAuth();
+
   const pathname = usePathname();
-  const { user, role, signOut, loading } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  // Kiểm tra nếu role không phải admin hoặc super_admin, không hiển thị giao diện
-  if (!user || (role !== 'admin' && role !== 'super_admin')) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center">
-        <h1 className="text-2xl font-bold mb-4">Không có quyền truy cập</h1>
-        <p className="mb-4">Bạn không có quyền truy cập vào trang này</p>
-        <Button onClick={signOut}>Đăng xuất</Button>
-      </div>
-    );
-  }
-
-  // Lấy chữ cái đầu tiên của tên hoặc email người dùng
-  const getInitials = () => {
-    if (!user) return '?';
-    if (user.user_metadata?.full_name) {
-      return user.user_metadata.full_name.charAt(0).toUpperCase();
-    }
-    return user.email.charAt(0).toUpperCase();
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
+  // Danh sách liên kết trong sidebar
+  const navLinks = [
+    {
+      href: '/admin/dashboard',
+      label: 'Dashboard',
+      icon: <LayoutDashboard size={20} />,
+      active: pathname === '/admin/dashboard',
+      roles: ['admin', 'super_admin'],
+    },
+    {
+      href: '/admin/users',
+      label: 'Quản lý User',
+      icon: <Users size={20} />,
+      active: pathname === '/admin/users',
+      roles: ['admin', 'super_admin'],
+    },
+    {
+      href: '/admin/admins',
+      label: 'Quản lý Admin',
+      icon: <Shield size={20} />,
+      active: pathname === '/admin/admins',
+      roles: ['super_admin'],
+    },
+    {
+      href: '/admin/bet-codes',
+      label: 'Mã cược',
+      icon: <FileText size={20} />,
+      active: pathname === '/admin/bet-codes',
+      roles: ['admin', 'super_admin'],
+    },
+    {
+      href: '/admin/results',
+      label: 'Kết quả xổ số',
+      icon: <Database size={20} />,
+      active: pathname === '/admin/results',
+      roles: ['admin', 'super_admin'],
+    },
+    {
+      href: '/admin/statistics',
+      label: 'Thống kê',
+      icon: <BarChart3 size={20} />,
+      active: pathname === '/admin/statistics',
+      roles: ['admin', 'super_admin'],
+    },
+    {
+      href: '/admin/settings',
+      label: 'Cài đặt',
+      icon: <Settings size={20} />,
+      active: pathname === '/admin/settings',
+      roles: ['admin', 'super_admin'],
+    },
+  ];
+
+  // Lọc các liên kết theo role
+  const filteredNavLinks = navLinks.filter((link) => {
+    return link.roles.includes(role);
+  });
+
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4">
-        <div className="flex flex-1 items-center justify-between">
-          {/* Logo và toggle menu di động */}
-          <div className="flex items-center space-x-4">
+    <div className="flex h-screen w-full flex-col md:flex-row">
+      {/* Sidebar cho desktop */}
+      <div
+        className={`hidden md:flex flex-col bg-card border-r overflow-y-auto transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? 'w-64' : 'w-20'
+        }`}
+      >
+        <div className="flex h-14 items-center border-b px-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mr-2"
+            onClick={toggleSidebar}
+          >
+            <Menu size={20} />
+          </Button>
+          {isSidebarOpen && <h1 className="font-semibold">Admin Portal</h1>}
+        </div>
+
+        <div className="flex-1 py-4">
+          <nav className="grid gap-1 px-2">
+            {filteredNavLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+                  link.active
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
+              >
+                {link.icon}
+                {isSidebarOpen && <span>{link.label}</span>}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        <div className="mt-auto border-t p-4">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>
+                {user?.email?.substring(0, 2).toUpperCase() || 'AD'}
+              </AvatarFallback>
+            </Avatar>
+            {isSidebarOpen && (
+              <div className="text-sm">
+                <div className="font-medium">{user?.email}</div>
+                <div className="text-xs text-muted-foreground capitalize">
+                  {role || 'admin'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            {isSidebarOpen && <ThemeToggle />}
+            <Button
+              variant="destructive"
+              size={isSidebarOpen ? 'default' : 'icon'}
+              onClick={signOut}
+              className={`${isSidebarOpen ? 'w-full' : 'ml-auto'}`}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {isSidebarOpen && 'Đăng xuất'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sidebar cho mobile */}
+      <div
+        className={`fixed inset-0 z-50 bg-background/80 backdrop-blur-sm transition-all duration-300 md:hidden ${
+          isSidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        onClick={() => setIsSidebarOpen(false)}
+      >
+        <div
+          className={`absolute inset-y-0 left-0 w-64 bg-card p-4 transition-transform duration-300 ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex h-14 items-center justify-between border-b mb-4">
+            <h1 className="font-semibold">Admin Portal</h1>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden"
+              className="mr-2"
+              onClick={() => setIsSidebarOpen(false)}
             >
-              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              <X size={20} />
             </Button>
-            <Link
-              href="/admin/dashboard"
-              className="flex items-center space-x-2"
-            >
-              <span className="text-xl font-bold">SoBet</span>
-              {role === 'super_admin' && (
-                <span className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground">
-                  Super Admin
-                </span>
-              )}
-            </Link>
           </div>
 
-          {/* User dropdown */}
-          <div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="relative h-10 w-10 rounded-full"
-                >
-                  <Avatar>
-                    <AvatarFallback>{getInitials()}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Hồ sơ</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Cài đặt</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Đăng xuất</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <nav className="grid gap-1">
+            {filteredNavLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+                  link.active
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
+                onClick={() => setIsSidebarOpen(false)}
+              >
+                {link.icon}
+                <span>{link.label}</span>
+              </Link>
+            ))}
+          </nav>
+
+          <div className="absolute bottom-0 left-0 right-0 border-t p-4">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>
+                  {user?.email?.substring(0, 2).toUpperCase() || 'AD'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-sm">
+                <div className="font-medium">{user?.email}</div>
+                <div className="text-xs text-muted-foreground capitalize">
+                  {role || 'admin'}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <ThemeToggle />
+              <Button variant="destructive" size="sm" onClick={signOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Đăng xuất
+              </Button>
+            </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <aside
-          className={cn(
-            'fixed inset-y-0 left-0 z-20 mt-16 w-64 transform border-r bg-background transition-transform duration-200 ease-in-out md:translate-x-0',
-            {
-              'translate-x-0': isMobileMenuOpen,
-              '-translate-x-full': !isMobileMenuOpen,
-            }
-          )}
-        >
-          <nav className="flex flex-col gap-2 p-4">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Button
-                    variant={isActive ? 'default' : 'ghost'}
-                    className={cn('w-full justify-start', {
-                      'bg-primary text-primary-foreground': isActive,
-                    })}
-                  >
-                    <item.icon className="mr-2 h-5 w-5" />
-                    {item.title}
-                  </Button>
-                </Link>
-              );
-            })}
-            <Separator className="my-2" />
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={signOut}
-            >
-              <LogOut className="mr-2 h-5 w-5" />
-              Đăng xuất
-            </Button>
-          </nav>
-        </aside>
-
-        {/* Overlay cho mobile */}
-        {isMobileMenuOpen && (
-          <div
-            className="fixed inset-0 z-10 bg-black/50 md:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
-
-        {/* Main content */}
-        <main className="flex-1 p-4 md:ml-64">{children}</main>
+      {/* Main content */}
+      <div className="flex-1 overflow-auto">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div className="flex flex-1 items-center justify-between">
+            <div className="font-semibold md:hidden">Admin Portal</div>
+            <div className="hidden md:block">
+              {isSuperAdmin && <Badge>Super Admin</Badge>}
+            </div>
+            <div className="flex items-center gap-2 md:gap-4">
+              <ThemeToggle className="hidden md:flex" />
+              <Avatar className="md:hidden h-8 w-8">
+                <AvatarFallback>
+                  {user?.email?.substring(0, 2).toUpperCase() || 'AD'}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+          </div>
+        </header>
+        <main className="grid flex-1 items-start gap-4 p-4 md:gap-8 md:p-6">
+          {children}
+        </main>
       </div>
     </div>
+  );
+}
+
+// Badge Component
+function Badge({ children, className }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground ${className}`}
+    >
+      {children}
+    </span>
   );
 }
