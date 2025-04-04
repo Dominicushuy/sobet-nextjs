@@ -130,7 +130,7 @@ export default function AdminLayout({ children }) {
               href="/admin/dashboard"
               className="flex items-center space-x-2"
             >
-              <span className="text-xl font-bold">Xổ Số Admin</span>
+              <span className="text-xl font-bold">SoBet</span>
               {role === 'super_admin' && (
                 <span className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground">
                   Super Admin

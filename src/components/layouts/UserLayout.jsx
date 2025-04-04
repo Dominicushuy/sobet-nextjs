@@ -98,7 +98,7 @@ export default function UserLayout({ children }) {
               {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </Button>
             <Link href="/dashboard" className="flex items-center space-x-2">
-              <span className="text-xl font-bold">Xổ Số Portal</span>
+              <span className="text-xl font-bold">SoBet</span>
             </Link>
           </div>
 
