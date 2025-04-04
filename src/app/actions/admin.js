@@ -143,6 +143,24 @@ export async function createAdmin(formData) {
       console.error('Error creating admin settings:', settingsError);
     }
 
+    // Add default station settings
+    const { data: stations, error: stationsError } = await supabaseAdmin
+      .from('stations')
+      .select('id')
+      .eq('is_active', true);
+
+    if (!stationsError && stations) {
+      for (const station of stations) {
+        await supabaseAdmin.from('admin_station_settings').insert([
+          {
+            admin_id: authData.user.id,
+            station_id: station.id,
+            is_enabled_for_users: true,
+          },
+        ]);
+      }
+    }
+
     revalidatePath('/admin/admins');
 
     return { data: newAdmin };

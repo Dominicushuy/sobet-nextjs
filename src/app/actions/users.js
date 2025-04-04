@@ -345,26 +345,6 @@ export async function createUser(formData) {
       }
     }
 
-    // Add default station settings
-    const { data: stations, error: stationsError } = await supabaseAdmin
-      .from('stations')
-      .select('id')
-      .eq('is_active', true);
-
-    if (!stationsError && stations) {
-      for (const station of stations) {
-        await supabaseAdmin.from('admin_station_settings').insert([
-          {
-            admin_id: adminId,
-            user_id: authData.user.id,
-            station_id: station.id,
-            multiplier: 0.8,
-            is_enabled_for_users: true,
-          },
-        ]);
-      }
-    }
-
     revalidatePath('/admin/users');
 
     return { data: newUser };
@@ -509,12 +489,6 @@ export async function deleteUser(id) {
     // Delete related records from admin_bet_type_settings
     await supabaseAdmin
       .from('admin_bet_type_settings')
-      .delete()
-      .eq('user_id', id);
-
-    // Delete related records from admin_station_settings
-    await supabaseAdmin
-      .from('admin_station_settings')
       .delete()
       .eq('user_id', id);
 

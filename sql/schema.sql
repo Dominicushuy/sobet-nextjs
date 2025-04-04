@@ -204,8 +204,6 @@ CREATE TABLE admin_station_settings (
   id SERIAL PRIMARY KEY,
   admin_id UUID NOT NULL REFERENCES users(id),
   station_id INTEGER NOT NULL REFERENCES stations(id),
-  user_id UUID REFERENCES users(id),
-  multiplier NUMERIC(10, 2) NOT NULL DEFAULT 0.8,
   is_enabled_for_users BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
