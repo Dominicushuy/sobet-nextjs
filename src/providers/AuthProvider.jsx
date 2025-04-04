@@ -67,16 +67,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     fetchSession();
-
-    // Setup interval to refresh session periodically - 5 minutes is usually good
-    const interval = setInterval(
-      () => {
-        if (user) fetchSession();
-      },
-      5 * 60 * 1000
-    );
-
-    return () => clearInterval(interval);
   }, [fetchSession, user]);
 
   const signOut = async () => {

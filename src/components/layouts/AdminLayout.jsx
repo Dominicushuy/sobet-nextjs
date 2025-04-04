@@ -21,7 +21,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function AdminLayout({ children }) {
-  const { user, role, signOut, isSuperAdmin, isAdmin } = useAuth();
+  const { user, role, signOut, isSuperAdmin } = useAuth();
 
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
