@@ -1,3 +1,4 @@
+// src/middleware.js
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
@@ -9,7 +10,7 @@ export async function middleware(request) {
     },
   });
 
-  // Chỉ xử lý cookies và không thêm bất kỳ logic chuyển hướng nào
+  // Tạo Supabase client
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -36,23 +37,45 @@ export async function middleware(request) {
     }
   );
 
-  // Đơn giản là kiểm tra session
+  // Kiểm tra phiên
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Nếu không có session và đang cố truy cập các trang được bảo vệ
-  if (!user) {
-    const { pathname } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
-    // Nếu đang truy cập vào các trang cần đăng nhập
-    if (
-      pathname !== '/login' &&
-      !pathname.startsWith('/auth') &&
-      !pathname.startsWith('/_next') &&
-      !pathname.includes('.')
-    ) {
-      return NextResponse.redirect(new URL('/login', request.url));
+  // Các path không yêu cầu xác thực
+  const publicPaths = [
+    '/login',
+    '/auth',
+    '/account-suspended',
+    '/api',
+    '/_next',
+    '/favicon.ico',
+  ];
+
+  const isPublicPath =
+    publicPaths.some(
+      (path) => pathname === path || pathname.startsWith(path)
+    ) || pathname.includes('.');
+
+  // Nếu không có session và đang cố truy cập các trang được bảo vệ
+  if (!user && !isPublicPath) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Kiểm tra trạng thái tài khoản nếu người dùng đã đăng nhập
+  if (user && !isPublicPath && pathname !== '/account-suspended') {
+    // Lấy thông tin user từ DB
+    const { data: userData, error } = await supabase
+      .from('users')
+      .select('is_active')
+      .eq('id', user.id)
+      .single();
+
+    // Nếu tài khoản bị khóa, chuyển hướng đến trang thông báo
+    if (!error && userData && !userData.is_active) {
+      return NextResponse.redirect(new URL('/account-suspended', request.url));
     }
   }
 

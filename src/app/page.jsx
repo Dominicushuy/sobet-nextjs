@@ -12,12 +12,22 @@ export default async function Home() {
     redirect('/login');
   }
 
-  // Lấy thông tin role từ DB
-  const { data: userData } = await supabase
+  // Lấy thông tin user từ DB
+  const { data: userData, error } = await supabase
     .from('users')
     .select('*, roles:roles(name)')
     .eq('id', user.id)
     .single();
+
+  if (error) {
+    console.error('Error fetching user data:', error);
+    redirect('/login');
+  }
+
+  // Kiểm tra tài khoản có bị khóa không
+  if (!userData.is_active) {
+    redirect('/account-suspended');
+  }
 
   const role = userData?.roles?.name;
 
