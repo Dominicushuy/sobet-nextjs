@@ -38,11 +38,11 @@ export async function middleware(request) {
 
   // Đơn giản là kiểm tra session
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Nếu không có session và đang cố truy cập các trang được bảo vệ
-  if (!session) {
+  if (!user) {
     const { pathname } = request.nextUrl;
 
     // Nếu đang truy cập vào các trang cần đăng nhập

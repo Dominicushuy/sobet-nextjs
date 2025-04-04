@@ -87,16 +87,16 @@ export async function getSession() {
     const supabase = await createClient();
 
     const {
-      data: { session },
+      data: { user },
       error,
-    } = await supabase.auth.getSession();
+    } = await supabase.auth.getUser();
 
     if (error) {
       console.error('Session error:', error);
       return { user: null, userData: null, error: error.message };
     }
 
-    if (!session?.user) {
+    if (!user) {
       return { user: null, userData: null, error: null };
     }
 
@@ -104,20 +104,20 @@ export async function getSession() {
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('*, roles:roles(name)')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single();
 
     if (userError) {
       console.error('User data error:', userError);
       return {
-        user: session.user,
+        user,
         userData: null,
         error: 'Unable to get user information',
       };
     }
 
     return {
-      user: session.user,
+      user,
       userData,
       error: null,
     };

@@ -5,10 +5,10 @@ import { createClient } from '@/utils/supabase/server';
 export default async function Home() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect('/login');
   }
 
@@ -16,7 +16,7 @@ export default async function Home() {
   const { data: userData } = await supabase
     .from('users')
     .select('*, roles:roles(name)')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single();
 
   const role = userData?.roles?.name;
