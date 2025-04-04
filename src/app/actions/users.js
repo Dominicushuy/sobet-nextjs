@@ -81,6 +81,92 @@ export async function fetchUsers(
   }
 }
 
+export async function getUserLimit(adminId, isSuperAdmin = false) {
+  try {
+    if (!adminId) {
+      return {
+        data: { maxUsers: 0, currentCount: 0 },
+        error: 'Admin ID is required',
+      };
+    }
+
+    if (isSuperAdmin) {
+      // For super admin, get total user count
+      const { data: totalCount, error } = await getTotalUserCount();
+
+      return {
+        data: {
+          maxUsers: null, // No limit for super admin
+          currentCount: totalCount || 0,
+        },
+        error: error,
+      };
+    } else {
+      // For regular admin, get their limits and current count
+      const supabase = await createClient();
+
+      // Get max_users from admin_settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('admin_settings')
+        .select('max_users')
+        .eq('admin_id', adminId)
+        .single();
+
+      if (settingsError && settingsError.code !== 'PGRST116') {
+        console.error('Error fetching admin settings:', settingsError);
+        return {
+          data: { maxUsers: 10, currentCount: 0 },
+          error: settingsError.message,
+        };
+      }
+
+      // Get user role_id
+      const { data: roleData, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', 'user')
+        .single();
+
+      if (roleError) {
+        console.error('Error fetching user role:', roleError);
+        return {
+          data: { maxUsers: settings?.max_users || 10, currentCount: 0 },
+          error: roleError.message,
+        };
+      }
+
+      // Count users created by this admin
+      const { count, error: countError } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('role_id', roleData.id)
+        .eq('created_by', adminId);
+
+      if (countError) {
+        console.error('Error counting users:', countError);
+        return {
+          data: { maxUsers: settings?.max_users || 10, currentCount: 0 },
+          error: countError.message,
+        };
+      }
+
+      return {
+        data: {
+          maxUsers: settings?.max_users || 10,
+          currentCount: count || 0,
+        },
+        error: null,
+      };
+    }
+  } catch (error) {
+    console.error('Server action error in getUserLimit:', error);
+    return {
+      data: { maxUsers: 0, currentCount: 0 },
+      error: 'Internal server error',
+    };
+  }
+}
+
 export async function getUserMaxCount(adminId) {
   try {
     const supabase = await createClient();

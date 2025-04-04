@@ -74,6 +74,13 @@ export default function AdminLayout({ children }) {
       roles: ['admin', 'super_admin'],
     },
     {
+      href: '/admin/admins',
+      label: 'Quản lý Admin',
+      icon: <Shield size={20} />,
+      active: pathname === '/admin/admins',
+      roles: ['super_admin'],
+    },
+    {
       href: '/admin/users',
       label: 'Quản lý User',
       icon: <Users size={20} />,
@@ -81,11 +88,11 @@ export default function AdminLayout({ children }) {
       roles: ['admin', 'super_admin'],
     },
     {
-      href: '/admin/admins',
-      label: 'Quản lý Admin',
-      icon: <Shield size={20} />,
-      active: pathname === '/admin/admins',
-      roles: ['super_admin'],
+      href: '/admin/stations',
+      label: 'Quản lý đài',
+      icon: <Database size={20} />,
+      active: pathname === '/admin/stations',
+      roles: ['admin', 'super_admin'],
     },
     {
       href: '/admin/bet-codes',

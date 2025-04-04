@@ -53,14 +53,12 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useServerQuery, useServerMutation } from '@/hooks/useServerAction';
 import {
   fetchUsers,
-  getUserMaxCount,
-  getCurrentUserCount,
+  getUserLimit,
   createUser,
   updateUser,
   resetUserPassword,
   toggleUserStatus,
   deleteUser,
-  getTotalUserCount,
 } from '@/app/actions/users';
 
 export default function UsersManagementPage() {
@@ -87,9 +85,6 @@ export default function UsersManagementPage() {
   // Fetch users list
   const getUsersList = useCallback(async () => {
     if (!user?.id) return { data: [], total: 0 };
-
-    // For super admin, we'll modify this later to fetch all users
-    // instead of just the ones created by this admin
     return await fetchUsers(user.id, searchQuery, currentPage, pageSize);
   }, [user?.id, searchQuery, currentPage, pageSize]);
 
@@ -114,38 +109,19 @@ export default function UsersManagementPage() {
   const totalUsers = usersData.total || 0;
   const totalPages = Math.ceil(totalUsers / pageSize);
 
-  // Get user limit info - super admins should see total counts
-  const getUserLimit = useCallback(async () => {
-    if (!user?.id) return { maxUsers: 0, currentCount: 0 };
-
-    if (isSuperAdmin) {
-      const totalUserCount = await getTotalUserCount();
-
-      return { maxUsers: null, currentCount: totalUserCount.data || 0 };
-    } else {
-      // For regular admin, get their limits
-      const [maxUsersResult, currentCountResult] = await Promise.all([
-        getUserMaxCount(user.id),
-        getCurrentUserCount(user.id),
-      ]);
-
-      console.log('maxUsersResult', maxUsersResult);
-      console.log('currentCountResult', currentCountResult);
-
-      return {
-        maxUsers: maxUsersResult.data || 0,
-        currentCount: currentCountResult.data || 0,
-        error: maxUsersResult.error || currentCountResult.error,
-      };
-    }
+  // Get user limit info - now using a dedicated server action
+  const getUserLimitData = useCallback(async () => {
+    if (!user?.id) return { data: { maxUsers: 0, currentCount: 0 } };
+    return await getUserLimit(user.id, isSuperAdmin);
   }, [user?.id, isSuperAdmin]);
 
   const {
-    data: userLimit = { maxUsers: 0, currentCount: 0 },
+    data: userLimit = { data: { maxUsers: 0, currentCount: 0 } },
     isLoading: isLoadingLimit,
-  } = useServerQuery(['userLimit', user?.id, isSuperAdmin], getUserLimit, {
+    refetch: refetchUserLimit,
+  } = useServerQuery(['userLimit', user?.id, isSuperAdmin], getUserLimitData, {
     enabled: !!user?.id,
-    defaultData: { maxUsers: 0, currentCount: 0 },
+    defaultData: { data: { maxUsers: 0, currentCount: 0 } },
     onError: (error) => {
       toast.error('Error fetching user limit: ' + error.message);
     },
@@ -167,6 +143,7 @@ export default function UsersManagementPage() {
         setIsCreateDialogOpen(false);
         resetFormData();
         refetch();
+        refetchUserLimit(); // Refresh user limit after creating
       },
       onError: (error) => {
         toast.error(`Đã xảy ra lỗi: ${error.message}`);
@@ -250,6 +227,7 @@ export default function UsersManagementPage() {
         setIsDeleteDialogOpen(false);
         setSelectedUser(null);
         refetch();
+        refetchUserLimit(); // Refresh user limit after deleting
       },
       onError: (error) => {
         toast.error(`Đã xảy ra lỗi: ${error.message}`);
@@ -258,7 +236,6 @@ export default function UsersManagementPage() {
   );
 
   // Check if user can add more users
-  // Super admins can't add users, only view them
   const canAddMoreUsers =
     isAdmin &&
     !isSuperAdmin &&
@@ -334,7 +311,7 @@ export default function UsersManagementPage() {
   };
 
   // Handle toggle user status
-  const handleToggleStatus = async (userData) => {
+  const handleToggleStatus = (userData) => {
     toggleStatusMutation.mutate({
       id: userData.id,
       currentStatus: userData.is_active,
