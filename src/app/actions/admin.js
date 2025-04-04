@@ -106,7 +106,6 @@ export async function createAdmin(formData) {
           email,
           full_name,
           role_id: roleData.id,
-          password_hash: 'managed-by-supabase-auth', // Mật khẩu được quản lý bởi Supabase Auth
         },
       ])
       .select()

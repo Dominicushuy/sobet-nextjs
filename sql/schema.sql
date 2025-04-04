@@ -18,7 +18,6 @@ CREATE TABLE users (
   username VARCHAR(50) NOT NULL UNIQUE,
   email VARCHAR(255) UNIQUE,
   full_name VARCHAR(100),
-  password_hash TEXT NOT NULL,
   role_id INTEGER NOT NULL REFERENCES roles(id),
   created_by UUID REFERENCES users(id),
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
