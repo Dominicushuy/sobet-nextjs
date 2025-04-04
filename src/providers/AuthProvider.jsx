@@ -32,29 +32,18 @@ export const AuthProvider = ({ children }) => {
   const fetchSession = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('Fetching session...');
       const { user, userData, error } = await getSession();
 
-      if (error) {
-        console.error('Error getting session:', error);
+      if (error || !user) {
         setUser(null);
         setUserData(null);
         setRole(null);
-        setLoading(false);
         return;
       }
 
-      if (user) {
-        console.log('Session found, user:', user.id);
-        setUser(user);
-        setUserData(userData);
-        setRole(userData?.roles?.name);
-      } else {
-        console.log('No session found');
-        setUser(null);
-        setUserData(null);
-        setRole(null);
-      }
+      setUser(user);
+      setUserData(userData);
+      setRole(userData?.roles?.name);
     } catch (error) {
       console.error('Auth provider error:', error);
       setUser(null);
@@ -67,7 +56,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     fetchSession();
-  }, [fetchSession, user]);
+  }, [fetchSession]);
 
   const signOut = async () => {
     try {
@@ -76,31 +65,19 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         toast.error('Đã xảy ra lỗi khi đăng xuất');
-        console.error('Error signing out:', error);
         return;
       }
 
-      toast.success('Đăng xuất thành công');
       setUser(null);
       setUserData(null);
       setRole(null);
+      toast.success('Đăng xuất thành công');
       router.push('/login');
     } catch (error) {
       toast.error('Đã xảy ra lỗi khi đăng xuất');
-      console.error('Sign out error:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const checkAccess = (allowedRoles) => {
-    if (!role) return false;
-    return allowedRoles.includes(role);
-  };
-
-  const refreshSession = async () => {
-    console.log('Refreshing session...');
-    await fetchSession();
   };
 
   const value = {
@@ -112,11 +89,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin: role === 'admin',
     isSuperAdmin: role === 'super_admin',
     isUser: role === 'user',
-    checkAccess,
-    refreshSession,
   };
-
-  console.log('Auth context state:', { userId: user?.id, role, loading });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

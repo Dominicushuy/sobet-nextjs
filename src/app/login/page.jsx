@@ -27,6 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const formSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
@@ -36,6 +37,7 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -48,39 +50,48 @@ export default function LoginPage() {
   async function onSubmit(values) {
     try {
       setIsLoading(true);
+      setLoginError('');
+
+      // Hiển thị thông tin đăng nhập để debug
+      console.log('Submitting login with:', values.email);
 
       const formData = new FormData();
       formData.append('email', values.email);
       formData.append('password', values.password);
 
-      const { success, error, role } = await signIn(formData);
+      // Thực hiện đăng nhập
+      const result = await signIn(formData);
+      console.log('Login result:', result);
 
-      if (error) {
+      if (result.error) {
+        setLoginError(result.error);
         toast.error('Đăng nhập thất bại', {
-          description: error,
+          description: result.error,
         });
         return;
       }
 
-      // Route based on role
-      switch (role) {
-        case 'super_admin':
-          router.push('/admin/dashboard');
-          break;
-        case 'admin':
-          router.push('/admin/dashboard');
-          break;
-        case 'user':
-          router.push('/dashboard');
-          break;
-        default:
-          router.push('/dashboard');
-      }
-
+      // Nếu đăng nhập thành công
       toast.success('Đăng nhập thành công');
+      console.log('Login successful, role:', result.role);
+
+      // Thêm timeout để đảm bảo toast hiển thị trước khi chuyển trang
+      setTimeout(() => {
+        // Chuyển hướng dựa vào role
+        if (result.role === 'super_admin' || result.role === 'admin') {
+          console.log('Redirecting to admin dashboard...');
+          window.location.href = '/admin/dashboard';
+        } else {
+          console.log('Redirecting to user dashboard...');
+          window.location.href = '/dashboard';
+        }
+      }, 500);
     } catch (error) {
+      console.error('Login error:', error);
+      setLoginError(error.message || 'Đã xảy ra lỗi không xác định');
       toast.error('Đã xảy ra lỗi', {
-        description: error.message,
+        description:
+          error.message || 'Không thể đăng nhập, vui lòng thử lại sau.',
       });
     } finally {
       setIsLoading(false);
@@ -99,6 +110,12 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {loginError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{loginError}</AlertDescription>
+            </Alert>
+          )}
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField

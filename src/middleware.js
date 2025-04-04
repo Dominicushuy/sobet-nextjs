@@ -1,18 +1,66 @@
-import { updateSession } from '@/utils/supabase/middleware';
+import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
 export async function middleware(request) {
-  return await updateSession(request);
+  // Trả về response ngay để không làm thay đổi request
+  const res = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  // Chỉ xử lý cookies và không thêm bất kỳ logic chuyển hướng nào
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        get(name) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name, value, options) {
+          res.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name, options) {
+          res.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+        },
+      },
+    }
+  );
+
+  // Đơn giản là kiểm tra session
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // Nếu không có session và đang cố truy cập các trang được bảo vệ
+  if (!session) {
+    const { pathname } = request.nextUrl;
+
+    // Nếu đang truy cập vào các trang cần đăng nhập
+    if (
+      pathname !== '/login' &&
+      !pathname.startsWith('/auth') &&
+      !pathname.startsWith('/_next') &&
+      !pathname.includes('.')
+    ) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
+  return res;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

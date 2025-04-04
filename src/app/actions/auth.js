@@ -7,34 +7,57 @@ export async function signIn(formData) {
   const email = formData.get('email');
   const password = formData.get('password');
 
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return { error: error.message };
+  // Kiểm tra dữ liệu đầu vào
+  if (!email || !password) {
+    return { error: 'Email và mật khẩu là bắt buộc' };
   }
 
-  // Get user role information
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('*, roles:roles(name)')
-    .eq('id', data.user.id)
-    .single();
+  try {
+    const supabase = await createClient();
 
-  if (userError) {
-    return { error: 'Unable to get user information' };
+    // Đăng nhập bằng Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error('Auth error:', error.message);
+      return { error: error.message };
+    }
+
+    if (!data.user) {
+      return { error: 'Không tìm thấy thông tin người dùng' };
+    }
+
+    // Lấy thông tin role của user
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*, roles:roles(name)')
+      .eq('id', data.user.id)
+      .single();
+
+    if (userError) {
+      console.error('User data error:', userError.message);
+      return { error: 'Không thể lấy thông tin người dùng' };
+    }
+
+    // Đảm bảo có dữ liệu role
+    if (!userData || !userData.roles || !userData.roles.name) {
+      return { error: 'Không tìm thấy thông tin vai trò người dùng' };
+    }
+
+    // Trả về thông tin đăng nhập thành công
+    return {
+      success: true,
+      role: userData.roles.name,
+      user: data.user,
+      userData,
+    };
+  } catch (error) {
+    console.error('Unexpected error in signIn:', error);
+    return { error: 'Lỗi hệ thống, vui lòng thử lại sau' };
   }
-
-  return {
-    success: true,
-    role: userData.roles.name,
-    user: data.user,
-    userData,
-  };
 }
 
 export async function signOut() {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
@@ -19,12 +19,46 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth } from '@/providers/AuthProvider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { toast } from 'sonner';
 
 export default function AdminLayout({ children }) {
-  const { user, role, signOut, isSuperAdmin } = useAuth();
-
+  const { user, role, signOut, loading, isSuperAdmin } = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+
+  // Kiểm tra quyền truy cập một lần duy nhất sau khi loading hoàn tất
+  useEffect(() => {
+    if (!loading && !hasCheckedAuth) {
+      setHasCheckedAuth(true);
+
+      if (!user) {
+        toast.error('Vui lòng đăng nhập để tiếp tục');
+        router.replace('/login');
+        return;
+      }
+
+      if (role !== 'admin' && role !== 'super_admin') {
+        toast.error('Bạn không có quyền truy cập trang này');
+        router.replace('/dashboard');
+      }
+    }
+  }, [loading, user, role, router, hasCheckedAuth]);
+
+  // Hiển thị loading khi đang kiểm tra
+  if (loading || (user && !hasCheckedAuth)) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  // Chỉ render nội dung khi đã kiểm tra quyền và user có quyền truy cập
+  if (!user || (role !== 'admin' && role !== 'super_admin')) {
+    return null; // Không render gì cả, sẽ chuyển hướng trong useEffect
+  }
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
