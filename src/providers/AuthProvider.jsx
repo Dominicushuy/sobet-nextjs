@@ -1,14 +1,14 @@
+// src/providers/AuthProvider.jsx
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import axios from 'axios';
 import { toast } from 'sonner';
 
-// Tạo context
 const AuthContext = createContext();
 
-// Hook để sử dụng AuthContext
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -24,80 +24,76 @@ export const AuthProvider = ({ children }) => {
   const router = useRouter();
   const supabase = createClient();
 
-  // Lấy phiên hiện tại
-  const getSession = async () => {
+  const fetchUserData = async () => {
     try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+      console.log('Fetching user data from API...');
+      const { data } = await axios.get('/api/auth/user');
+      console.log('User data received:', data);
 
-      console.log('session', session);
-
-      if (error) {
-        console.error('Error getting session:', error);
-        setUser(null);
-        setRole(null);
-        setLoading(false);
-        return;
+      if (data && data.roles) {
+        setRole(data.roles.name);
+        return data.roles.name;
       }
-
-      if (session) {
-        setUser(session.user);
-
-        // Lấy thông tin role
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('roles:roles(name)')
-          .eq('id', session.user.id)
-          .single();
-
-        if (userError) {
-          console.error('Error getting user role:', userError);
-          setRole(null);
-        } else {
-          setRole(userData.roles.name);
-        }
-      } else {
-        setUser(null);
-        setRole(null);
-      }
+      return null;
     } catch (error) {
-      console.error('Auth provider error:', error);
-      setUser(null);
-      setRole(null);
-    } finally {
-      setLoading(false);
+      console.error(
+        'Error fetching user data from API:',
+        error.response?.data || error.message
+      );
+      return null;
     }
   };
 
   useEffect(() => {
-    getSession();
+    const getSession = async () => {
+      try {
+        console.log('Getting session...');
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
-    // Lắng nghe sự thay đổi xác thực
+        console.log('Session result:', {
+          session: session?.user?.id ? 'exists' : 'none',
+          error,
+        });
+
+        if (error) {
+          console.error('Error getting session:', error);
+          setUser(null);
+          setRole(null);
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user) {
+          setUser(session.user);
+          await fetchUserData();
+        } else {
+          setUser(null);
+          setRole(null);
+        }
+      } catch (error) {
+        console.error('Auth provider error:', error);
+        setUser(null);
+        setRole(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session) {
-          setUser(session.user);
+        console.log('Auth state changed:', event);
 
-          console.log('session', session);
-
-          // Lấy thông tin role
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('roles:roles(name)')
-            .eq('id', session.user.id)
-            .single();
-
-          console.log('userData', userData);
-
-          if (userError) {
-            console.error('Error getting user role:', userError);
-            setRole(null);
-          } else {
-            setRole(userData.roles.name);
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (session?.user) {
+            console.log('User session detected:', session.user.id);
+            setUser(session.user);
+            await fetchUserData();
           }
-        } else {
+        } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
           setUser(null);
           setRole(null);
         }
@@ -106,14 +102,15 @@ export const AuthProvider = ({ children }) => {
       }
     );
 
-    return () => {
-      if (authListener && authListener.subscription) {
-        authListener.subscription.unsubscribe();
-      }
-    };
-  }, [supabase, router]);
+    // Get initial session
+    getSession();
 
-  // Đăng xuất
+    return () => {
+      console.log('Cleaning up auth listener');
+      authListener.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
   const signOut = async () => {
     try {
       setLoading(true);
@@ -136,13 +133,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Kiểm tra quyền truy cập
   const checkAccess = (allowedRoles) => {
     if (!role) return false;
     return allowedRoles.includes(role);
   };
 
-  // Giá trị cung cấp cho context
+  const refreshSession = async () => {
+    console.log('Refreshing session...');
+    if (user?.id) {
+      await fetchUserData();
+    }
+  };
+
   const value = {
     user,
     role,
@@ -152,7 +154,10 @@ export const AuthProvider = ({ children }) => {
     isSuperAdmin: role === 'super_admin',
     isUser: role === 'user',
     checkAccess,
+    refreshSession,
   };
+
+  console.log('Auth context state:', { userId: user?.id, role, loading });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

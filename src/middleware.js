@@ -1,11 +1,9 @@
+// src/middleware.js
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 // Đường dẫn công khai (không cần đăng nhập)
-const publicPaths = ['/login', '/api/'];
-
-// Đường dẫn admin/super_admin
-const adminPaths = ['/admin'];
+const publicPaths = ['/login', '/api/auth/user', '/api/'];
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -22,10 +20,8 @@ export async function middleware(request) {
   // Kiểm tra xem đường dẫn có phải là công khai không
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
-  // Tạo một response mới để ghi cookies
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  // Tạo response mới để quản lý cookies
+  let supabaseResponse = NextResponse.next();
 
   // Tạo Supabase client
   const supabase = createServerClient(
@@ -58,6 +54,7 @@ export async function middleware(request) {
 
   // Nếu không có phiên và đường dẫn không công khai, chuyển hướng đến trang đăng nhập
   if (!user && !isPublicPath) {
+    console.log('No session, redirecting to login');
     const redirectUrl = new URL('/login', request.url);
     redirectUrl.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(redirectUrl);
@@ -65,6 +62,7 @@ export async function middleware(request) {
 
   // Nếu đã đăng nhập và đang truy cập trang đăng nhập, chuyển hướng đến trang chủ
   if (user && pathname === '/login') {
+    console.log('User logged in, redirecting from login');
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
@@ -78,8 +76,11 @@ export async function middleware(request) {
         .eq('id', user.id)
         .single();
 
+      console.log('Middleware role check:', { userData, error });
+
       if (error || !userData) {
         // Nếu có lỗi hoặc không tìm thấy người dùng, hủy phiên và chuyển hướng
+        console.log('User data fetch error in middleware');
         await supabase.auth.signOut();
         return NextResponse.redirect(new URL('/login', request.url));
       }
@@ -91,6 +92,7 @@ export async function middleware(request) {
         pathname.startsWith('/admin') &&
         !['admin', 'super_admin'].includes(roleName)
       ) {
+        console.log('Access denied to admin path');
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
     } catch (error) {
@@ -104,13 +106,6 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
