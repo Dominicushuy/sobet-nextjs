@@ -76,24 +76,24 @@ export default function AdminsManagementPage() {
     data: admins = [],
     isLoading,
     refetch,
+    error: adminsError,
   } = useServerQuery(
     ['admins', searchQuery],
     async () => {
-      const result = await fetchAdmins(searchQuery);
-      if (result.error) {
-        toast.error('Error fetching admins: ' + result.error);
-        return [];
-      }
-      return result.data;
+      return await fetchAdmins(searchQuery);
     },
     {
       enabled: isSuperAdmin,
+      defaultData: [],
+      onError: (error) => {
+        toast.error('Error fetching admins: ' + error.message);
+      },
     }
   );
 
   // Create admin mutation
   const createAdminMutation = useServerMutation(
-    ['createAdmin'],
+    'createAdmin',
     async (data) => {
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
@@ -116,7 +116,7 @@ export default function AdminsManagementPage() {
 
   // Update admin mutation
   const updateAdminMutation = useServerMutation(
-    ['updateAdmin'],
+    'updateAdmin',
     async (data) => {
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
@@ -139,7 +139,7 @@ export default function AdminsManagementPage() {
 
   // Update admin password mutation
   const updatePasswordMutation = useServerMutation(
-    ['updateAdminPassword'],
+    'updateAdminPassword',
     async (data) => {
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
@@ -161,7 +161,7 @@ export default function AdminsManagementPage() {
 
   // Update admin settings mutation
   const updateSettingsMutation = useServerMutation(
-    ['updateAdminSettings'],
+    'updateAdminSettings',
     async (data) => {
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
@@ -183,7 +183,7 @@ export default function AdminsManagementPage() {
 
   // Toggle admin status mutation
   const toggleStatusMutation = useServerMutation(
-    ['toggleAdminStatus'],
+    'toggleAdminStatus',
     async ({ id, currentStatus }) => {
       return await toggleAdminStatus(id, currentStatus);
     },
@@ -422,7 +422,9 @@ export default function AdminsManagementPage() {
             <div className="flex justify-center py-8">Đang tải dữ liệu...</div>
           ) : admins.length === 0 ? (
             <div className="flex justify-center py-8 text-muted-foreground">
-              Không tìm thấy admin nào.
+              {adminsError
+                ? `Lỗi: ${adminsError.message}`
+                : 'Không tìm thấy admin nào.'}
             </div>
           ) : (
             <Table>
@@ -463,48 +465,52 @@ export default function AdminsManagementPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => openEditDialog(admin)}
-                          title="Chỉnh sửa"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => openPasswordDialog(admin)}
-                          title="Đổi mật khẩu"
-                        >
-                          <Key className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => openSettingsDialog(admin)}
-                          title="Cài đặt"
-                        >
-                          <UserCog className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant={admin.is_active ? 'destructive' : 'success'}
-                          size="icon"
-                          onClick={() => handleToggleStatus(admin)}
-                          title={
-                            admin.is_active
-                              ? 'Khóa tài khoản'
-                              : 'Kích hoạt tài khoản'
-                          }
-                        >
-                          {admin.is_active ? (
-                            <XCircle className="h-4 w-4" />
-                          ) : (
-                            <CheckCircle className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
+                      {admin.role_id !== 1 && (
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openEditDialog(admin)}
+                            title="Chỉnh sửa"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openPasswordDialog(admin)}
+                            title="Đổi mật khẩu"
+                          >
+                            <Key className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openSettingsDialog(admin)}
+                            title="Cài đặt"
+                          >
+                            <UserCog className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant={
+                              admin.is_active ? 'destructive' : 'success'
+                            }
+                            size="icon"
+                            onClick={() => handleToggleStatus(admin)}
+                            title={
+                              admin.is_active
+                                ? 'Khóa tài khoản'
+                                : 'Kích hoạt tài khoản'
+                            }
+                          >
+                            {admin.is_active ? (
+                              <XCircle className="h-4 w-4" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -626,14 +632,14 @@ export default function AdminsManagementPage() {
             <Button
               onClick={handleSaveAdmin}
               disabled={
-                createAdminMutation.isLoading || updateAdminMutation.isLoading
+                createAdminMutation.isPending || updateAdminMutation.isPending
               }
             >
               {isEditing
-                ? updateAdminMutation.isLoading
+                ? updateAdminMutation.isPending
                   ? 'Đang cập nhật...'
                   : 'Cập nhật'
-                : createAdminMutation.isLoading
+                : createAdminMutation.isPending
                   ? 'Đang tạo...'
                   : 'Tạo mới'}
             </Button>
@@ -690,9 +696,9 @@ export default function AdminsManagementPage() {
             </Button>
             <Button
               onClick={handleChangePassword}
-              disabled={updatePasswordMutation.isLoading}
+              disabled={updatePasswordMutation.isPending}
             >
-              {updatePasswordMutation.isLoading
+              {updatePasswordMutation.isPending
                 ? 'Đang cập nhật...'
                 : 'Cập nhật mật khẩu'}
             </Button>
@@ -740,9 +746,9 @@ export default function AdminsManagementPage() {
             </Button>
             <Button
               onClick={handleUpdateSettings}
-              disabled={updateSettingsMutation.isLoading}
+              disabled={updateSettingsMutation.isPending}
             >
-              {updateSettingsMutation.isLoading
+              {updateSettingsMutation.isPending
                 ? 'Đang cập nhật...'
                 : 'Cập nhật cài đặt'}
             </Button>

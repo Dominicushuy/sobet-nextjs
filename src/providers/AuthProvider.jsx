@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }) => {
       const { user, userData, error } = await getSession();
 
       if (error || !user) {
+        console.error('Error fetching session:', error);
         setUser(null);
         setUserData(null);
         setRole(null);
@@ -65,6 +66,7 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         toast.error('Đã xảy ra lỗi khi đăng xuất');
+        console.error('Signout error:', error);
         return;
       }
 
@@ -74,6 +76,7 @@ export const AuthProvider = ({ children }) => {
       toast.success('Đăng xuất thành công');
       router.push('/login');
     } catch (error) {
+      console.error('Unexpected error during signout:', error);
       toast.error('Đã xảy ra lỗi khi đăng xuất');
     } finally {
       setLoading(false);

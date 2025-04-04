@@ -1,13 +1,16 @@
 // src/app/actions/admin.js
 'use server';
 
+import { createClient } from '@/utils/supabase/server';
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 export async function fetchAdmins(search = '') {
   try {
+    const supabase = await createClient();
+
     // Truy vấn danh sách admin từ Supabase
-    let query = supabaseAdmin
+    let query = supabase
       .from('users')
       .select('*, roles:roles(name)')
       .eq('roles.name', 'admin');
@@ -25,29 +28,34 @@ export async function fetchAdmins(search = '') {
 
     if (error) {
       console.error('Error fetching admins:', error);
-      return { error: error.message };
+      return { data: [], error: error.message };
+    }
+
+    // Nếu không có dữ liệu, trả về mảng rỗng
+    if (!data || data.length === 0) {
+      return { data: [] };
     }
 
     // Lấy thêm thông tin settings của admin
     const adminIds = data.map((admin) => admin.id);
-
-    if (adminIds.length === 0) {
-      return { data: [] };
-    }
-
-    const { data: adminSettings, error: settingsError } = await supabaseAdmin
+    const { data: adminSettings, error: settingsError } = await supabase
       .from('admin_settings')
       .select('*')
       .in('admin_id', adminIds);
 
     if (settingsError) {
       console.error('Error fetching admin settings:', settingsError);
-      return { error: settingsError.message };
+      // Vẫn trả về dữ liệu admin nếu lỗi settings
+      return {
+        data: data.map((admin) => ({ ...admin, settings: {} })),
+        error: `Settings error: ${settingsError.message}`,
+      };
     }
 
     // Map settings vào từng admin
     const adminsWithSettings = data.map((admin) => {
-      const settings = adminSettings.find((s) => s.admin_id === admin.id) || {};
+      const settings =
+        adminSettings?.find((s) => s.admin_id === admin.id) || {};
       return {
         ...admin,
         settings,
@@ -57,12 +65,13 @@ export async function fetchAdmins(search = '') {
     return { data: adminsWithSettings };
   } catch (error) {
     console.error('Server action error:', error);
-    return { error: 'Internal server error' };
+    return { data: [], error: 'Internal server error' };
   }
 }
 
 export async function createAdmin(formData) {
   try {
+    // Sử dụng supabaseAdmin cho các hành động quản trị
     const username = formData.get('username');
     const email = formData.get('email');
     const full_name = formData.get('full_name') || '';
@@ -70,7 +79,10 @@ export async function createAdmin(formData) {
     const max_users = parseInt(formData.get('max_users') || '10', 10);
 
     if (!username || !email || !password) {
-      return { error: 'Username, email, and password are required' };
+      return {
+        data: null,
+        error: 'Username, email, and password are required',
+      };
     }
 
     // Lấy role_id của admin
@@ -81,19 +93,22 @@ export async function createAdmin(formData) {
       .single();
 
     if (roleError || !roleData) {
-      return { error: 'Admin role not found' };
+      return { data: null, error: 'Admin role not found' };
     }
 
     // Tạo user mới với role admin trong Supabase Auth
-    const { data: userData, error: userError } =
+    const { data: authData, error: userError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
       });
 
-    if (userError) {
-      return { error: userError.message };
+    if (userError || !authData?.user) {
+      return {
+        data: null,
+        error: userError?.message || 'Could not create user',
+      };
     }
 
     // Thêm thông tin user vào bảng users
@@ -101,7 +116,7 @@ export async function createAdmin(formData) {
       .from('users')
       .insert([
         {
-          id: userData.user.id,
+          id: authData.user.id,
           username,
           email,
           full_name,
@@ -113,26 +128,30 @@ export async function createAdmin(formData) {
 
     if (adminError) {
       // Xóa user đã tạo nếu có lỗi
-      await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-      return { error: adminError.message };
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return { data: null, error: adminError.message };
     }
 
     // Tạo admin_settings cho admin mới
-    await supabaseAdmin.from('admin_settings').insert([
-      {
-        admin_id: userData.user.id,
-        max_users: max_users,
-        bet_multiplier: 0.8, // Giá trị mặc định
-        commission_rate: 4.0, // Giá trị mặc định
-      },
-    ]);
+    const { error: settingsError } = await supabaseAdmin
+      .from('admin_settings')
+      .insert([
+        {
+          admin_id: authData.user.id,
+          max_users: max_users,
+        },
+      ]);
+
+    if (settingsError) {
+      console.error('Error creating admin settings:', settingsError);
+    }
 
     revalidatePath('/admin/admins');
 
     return { data: newAdmin };
   } catch (error) {
     console.error('Server action error:', error);
-    return { error: 'Internal server error' };
+    return { data: null, error: 'Internal server error' };
   }
 }
 
@@ -145,7 +164,7 @@ export async function updateAdmin(formData) {
     const is_active = formData.get('is_active') === 'true';
 
     if (!id || !username || !email) {
-      return { error: 'ID, username, and email are required' };
+      return { data: null, error: 'ID, username, and email are required' };
     }
 
     // Kiểm tra nếu email thay đổi
@@ -156,7 +175,7 @@ export async function updateAdmin(formData) {
       .single();
 
     if (fetchError) {
-      return { error: 'Admin not found' };
+      return { data: null, error: 'Admin not found' };
     }
 
     // Cập nhật email trong Auth nếu thay đổi
@@ -165,7 +184,7 @@ export async function updateAdmin(formData) {
         await supabaseAdmin.auth.admin.updateUserById(id, { email });
 
       if (authError) {
-        return { error: authError.message };
+        return { data: null, error: authError.message };
       }
     }
 
@@ -184,7 +203,7 @@ export async function updateAdmin(formData) {
       .single();
 
     if (updateError) {
-      return { error: updateError.message };
+      return { data: null, error: updateError.message };
     }
 
     revalidatePath('/admin/admins');
@@ -192,7 +211,7 @@ export async function updateAdmin(formData) {
     return { data: updatedAdmin };
   } catch (error) {
     console.error('Server action error:', error);
-    return { error: 'Internal server error' };
+    return { data: null, error: 'Internal server error' };
   }
 }
 
@@ -202,7 +221,7 @@ export async function updateAdminPassword(formData) {
     const password = formData.get('password');
 
     if (!id || !password || password.length < 6) {
-      return { error: 'Password must be at least 6 characters' };
+      return { data: null, error: 'Password must be at least 6 characters' };
     }
 
     // Kiểm tra nếu admin tồn tại
@@ -213,7 +232,7 @@ export async function updateAdminPassword(formData) {
       .single();
 
     if (checkError || !adminExists) {
-      return { error: 'Admin not found' };
+      return { data: null, error: 'Admin not found' };
     }
 
     // Cập nhật mật khẩu
@@ -221,13 +240,13 @@ export async function updateAdminPassword(formData) {
       await supabaseAdmin.auth.admin.updateUserById(id, { password });
 
     if (updateError) {
-      return { error: updateError.message };
+      return { data: null, error: updateError.message };
     }
 
-    return { success: true };
+    return { data: { id }, success: true };
   } catch (error) {
     console.error('Server action error:', error);
-    return { error: 'Internal server error' };
+    return { data: null, error: 'Internal server error' };
   }
 }
 
@@ -235,13 +254,9 @@ export async function updateAdminSettings(formData) {
   try {
     const id = formData.get('id');
     const max_users = parseInt(formData.get('max_users') || '10', 10);
-    const bet_multiplier = parseFloat(formData.get('bet_multiplier') || '0.8');
-    const commission_rate = parseFloat(
-      formData.get('commission_rate') || '4.0'
-    );
 
     if (isNaN(max_users) || max_users < 0) {
-      return { error: 'Max users must be a positive number' };
+      return { data: null, error: 'Max users must be a positive number' };
     }
 
     // Kiểm tra nếu admin tồn tại
@@ -252,7 +267,7 @@ export async function updateAdminSettings(formData) {
       .single();
 
     if (checkError || !adminExists) {
-      return { error: 'Admin not found' };
+      return { data: null, error: 'Admin not found' };
     }
 
     // Kiểm tra nếu settings tồn tại
@@ -272,15 +287,13 @@ export async function updateAdminSettings(formData) {
           {
             admin_id: id,
             max_users,
-            bet_multiplier,
-            commission_rate,
           },
         ])
         .select()
         .single();
 
       if (error) {
-        return { error: error.message };
+        return { data: null, error: error.message };
       }
 
       result = data;
@@ -289,8 +302,6 @@ export async function updateAdminSettings(formData) {
       const updates = {};
 
       if (!isNaN(max_users)) updates.max_users = max_users;
-      if (!isNaN(bet_multiplier)) updates.bet_multiplier = bet_multiplier;
-      if (!isNaN(commission_rate)) updates.commission_rate = commission_rate;
 
       const { data, error } = await supabaseAdmin
         .from('admin_settings')
@@ -300,7 +311,7 @@ export async function updateAdminSettings(formData) {
         .single();
 
       if (error) {
-        return { error: error.message };
+        return { data: null, error: error.message };
       }
 
       result = data;
@@ -311,7 +322,7 @@ export async function updateAdminSettings(formData) {
     return { data: result };
   } catch (error) {
     console.error('Server action error:', error);
-    return { error: 'Internal server error' };
+    return { data: null, error: 'Internal server error' };
   }
 }
 
@@ -328,7 +339,7 @@ export async function toggleAdminStatus(id, currentStatus) {
       .single();
 
     if (error) {
-      return { error: error.message };
+      return { data: null, error: error.message };
     }
 
     revalidatePath('/admin/admins');
@@ -336,7 +347,7 @@ export async function toggleAdminStatus(id, currentStatus) {
     return { data };
   } catch (error) {
     console.error('Server action error:', error);
-    return { error: 'Internal server error' };
+    return { data: null, error: 'Internal server error' };
   }
 }
 
@@ -351,7 +362,7 @@ export async function getAdminById(id) {
       .single();
 
     if (error) {
-      return { error: 'Admin not found' };
+      return { data: null, error: 'Admin not found' };
     }
 
     // Lấy thông tin settings của admin
@@ -373,6 +384,6 @@ export async function getAdminById(id) {
     };
   } catch (error) {
     console.error('Server action error:', error);
-    return { error: 'Internal server error' };
+    return { data: null, error: 'Internal server error' };
   }
 }

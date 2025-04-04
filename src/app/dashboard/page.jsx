@@ -8,6 +8,7 @@ import { FileText, BarChart3, CircleDollarSign, Percent } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useServerQuery } from '@/hooks/useServerAction';
 import { fetchBetCodesCount } from '@/app/actions/dashboard';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -22,6 +23,10 @@ export default function Dashboard() {
   const { data: betCodesCount = 0, isLoading: isLoadingBetCodes } =
     useServerQuery(['betCodesCount', user?.id], getBetCodesCount, {
       enabled: !!user?.id,
+      defaultData: 0,
+      onError: (error) => {
+        toast.error('Không thể tải số lượng mã cược: ' + error.message);
+      },
     });
 
   return (

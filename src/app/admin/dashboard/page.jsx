@@ -8,6 +8,7 @@ import { Users, Database, BarChart3, CircleDollarSign } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useServerQuery } from '@/hooks/useServerAction';
 import { fetchUserCount, fetchBetCodesCount } from '@/app/actions/dashboard';
+import { toast } from 'sonner';
 
 export default function AdminDashboard() {
   const { user, isSuperAdmin } = useAuth();
@@ -29,6 +30,10 @@ export default function AdminDashboard() {
     getUserCount,
     {
       enabled: !!user?.id,
+      defaultData: 0,
+      onError: (error) => {
+        toast.error('Không thể tải số lượng người dùng: ' + error.message);
+      },
     }
   );
 
@@ -39,6 +44,10 @@ export default function AdminDashboard() {
       getBetCodesCount,
       {
         enabled: !!user?.id,
+        defaultData: 0,
+        onError: (error) => {
+          toast.error('Không thể tải số lượng mã cược: ' + error.message);
+        },
       }
     );
 

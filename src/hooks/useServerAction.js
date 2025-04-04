@@ -6,14 +6,32 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export function useServerQuery(key, serverAction, options = {}) {
   const fetchData = useCallback(async () => {
-    const result = await serverAction();
+    try {
+      const result = await serverAction();
 
-    if (result.error) {
-      throw new Error(result.error);
+      // Kiểm tra và xử lý lỗi
+      if (result.error) {
+        console.error(
+          `Query error [${Array.isArray(key) ? key.join(',') : key}]:`,
+          result.error
+        );
+        throw new Error(result.error);
+      }
+
+      // Đảm bảo data được trả về, nếu không có thì trả về mảng rỗng hoặc giá trị mặc định
+      if (result.data === undefined || result.data === null) {
+        return options.defaultData || [];
+      }
+
+      return result.data;
+    } catch (error) {
+      console.error(
+        `Query exception [${Array.isArray(key) ? key.join(',') : key}]:`,
+        error
+      );
+      throw error;
     }
-
-    return result.data;
-  }, [serverAction]);
+  }, [serverAction, key, options.defaultData]);
 
   return useQuery({
     queryKey: Array.isArray(key) ? key : [key],
@@ -27,15 +45,26 @@ export function useServerMutation(key, serverAction, options = {}) {
 
   const mutate = useCallback(
     async (variables) => {
-      const result = await serverAction(variables);
+      try {
+        const result = await serverAction(variables);
 
-      if (result.error) {
-        throw new Error(result.error);
+        if (result.error) {
+          console.error(`Mutation error [${key}]:`, result.error);
+          throw new Error(result.error);
+        }
+
+        // Nếu success = true nhưng không có data, trả về một object đơn giản
+        if (result.success && result.data === undefined) {
+          return { success: true };
+        }
+
+        return result.data || { success: true };
+      } catch (error) {
+        console.error(`Mutation exception [${key}]:`, error);
+        throw error;
       }
-
-      return result.data;
     },
-    [serverAction]
+    [serverAction, key]
   );
 
   return useMutation({

@@ -52,7 +52,6 @@ export default function LoginPage() {
       setIsLoading(true);
       setLoginError('');
 
-      // Hiển thị thông tin đăng nhập để debug
       console.log('Submitting login with:', values.email);
 
       const formData = new FormData();
@@ -72,13 +71,22 @@ export default function LoginPage() {
       }
 
       // Nếu đăng nhập thành công
+      const userData = result.data;
+      if (!userData || !userData.role) {
+        setLoginError('Không thể lấy thông tin người dùng');
+        toast.error('Đăng nhập thất bại', {
+          description: 'Không thể lấy thông tin người dùng',
+        });
+        return;
+      }
+
       toast.success('Đăng nhập thành công');
-      console.log('Login successful, role:', result.role);
+      console.log('Login successful, role:', userData.role);
 
       // Thêm timeout để đảm bảo toast hiển thị trước khi chuyển trang
       setTimeout(() => {
         // Chuyển hướng dựa vào role
-        if (result.role === 'super_admin' || result.role === 'admin') {
+        if (userData.role === 'super_admin' || userData.role === 'admin') {
           console.log('Redirecting to admin dashboard...');
           window.location.href = '/admin/dashboard';
         } else {

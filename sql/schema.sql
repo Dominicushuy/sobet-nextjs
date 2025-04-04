@@ -31,8 +31,6 @@ CREATE TABLE admin_settings (
   id SERIAL PRIMARY KEY,
   admin_id UUID NOT NULL REFERENCES users(id),
   max_users INTEGER NOT NULL DEFAULT 10,
-  bet_multiplier NUMERIC(10, 2) NOT NULL DEFAULT 0.8,
-  commission_rate NUMERIC(5, 2) NOT NULL DEFAULT 4.0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (admin_id)
