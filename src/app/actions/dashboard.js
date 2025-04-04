@@ -4,7 +4,7 @@
 import { createClient } from '@/utils/supabase/server';
 
 export async function fetchUserCount(userId, isSuperAdmin = false) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (isSuperAdmin) {
     // Get all users
@@ -37,7 +37,7 @@ export async function fetchBetCodesCount(
   isSuperAdmin = false,
   isUser = false
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (isUser) {
     // Regular user, just count their own bet codes

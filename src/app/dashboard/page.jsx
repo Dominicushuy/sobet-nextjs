@@ -1,7 +1,7 @@
 // src/app/dashboard/page.jsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/providers/AuthProvider';
 import { FileText, BarChart3, CircleDollarSign, Percent } from 'lucide-react';
@@ -11,26 +11,18 @@ import { fetchBetCodesCount } from '@/app/actions/dashboard';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Wrapped in useCallback
+  const getBetCodesCount = useCallback(async () => {
+    if (!user?.id) return { data: 0 };
+    return await fetchBetCodesCount(user?.id, false, true);
+  }, [user?.id]);
 
   // Query bet codes count
-  const { data: betCodesCount, isLoading: isLoadingBetCodes } = useServerQuery(
-    ['betCodesCount', user?.id],
-    async () => {
-      return await fetchBetCodesCount(user?.id, false, true);
-    },
-    {
-      enabled: !!user?.id && mounted,
-    }
-  );
-
-  if (!mounted) {
-    return null;
-  }
+  const { data: betCodesCount = 0, isLoading: isLoadingBetCodes } =
+    useServerQuery(['betCodesCount', user?.id], getBetCodesCount, {
+      enabled: !!user?.id,
+    });
 
   return (
     <div className="space-y-6">

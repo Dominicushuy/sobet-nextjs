@@ -31,6 +31,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchSession = useCallback(async () => {
     try {
+      setLoading(true);
       console.log('Fetching session...');
       const { user, userData, error } = await getSession();
 
@@ -44,10 +45,12 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (user) {
+        console.log('Session found, user:', user.id);
         setUser(user);
         setUserData(userData);
         setRole(userData?.roles?.name);
       } else {
+        console.log('No session found');
         setUser(null);
         setUserData(null);
         setRole(null);
@@ -65,13 +68,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     fetchSession();
 
-    // Setup interval to refresh session periodically
+    // Setup interval to refresh session periodically - 5 minutes is usually good
     const interval = setInterval(
       () => {
         if (user) fetchSession();
       },
-      10 * 60 * 1000
-    ); // Every 10 minutes
+      5 * 60 * 1000
+    );
 
     return () => clearInterval(interval);
   }, [fetchSession, user]);

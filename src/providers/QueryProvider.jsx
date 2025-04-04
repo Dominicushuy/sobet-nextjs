@@ -10,8 +10,10 @@ export function QueryProvider({ children }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 phút
             retry: 1,
+            staleTime: 5 * 60 * 1000, // 5 phút
+            refetchInterval: false,
+            refetchOnMount: false,
             refetchOnWindowFocus: false,
           },
         },

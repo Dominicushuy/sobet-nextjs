@@ -7,7 +7,7 @@ export async function signIn(formData) {
   const email = formData.get('email');
   const password = formData.get('password');
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -21,7 +21,7 @@ export async function signIn(formData) {
   // Get user role information
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('role_id, roles:roles(name)')
+    .select('*, roles:roles(name)')
     .eq('id', data.user.id)
     .single();
 
@@ -33,14 +33,16 @@ export async function signIn(formData) {
     success: true,
     role: userData.roles.name,
     user: data.user,
+    userData,
   };
 }
 
 export async function signOut() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
 
   if (error) {
+    console.error('Error signing out:', error);
     return { error: error.message };
   }
 
@@ -48,34 +50,41 @@ export async function signOut() {
 }
 
 export async function getSession() {
-  const supabase = createClient();
+  try {
+    const supabase = await createClient();
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
 
-  if (error) {
-    return { error: error.message };
+    if (error) {
+      console.error('Session error:', error);
+      return { error: error.message };
+    }
+
+    if (!session?.user) {
+      return { user: null };
+    }
+
+    // Get user role information
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*, roles:roles(name)')
+      .eq('id', session.user.id)
+      .single();
+
+    if (userError) {
+      console.error('User data error:', userError);
+      return { error: 'Unable to get user information' };
+    }
+
+    return {
+      user: session.user,
+      userData,
+    };
+  } catch (error) {
+    console.error('Unexpected auth error:', error);
+    return { error: 'Internal server error' };
   }
-
-  if (!user) {
-    return { user: null };
-  }
-
-  // Get user role information
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('*, roles:roles(name)')
-    .eq('id', user.id)
-    .single();
-
-  if (userError) {
-    return { error: 'Unable to get user information' };
-  }
-
-  return {
-    user,
-    userData,
-  };
 }

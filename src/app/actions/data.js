@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export async function fetchData(table, options = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase.from(table).select(options.select || '*');
 
@@ -45,7 +45,7 @@ export async function fetchData(table, options = {}) {
 }
 
 export async function insertData(table, data, options = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: result, error } = await supabase
     .from(table)
@@ -63,7 +63,7 @@ export async function insertData(table, data, options = {}) {
 }
 
 export async function updateData(table, data, conditions, options = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase.from(table).update(data);
 
@@ -84,7 +84,7 @@ export async function updateData(table, data, conditions, options = {}) {
 }
 
 export async function deleteData(table, conditions, options = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase.from(table).delete();
 

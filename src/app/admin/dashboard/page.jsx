@@ -1,7 +1,7 @@
 // src/app/admin/dashboard/page.jsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/providers/AuthProvider';
 import { Users, Database, BarChart3, CircleDollarSign } from 'lucide-react';
@@ -11,37 +11,36 @@ import { fetchUserCount, fetchBetCodesCount } from '@/app/actions/dashboard';
 
 export default function AdminDashboard() {
   const { user, isSuperAdmin } = useAuth();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Wrapped in useCallback to prevent recreation between renders
+  const getUserCount = useCallback(async () => {
+    if (!user?.id) return { data: 0 };
+    return await fetchUserCount(user?.id, isSuperAdmin);
+  }, [user?.id, isSuperAdmin]);
+
+  const getBetCodesCount = useCallback(async () => {
+    if (!user?.id) return { data: 0 };
+    return await fetchBetCodesCount(user?.id, isSuperAdmin);
+  }, [user?.id, isSuperAdmin]);
 
   // Query user count
-  const { data: usersCount, isLoading: isLoadingUsers } = useServerQuery(
-    ['usersCount', user?.id],
-    async () => {
-      return await fetchUserCount(user?.id, isSuperAdmin);
-    },
+  const { data: usersCount = 0, isLoading: isLoadingUsers } = useServerQuery(
+    ['usersCount', user?.id, isSuperAdmin],
+    getUserCount,
     {
-      enabled: !!user?.id && mounted,
+      enabled: !!user?.id,
     }
   );
 
   // Query bet codes count
-  const { data: betCodesCount, isLoading: isLoadingBetCodes } = useServerQuery(
-    ['adminBetCodesCount', user?.id],
-    async () => {
-      return await fetchBetCodesCount(user?.id, isSuperAdmin);
-    },
-    {
-      enabled: !!user?.id && mounted,
-    }
-  );
-
-  if (!mounted) {
-    return null;
-  }
+  const { data: betCodesCount = 0, isLoading: isLoadingBetCodes } =
+    useServerQuery(
+      ['adminBetCodesCount', user?.id, isSuperAdmin],
+      getBetCodesCount,
+      {
+        enabled: !!user?.id,
+      }
+    );
 
   return (
     <div className="space-y-6">
