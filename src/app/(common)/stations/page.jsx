@@ -91,10 +91,12 @@ const stationSchema = z.object({
   region_id: z.string().min(1, 'Vui lòng chọn miền'),
   aliases: z.string().min(1, 'Vui lòng nhập ít nhất một bí danh'),
   is_active: z.boolean().default(true),
+  scheduleDays: z.array(z.string()).optional(),
 });
 
 export default function StationsPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, isAdmin } = useAuth();
+  const isAdminOrSuper = isSuperAdmin || isAdmin;
 
   // Các state lọc
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,8 +123,6 @@ export default function StationsPage() {
     },
   });
 
-  console.log('allData', allData);
-
   // Toggle region expansion
   const toggleRegionExpansion = (regionId) => {
     setExpandedRegions((prev) => ({
@@ -139,6 +139,7 @@ export default function StationsPage() {
       region_id: '',
       aliases: '',
       is_active: true,
+      scheduleDays: [],
     },
   });
 
@@ -149,6 +150,7 @@ export default function StationsPage() {
       region_id: '',
       aliases: '',
       is_active: true,
+      scheduleDays: [],
     },
   });
 
@@ -222,11 +224,19 @@ export default function StationsPage() {
         ? selectedStation.aliases.join(', ')
         : '';
 
+      // Lấy danh sách các ngày có lịch xổ số của đài
+      const scheduleDays = selectedStation.schedules
+        ? Array.from(
+            new Set(selectedStation.schedules.map((s) => s.day_of_week))
+          )
+        : [];
+
       editForm.reset({
         name: selectedStation.name || '',
         region_id: selectedStation.region_id?.toString() || '',
         aliases: aliasesString,
         is_active: selectedStation.is_active || false,
+        scheduleDays: scheduleDays,
       });
     }
   }, [selectedStation, editForm]);
@@ -238,6 +248,21 @@ export default function StationsPage() {
     setActiveFilter(undefined);
     setScheduleFilter('all');
   };
+
+  // Lấy danh sách các ngày trong tuần
+  const daysOfWeek = useMemo(() => {
+    return [
+      { value: 'all', label: 'Tất cả các ngày' },
+      { value: 'monday', label: 'Thứ Hai' },
+      { value: 'tuesday', label: 'Thứ Ba' },
+      { value: 'wednesday', label: 'Thứ Tư' },
+      { value: 'thursday', label: 'Thứ Năm' },
+      { value: 'friday', label: 'Thứ Sáu' },
+      { value: 'saturday', label: 'Thứ Bảy' },
+      { value: 'sunday', label: 'Chủ Nhật' },
+      { value: 'daily', label: 'Hàng ngày' },
+    ];
+  }, []);
 
   // Lọc và nhóm các đài theo miền
   const groupedStationsByRegion = useMemo(() => {
@@ -260,8 +285,8 @@ export default function StationsPage() {
 
     // Lọc stations theo điều kiện
     const filteredStations = stations.filter((station) => {
-      // Lọc theo trạng thái (nếu không phải super admin, chỉ hiển thị đài hoạt động)
-      if (!isSuperAdmin && !station.is_active) return false;
+      // Lọc theo trạng thái (nếu không phải admin hoặc super admin, chỉ hiển thị đài hoạt động)
+      if (!isAdminOrSuper && !station.is_active) return false;
 
       // Áp dụng bộ lọc activeFilter nếu có
       if (activeFilter !== undefined && station.is_active !== activeFilter)
@@ -323,23 +348,8 @@ export default function StationsPage() {
     regionFilter,
     activeFilter,
     scheduleFilter,
-    isSuperAdmin,
+    isAdminOrSuper,
   ]);
-
-  // Lấy danh sách các ngày trong tuần
-  const daysOfWeek = useMemo(() => {
-    return [
-      { value: 'all', label: 'Tất cả các ngày' },
-      { value: 'monday', label: 'Thứ Hai' },
-      { value: 'tuesday', label: 'Thứ Ba' },
-      { value: 'wednesday', label: 'Thứ Tư' },
-      { value: 'thursday', label: 'Thứ Năm' },
-      { value: 'friday', label: 'Thứ Sáu' },
-      { value: 'saturday', label: 'Thứ Bảy' },
-      { value: 'sunday', label: 'Chủ Nhật' },
-      { value: 'daily', label: 'Hàng ngày' },
-    ];
-  }, []);
 
   // Helper function để hiển thị lịch xổ số
   const formatScheduleDay = (day) => {
@@ -440,6 +450,7 @@ export default function StationsPage() {
       region_id,
       aliases,
       is_active: data.is_active,
+      scheduleDays: data.scheduleDays || [],
     });
   };
 
@@ -462,6 +473,7 @@ export default function StationsPage() {
         region_id,
         aliases,
         is_active: data.is_active,
+        scheduleDays: data.scheduleDays || [],
       },
     });
   };
@@ -484,7 +496,7 @@ export default function StationsPage() {
         <div>
           <h1 className="text-3xl font-bold">Quản lý Đài Cược</h1>
           <p className="text-muted-foreground">
-            Quản lý thông tin đài cược trong hệ thống
+            Xem thông tin đài cược trong hệ thống
           </p>
         </div>
         {isSuperAdmin && (
@@ -586,6 +598,50 @@ export default function StationsPage() {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={createForm.control}
+                    name="scheduleDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lịch xổ số</FormLabel>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                          {daysOfWeek.slice(1).map((day) => (
+                            <div
+                              key={day.value}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                id={`create-day-${day.value}`}
+                                checked={field.value?.includes(day.value)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    field.onChange([
+                                      ...(field.value || []),
+                                      day.value,
+                                    ]);
+                                  } else {
+                                    field.onChange(
+                                      field.value?.filter(
+                                        (value) => value !== day.value
+                                      ) || []
+                                    );
+                                  }
+                                }}
+                              />
+                              <label
+                                htmlFor={`create-day-${day.value}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {day.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <DialogFooter>
                     <Button
                       type="submit"
@@ -661,7 +717,7 @@ export default function StationsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {isSuperAdmin && (
+                    {isAdminOrSuper && (
                       <div className="space-y-2">
                         <Label>Trạng thái</Label>
                         <Select
@@ -1013,6 +1069,50 @@ export default function StationsPage() {
                         Đài cược sẽ được hiển thị cho người dùng
                       </p>
                     </div>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="scheduleDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lịch xổ số</FormLabel>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                      {daysOfWeek.slice(1).map((day) => (
+                        <div
+                          key={day.value}
+                          className="flex items-center space-x-2"
+                        >
+                          <Checkbox
+                            id={`edit-day-${day.value}`}
+                            checked={field.value?.includes(day.value)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                field.onChange([
+                                  ...(field.value || []),
+                                  day.value,
+                                ]);
+                              } else {
+                                field.onChange(
+                                  field.value?.filter(
+                                    (value) => value !== day.value
+                                  ) || []
+                                );
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`edit-day-${day.value}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {day.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   LogOut,
+  Database,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -40,6 +41,11 @@ const navItems = [
     title: 'Mã cược',
     href: '/bet-codes',
     icon: FileText,
+  },
+  {
+    title: 'Đài cược',
+    href: '/stations',
+    icon: Database,
   },
   {
     title: 'Thống kê',

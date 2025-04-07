@@ -59,19 +59,60 @@ export async function fetchAllStationsData() {
 // Hàm tạo mới đài cược (chỉ Super Admin)
 export async function createStation(stationData) {
   try {
-    const { data, error } = await supabaseAdmin
+    // Tách dữ liệu lịch xổ số ra khỏi dữ liệu đài
+    const { scheduleDays, ...stationDataOnly } = stationData;
+
+    // Bắt đầu transaction với supabaseAdmin
+    // 1. Tạo đài mới
+    const { data: newStation, error: stationError } = await supabaseAdmin
       .from('stations')
-      .insert(stationData)
+      .insert(stationDataOnly)
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating station:', error);
-      return { data: null, error: error.message };
+    if (stationError) {
+      console.error('Error creating station:', stationError);
+      return { data: null, error: stationError.message };
+    }
+
+    // 2. Thêm lịch cho đài mới nếu có
+    if (scheduleDays && scheduleDays.length > 0) {
+      for (const day of scheduleDays) {
+        // Tìm order_number lớn nhất cho ngày này
+        const { data: maxOrderData } = await supabaseAdmin
+          .from('station_schedules')
+          .select('order_number')
+          .eq('day_of_week', day)
+          .order('order_number', { ascending: false })
+          .limit(1);
+
+        // Tính order_number mới
+        const nextOrder =
+          maxOrderData && maxOrderData.length > 0
+            ? maxOrderData[0].order_number + 1
+            : 1;
+
+        // Thêm lịch mới
+        const { error: scheduleError } = await supabaseAdmin
+          .from('station_schedules')
+          .insert({
+            station_id: newStation.id,
+            day_of_week: day,
+            order_number: nextOrder,
+          });
+
+        if (scheduleError) {
+          console.error(
+            `Error creating schedule for day ${day}:`,
+            scheduleError
+          );
+          // Không return error ở đây để tiếp tục thêm các ngày khác
+        }
+      }
     }
 
     revalidatePath('/admin/stations');
-    return { data, error: null };
+    return { data: newStation, error: null };
   } catch (error) {
     console.error('Unexpected error in createStation:', error);
     return { data: null, error: 'Internal server error' };
@@ -81,20 +122,71 @@ export async function createStation(stationData) {
 // Hàm cập nhật thông tin đài cược (chỉ Super Admin)
 export async function updateStation(id, stationData) {
   try {
-    const { data, error } = await supabaseAdmin
+    // Tách dữ liệu lịch xổ số ra khỏi dữ liệu đài
+    const { scheduleDays, ...stationDataOnly } = stationData;
+
+    // 1. Cập nhật thông tin đài
+    const { data: updatedStation, error: stationError } = await supabaseAdmin
       .from('stations')
-      .update(stationData)
+      .update(stationDataOnly)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) {
-      console.error('Error updating station:', error);
-      return { data: null, error: error.message };
+    if (stationError) {
+      console.error('Error updating station:', stationError);
+      return { data: null, error: stationError.message };
+    }
+
+    // 2. Xóa tất cả lịch cũ của đài
+    const { error: deleteError } = await supabaseAdmin
+      .from('station_schedules')
+      .delete()
+      .eq('station_id', id);
+
+    if (deleteError) {
+      console.error('Error deleting old schedules:', deleteError);
+      return { data: null, error: deleteError.message };
+    }
+
+    // 3. Thêm lịch mới cho đài nếu có
+    if (scheduleDays && scheduleDays.length > 0) {
+      for (const day of scheduleDays) {
+        // Tìm order_number lớn nhất cho ngày này
+        const { data: maxOrderData } = await supabaseAdmin
+          .from('station_schedules')
+          .select('order_number')
+          .eq('day_of_week', day)
+          .order('order_number', { ascending: false })
+          .limit(1);
+
+        // Tính order_number mới
+        const nextOrder =
+          maxOrderData && maxOrderData.length > 0
+            ? maxOrderData[0].order_number + 1
+            : 1;
+
+        // Thêm lịch mới
+        const { error: scheduleError } = await supabaseAdmin
+          .from('station_schedules')
+          .insert({
+            station_id: id,
+            day_of_week: day,
+            order_number: nextOrder,
+          });
+
+        if (scheduleError) {
+          console.error(
+            `Error creating schedule for day ${day}:`,
+            scheduleError
+          );
+          // Không return error ở đây để tiếp tục thêm các ngày khác
+        }
+      }
     }
 
     revalidatePath('/admin/stations');
-    return { data, error: null };
+    return { data: updatedStation, error: null };
   } catch (error) {
     console.error('Unexpected error in updateStation:', error);
     return { data: null, error: 'Internal server error' };
@@ -127,20 +219,42 @@ export async function toggleStationStatus(id, isActive) {
 // Hàm xóa đài cược (chỉ Super Admin)
 export async function deleteStation(id) {
   try {
-    const { data, error } = await supabaseAdmin
+    // 1. Lưu thông tin đài trước khi xóa để trả về
+    const { data: stationToDelete, error: fetchError } = await supabaseAdmin
       .from('stations')
-      .delete()
+      .select('*')
       .eq('id', id)
-      .select()
       .single();
 
-    if (error) {
-      console.error('Error deleting station:', error);
-      return { data: null, error: error.message };
+    if (fetchError) {
+      console.error('Error fetching station to delete:', fetchError);
+      return { data: null, error: fetchError.message };
+    }
+
+    // 2. Xóa tất cả lịch của đài
+    const { error: schedulesError } = await supabaseAdmin
+      .from('station_schedules')
+      .delete()
+      .eq('station_id', id);
+
+    if (schedulesError) {
+      console.error('Error deleting station schedules:', schedulesError);
+      return { data: null, error: schedulesError.message };
+    }
+
+    // 3. Xóa đài
+    const { error: stationError } = await supabaseAdmin
+      .from('stations')
+      .delete()
+      .eq('id', id);
+
+    if (stationError) {
+      console.error('Error deleting station:', stationError);
+      return { data: null, error: stationError.message };
     }
 
     revalidatePath('/admin/stations');
-    return { data, error: null };
+    return { data: stationToDelete, error: null };
   } catch (error) {
     console.error('Unexpected error in deleteStation:', error);
     return { data: null, error: 'Internal server error' };

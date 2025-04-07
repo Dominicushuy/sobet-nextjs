@@ -103,7 +103,7 @@ export default function AdminLayout({ children }) {
       roles: ['admin', 'super_admin'],
     },
     {
-      href: '/admin/stations',
+      href: '/stations',
       label: 'Quản lý đài',
       icon: <Database size={20} />,
       active: pathname === '/admin/stations',
