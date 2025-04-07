@@ -92,8 +92,6 @@ export default function AdminsManagementPage() {
 
   const admins = adminsResponse?.data || [];
 
-  console.log('admins', admins);
-
   // Create admin mutation
   const createAdminMutation = useServerMutation(
     'createAdmin',
