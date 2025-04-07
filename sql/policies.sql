@@ -583,3 +583,13 @@ USING (
     SELECT id FROM users WHERE created_by = auth.uid()
   )
 );
+
+-- Tạo policy cho regular users để xem station settings áp dụng cho họ
+CREATE POLICY "Users can view station settings that apply to them"
+ON admin_station_settings
+FOR SELECT
+USING (
+  auth.is_regular_user() AND
+  (user_id = auth.uid() OR user_id IS NULL) AND
+  is_enabled_for_users = TRUE
+);

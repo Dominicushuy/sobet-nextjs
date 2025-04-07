@@ -1,7 +1,7 @@
 // src/app/admin/stations/page.jsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   PlusCircle,
@@ -11,6 +11,7 @@ import {
   CheckCircle,
   XCircle,
   Filter,
+  Info,
 } from 'lucide-react';
 
 import {
@@ -48,6 +49,12 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAuth } from '@/providers/AuthProvider';
 import { useServerQuery, useServerMutation } from '@/hooks/useServerAction';
 import {
@@ -67,7 +74,7 @@ const REGIONS = [
 ];
 
 export default function StationsManagementPage() {
-  const { isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -93,7 +100,7 @@ export default function StationsManagementPage() {
       return await fetchStations(selectedRegion);
     },
     {
-      defaultData: [],
+      defaultData: { data: [] },
       onError: (error) => {
         toast.error('Lỗi khi tải dữ liệu đài xổ số: ' + error.message);
       },
@@ -102,7 +109,7 @@ export default function StationsManagementPage() {
 
   const stations = stationsResponse.data || [];
 
-  // Create station mutation
+  // Create station mutation (Super Admin only)
   const createStationMutation = useServerMutation(
     'createStation',
     async (data) => {
@@ -121,7 +128,7 @@ export default function StationsManagementPage() {
     }
   );
 
-  // Update station mutation
+  // Update station mutation (Super Admin only)
   const updateStationMutation = useServerMutation(
     'updateStation',
     async (data) => {
@@ -141,7 +148,7 @@ export default function StationsManagementPage() {
     }
   );
 
-  // Delete station mutation
+  // Delete station mutation (Super Admin only)
   const deleteStationMutation = useServerMutation(
     'deleteStation',
     async (id) => {
@@ -159,7 +166,7 @@ export default function StationsManagementPage() {
     }
   );
 
-  // Toggle station status mutation
+  // Toggle station status mutation (Role-specific behavior)
   const toggleStatusMutation = useServerMutation(
     'toggleStationStatus',
     async ({ id, currentStatus }) => {
@@ -167,9 +174,11 @@ export default function StationsManagementPage() {
     },
     {
       onSuccess: (data, { currentStatus }) => {
-        toast.success(
-          `Đã ${currentStatus ? 'tạm dừng' : 'kích hoạt'} đài xổ số`
-        );
+        const actionText = isSuperAdmin
+          ? (currentStatus ? 'tạm dừng' : 'kích hoạt') + ' toàn hệ thống'
+          : (currentStatus ? 'tắt' : 'bật') + ' cho người dùng của bạn';
+
+        toast.success(`Đã ${actionText} đài xổ số`);
         refetchStations();
       },
       onError: (error) => {
@@ -207,14 +216,14 @@ export default function StationsManagementPage() {
     setSelectedStation(null);
   };
 
-  // Open create dialog
+  // Open create dialog (Super Admin only)
   const openCreateDialog = () => {
     resetFormData();
     setIsEditing(false);
     setIsCreateDialogOpen(true);
   };
 
-  // Open edit dialog
+  // Open edit dialog (Super Admin only)
   const openEditDialog = (station) => {
     setSelectedStation(station);
     setFormData({
@@ -228,13 +237,13 @@ export default function StationsManagementPage() {
     setIsCreateDialogOpen(true);
   };
 
-  // Open delete dialog
+  // Open delete dialog (Super Admin only)
   const openDeleteDialog = (station) => {
     setSelectedStation(station);
     setIsDeleteDialogOpen(true);
   };
 
-  // Handle toggle station status
+  // Handle toggle station status (Role-specific behavior)
   const handleToggleStatus = async (station) => {
     toggleStatusMutation.mutate({
       id: station.id,
@@ -242,7 +251,7 @@ export default function StationsManagementPage() {
     });
   };
 
-  // Handle save station
+  // Handle save station (Super Admin only)
   const handleSaveStation = async () => {
     // Validate form
     if (!formData.name || !formData.region_id) {
@@ -275,7 +284,7 @@ export default function StationsManagementPage() {
     }
   };
 
-  // Handle delete station
+  // Handle delete station (Super Admin only)
   const handleDeleteStation = async () => {
     if (selectedStation) {
       deleteStationMutation.mutate(selectedStation.id);
@@ -308,6 +317,24 @@ export default function StationsManagementPage() {
     acc[regionName].push(station);
     return acc;
   }, {});
+
+  // Get badge description based on role and status
+  const getStatusBadgeDescription = (station) => {
+    if (isSuperAdmin) {
+      return station.is_active
+        ? 'Hoạt động trên toàn hệ thống'
+        : 'Tạm dừng trên toàn hệ thống';
+    } else {
+      // For Admin
+      const isEnabledForUsers =
+        station.admin_setting?.is_enabled_for_users ?? true;
+      return station.is_active
+        ? isEnabledForUsers
+          ? 'Đang bật cho người dùng'
+          : 'Đang tắt cho người dùng'
+        : 'Tạm dừng bởi Super Admin';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -411,21 +438,39 @@ export default function StationsManagementPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {station.is_active ? (
-                          <Badge
-                            variant="default"
-                            className="bg-green-100 text-green-800 hover:bg-green-200"
-                          >
-                            Hoạt động
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="secondary"
-                            className="bg-red-100 text-red-800 hover:bg-red-200"
-                          >
-                            Tạm dừng
-                          </Badge>
-                        )}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center">
+                                {station.is_active ? (
+                                  <Badge
+                                    variant="default"
+                                    className="bg-green-100 text-green-800 hover:bg-green-200"
+                                  >
+                                    Hoạt động
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-red-100 text-red-800 hover:bg-red-200"
+                                  >
+                                    Tạm dừng
+                                  </Badge>
+                                )}
+                                <Info className="h-4 w-4 ml-1 text-muted-foreground" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{getStatusBadgeDescription(station)}</p>
+                              {isAdmin && !station.is_active && (
+                                <p className="text-sm text-muted-foreground">
+                                  Bạn không thể kích hoạt đài này vì nó đã bị
+                                  tạm dừng bởi Super Admin
+                                </p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -455,8 +500,19 @@ export default function StationsManagementPage() {
                             }
                             size="icon"
                             onClick={() => handleToggleStatus(station)}
-                            disabled={toggleStatusMutation.isPending}
-                            title={station.is_active ? 'Tạm dừng' : 'Kích hoạt'}
+                            disabled={
+                              toggleStatusMutation.isPending ||
+                              (isAdmin && !station.is_active)
+                            }
+                            title={
+                              station.is_active
+                                ? isSuperAdmin
+                                  ? 'Tạm dừng toàn hệ thống'
+                                  : 'Tắt cho người dùng'
+                                : isSuperAdmin
+                                  ? 'Kích hoạt toàn hệ thống'
+                                  : 'Bật cho người dùng'
+                            }
                           >
                             {toggleStatusMutation.isPending &&
                             toggleStatusMutation.variables?.id ===
@@ -539,6 +595,28 @@ export default function StationsManagementPage() {
                 rows={3}
               />
             </div>
+            {isEditing && (
+              <div className="space-y-2">
+                <Label htmlFor="is_active">Trạng thái</Label>
+                <Select
+                  value={formData.is_active ? 'active' : 'inactive'}
+                  onValueChange={(value) =>
+                    handleSelectChange('is_active', value === 'active')
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Hoạt động</SelectItem>
+                    <SelectItem value="inactive">Tạm dừng</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Đài tạm dừng sẽ không hiển thị cho Admin và User
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button

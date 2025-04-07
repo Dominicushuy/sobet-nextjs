@@ -196,7 +196,7 @@ CREATE TABLE admin_bet_type_settings (
   is_enabled_for_users BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (admin_id, bet_type_id, user_id) -- Thêm user_id vào constraint
+  UNIQUE (admin_id, bet_type_id, user_id)
 );
 
 -- Bảng AdminStationSettings (Cài đặt hệ số nhân cho từng đài)
@@ -204,10 +204,11 @@ CREATE TABLE admin_station_settings (
   id SERIAL PRIMARY KEY,
   admin_id UUID NOT NULL REFERENCES users(id),
   station_id INTEGER NOT NULL REFERENCES stations(id),
+  user_id UUID REFERENCES users(id),
   is_enabled_for_users BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (admin_id, station_id, user_id) -- Thêm user_id vào constraint
+  UNIQUE (admin_id, station_id, user_id)
 );
 
 -- Bảng UserGlobalSettings (Cài đặt chung cho User)
