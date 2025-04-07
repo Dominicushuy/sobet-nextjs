@@ -79,62 +79,62 @@ export default function AdminLayout({ children }) {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  // Function để kiểm tra xem một menu item có đang active hay không
+  const isMenuItemActive = (href) => {
+    if (href === '/admin/dashboard') {
+      return pathname === '/admin/dashboard';
+    }
+    return pathname.startsWith(href);
+  };
+
   // Danh sách liên kết trong sidebar
   const navLinks = [
     {
       href: '/admin/dashboard',
       label: 'Dashboard',
       icon: <LayoutDashboard size={20} />,
-      active: pathname === '/admin/dashboard',
       roles: ['admin', 'super_admin'],
     },
     {
       href: '/admin/admins',
       label: 'Quản lý Admin',
       icon: <Shield size={20} />,
-      active: pathname === '/admin/admins',
       roles: ['super_admin'],
     },
     {
       href: '/admin/users',
       label: 'Quản lý User',
       icon: <Users size={20} />,
-      active: pathname === '/admin/users',
       roles: ['admin', 'super_admin'],
     },
     {
       href: '/stations',
       label: 'Quản lý đài',
       icon: <Database size={20} />,
-      active: pathname === '/admin/stations',
       roles: ['admin', 'super_admin'],
     },
     {
       href: '/admin/bet-codes',
       label: 'Mã cược',
       icon: <FileText size={20} />,
-      active: pathname === '/admin/bet-codes',
       roles: ['admin', 'super_admin'],
     },
     {
       href: '/admin/results',
       label: 'Kết quả xổ số',
       icon: <Database size={20} />,
-      active: pathname === '/admin/results',
       roles: ['admin', 'super_admin'],
     },
     {
       href: '/admin/statistics',
       label: 'Thống kê',
       icon: <BarChart3 size={20} />,
-      active: pathname === '/admin/statistics',
       roles: ['admin', 'super_admin'],
     },
     {
       href: '/admin/settings',
       label: 'Cài đặt',
       icon: <Settings size={20} />,
-      active: pathname === '/admin/settings',
       roles: ['admin', 'super_admin'],
     },
   ];
@@ -166,20 +166,30 @@ export default function AdminLayout({ children }) {
 
         <div className="flex-1 py-4">
           <nav className="grid gap-1 px-2">
-            {filteredNavLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
-                  link.active
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`}
-              >
-                {link.icon}
-                {isSidebarOpen && <span>{link.label}</span>}
-              </Link>
-            ))}
+            {filteredNavLinks.map((link) => {
+              const isActive = isMenuItemActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+                    isActive
+                      ? 'bg-accent text-accent-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                  }`}
+                >
+                  <span
+                    className={`${isActive ? 'text-accent-foreground' : 'text-muted-foreground'}`}
+                  >
+                    {link.icon}
+                  </span>
+                  {isSidebarOpen && <span>{link.label}</span>}
+                  {!isSidebarOpen && isActive && (
+                    <span className="absolute left-0 w-1 h-6 bg-primary rounded-r-md"></span>
+                  )}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
@@ -251,21 +261,28 @@ export default function AdminLayout({ children }) {
           </div>
 
           <nav className="grid gap-1">
-            {filteredNavLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
-                  link.active
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`}
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                {link.icon}
-                <span>{link.label}</span>
-              </Link>
-            ))}
+            {filteredNavLinks.map((link) => {
+              const isActive = isMenuItemActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+                    isActive
+                      ? 'bg-accent text-accent-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                  }`}
+                  onClick={() => setIsSidebarOpen(false)}
+                >
+                  <span
+                    className={`${isActive ? 'text-accent-foreground' : 'text-muted-foreground'}`}
+                  >
+                    {link.icon}
+                  </span>
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="absolute bottom-0 left-0 right-0 border-t p-4">

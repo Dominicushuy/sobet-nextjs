@@ -95,6 +95,14 @@ export default function UserLayout({ children }) {
     return user.email.charAt(0).toUpperCase();
   };
 
+  // Hàm kiểm tra menu item có active hay không
+  const isMenuItemActive = (href) => {
+    if (href === '/dashboard') {
+      return pathname === '/dashboard';
+    }
+    return pathname.startsWith(href);
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
@@ -180,7 +188,7 @@ export default function UserLayout({ children }) {
         >
           <nav className="flex flex-col gap-2 p-4">
             {navItems.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = isMenuItemActive(item.href);
               return (
                 <Link
                   key={item.href}
@@ -191,9 +199,14 @@ export default function UserLayout({ children }) {
                     variant={isActive ? 'default' : 'ghost'}
                     className={cn('w-full justify-start', {
                       'bg-primary text-primary-foreground': isActive,
+                      'hover:bg-primary/10': !isActive,
                     })}
                   >
-                    <item.icon className="mr-2 h-5 w-5" />
+                    <item.icon
+                      className={cn('mr-2 h-5 w-5', {
+                        'text-primary-foreground': isActive,
+                      })}
+                    />
                     {item.title}
                   </Button>
                 </Link>
