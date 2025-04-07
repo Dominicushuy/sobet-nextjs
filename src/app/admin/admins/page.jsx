@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,14 +25,12 @@ import {
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Form,
@@ -144,14 +141,18 @@ const resetPasswordSchema = z
   });
 
 export default function AdminsPage() {
-  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState(undefined);
   const [dateFrom, setDateFrom] = useState(undefined);
   const [dateTo, setDateTo] = useState(undefined);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Temporary filter states (before applying)
+  const [tempActiveFilter, setTempActiveFilter] = useState(undefined);
+  const [tempDateFrom, setTempDateFrom] = useState(undefined);
+  const [tempDateTo, setTempDateTo] = useState(undefined);
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -159,6 +160,46 @@ export default function AdminsPage() {
   const [maxUsersDialogOpen, setMaxUsersDialogOpen] = useState(false);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
+
+  // Initialize temp filters when popover opens
+  useEffect(() => {
+    if (isFilterOpen) {
+      setTempActiveFilter(activeFilter);
+      setTempDateFrom(dateFrom);
+      setTempDateTo(dateTo);
+    }
+  }, [isFilterOpen, activeFilter, dateFrom, dateTo]);
+
+  // Apply filters
+  const applyFilters = () => {
+    setActiveFilter(tempActiveFilter);
+    setDateFrom(tempDateFrom);
+    setDateTo(tempDateTo);
+    setPage(1);
+    setIsFilterOpen(false);
+  };
+
+  // Reset temp filters
+  const resetTempFilters = () => {
+    setTempActiveFilter(undefined);
+    setTempDateFrom(undefined);
+    setTempDateTo(undefined);
+  };
+
+  // Reset all filters
+  const resetAllFilters = () => {
+    resetFilters();
+    resetTempFilters();
+  };
+
+  // Reset search and filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setActiveFilter(undefined);
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    setPage(1);
+  };
 
   // Fetch admins with filters
   const fetchAdminsParams = useCallback(() => {
@@ -346,15 +387,6 @@ export default function AdminsPage() {
     });
   };
 
-  // Reset search and filters
-  const resetFilters = () => {
-    setSearchTerm('');
-    setActiveFilter(undefined);
-    setDateFrom(undefined);
-    setDateTo(undefined);
-    setPage(1);
-  };
-
   // Render
   return (
     <div className="space-y-6">
@@ -477,17 +509,16 @@ export default function AdminsPage() {
                       <Label>Trạng thái</Label>
                       <Select
                         value={
-                          activeFilter !== undefined
-                            ? activeFilter.toString()
+                          tempActiveFilter !== undefined
+                            ? tempActiveFilter.toString()
                             : 'all'
                         }
                         onValueChange={(value) => {
                           if (value === 'all') {
-                            setActiveFilter(undefined);
+                            setTempActiveFilter(undefined);
                           } else {
-                            setActiveFilter(value === 'true');
+                            setTempActiveFilter(value === 'true');
                           }
-                          setPage(1);
                         }}
                       >
                         <SelectTrigger>
@@ -508,18 +539,17 @@ export default function AdminsPage() {
                             variant="outline"
                             className="w-full justify-start text-left font-normal"
                           >
-                            {dateFrom
-                              ? format(dateFrom, 'dd/MM/yyyy')
+                            {tempDateFrom
+                              ? format(tempDateFrom, 'dd/MM/yyyy')
                               : 'Chọn ngày'}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                           <Calendar
                             mode="single"
-                            selected={dateFrom}
+                            selected={tempDateFrom}
                             onSelect={(date) => {
-                              setDateFrom(date);
-                              setPage(1);
+                              setTempDateFrom(date);
                             }}
                             initialFocus
                           />
@@ -534,18 +564,17 @@ export default function AdminsPage() {
                             variant="outline"
                             className="w-full justify-start text-left font-normal"
                           >
-                            {dateTo
-                              ? format(dateTo, 'dd/MM/yyyy')
+                            {tempDateTo
+                              ? format(tempDateTo, 'dd/MM/yyyy')
                               : 'Chọn ngày'}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                           <Calendar
                             mode="single"
-                            selected={dateTo}
+                            selected={tempDateTo}
                             onSelect={(date) => {
-                              setDateTo(date);
-                              setPage(1);
+                              setTempDateTo(date);
                             }}
                             initialFocus
                           />
@@ -553,12 +582,10 @@ export default function AdminsPage() {
                       </Popover>
                     </div>
                     <div className="flex justify-between">
-                      <Button variant="outline" onClick={resetFilters}>
+                      <Button variant="outline" onClick={resetTempFilters}>
                         Đặt lại
                       </Button>
-                      <Button onClick={() => setIsFilterOpen(false)}>
-                        Áp dụng
-                      </Button>
+                      <Button onClick={applyFilters}>Áp dụng</Button>
                     </div>
                   </div>
                 </PopoverContent>
@@ -567,7 +594,7 @@ export default function AdminsPage() {
                 activeFilter !== undefined ||
                 dateFrom ||
                 dateTo) && (
-                <Button variant="ghost" onClick={resetFilters}>
+                <Button variant="ghost" onClick={resetAllFilters}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
