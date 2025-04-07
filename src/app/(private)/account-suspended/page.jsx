@@ -1,4 +1,4 @@
-// src/app/account-suspended/page.jsx
+// src/app/(private)/account-suspended/page.jsx
 'use client';
 
 import { useState } from 'react';

@@ -1,3 +1,5 @@
+// src/app/(private)/stations/page.jsx
+
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';

@@ -1,3 +1,5 @@
+// src/app/(private)/admin/users/page.jsx
+
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -25,7 +27,6 @@ import {
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,

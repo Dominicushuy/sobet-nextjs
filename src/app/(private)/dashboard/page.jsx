@@ -1,4 +1,4 @@
-// src/app/dashboard/page.jsx
+// src/app/(private)/dashboard/page.jsx
 'use client';
 
 import { useCallback } from 'react';

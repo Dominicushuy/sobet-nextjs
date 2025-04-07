@@ -1,4 +1,4 @@
-// src/app/login/page.jsx
+// src/app/(blanks)/login/page.jsx
 'use client';
 
 import { useState } from 'react';

@@ -1,3 +1,5 @@
+// src/app/(private)/layout.jsx
+
 'use client';
 
 import { useAuth } from '@/providers/AuthProvider';
