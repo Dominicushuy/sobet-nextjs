@@ -2,20 +2,43 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { supabaseAdmin } from '@/utils/supabase/admin';
 
 export async function signIn(formData) {
-  const email = formData.get('email');
+  const username = formData.get('username');
   const password = formData.get('password');
 
   // Kiểm tra dữ liệu đầu vào
-  if (!email || !password) {
-    return { data: null, error: 'Email và mật khẩu là bắt buộc' };
+  if (!username || !password) {
+    return { data: null, error: 'Tên đăng nhập và mật khẩu là bắt buộc' };
   }
 
   try {
+    // Sử dụng supabaseAdmin để bypass RLS policies khi tìm email từ username
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('email')
+      .eq('username', username)
+      .single();
+
+    if (userError || !userData) {
+      console.error(
+        'User lookup error:',
+        userError?.message || 'User not found'
+      );
+      return { data: null, error: 'Tài khoản không tồn tại' };
+    }
+
+    const email = userData.email;
+
+    if (!email) {
+      return { data: null, error: 'Không tìm thấy email cho tài khoản này' };
+    }
+
+    // Sử dụng client supabase thông thường cho việc đăng nhập
     const supabase = await createClient();
 
-    // Đăng nhập bằng Supabase Auth
+    // Đăng nhập bằng Supabase Auth với email đã tìm được
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -23,27 +46,31 @@ export async function signIn(formData) {
 
     if (error) {
       console.error('Auth error:', error.message);
-      return { data: null, error: error.message };
+      return { data: null, error: 'Tên đăng nhập hoặc mật khẩu không đúng' };
     }
 
     if (!data.user) {
       return { data: null, error: 'Không tìm thấy thông tin người dùng' };
     }
 
-    // Lấy thông tin role của user
-    const { data: userData, error: userError } = await supabase
+    // Lấy thông tin role của user - có thể sử dụng supabase thông thường vì lúc này đã đăng nhập
+    const { data: completeUserData, error: completeUserError } = await supabase
       .from('users')
       .select('*, roles:roles(name)')
       .eq('id', data.user.id)
       .single();
 
-    if (userError) {
-      console.error('User data error:', userError.message);
+    if (completeUserError) {
+      console.error('User data error:', completeUserError.message);
       return { data: null, error: 'Không thể lấy thông tin người dùng' };
     }
 
     // Đảm bảo có dữ liệu role
-    if (!userData || !userData.roles || !userData.roles.name) {
+    if (
+      !completeUserData ||
+      !completeUserData.roles ||
+      !completeUserData.roles.name
+    ) {
       return {
         data: null,
         error: 'Không tìm thấy thông tin vai trò người dùng',
@@ -54,9 +81,9 @@ export async function signIn(formData) {
     return {
       data: {
         success: true,
-        role: userData.roles.name,
+        role: completeUserData.roles.name,
         user: data.user,
-        userData,
+        userData: completeUserData,
       },
     };
   } catch (error) {

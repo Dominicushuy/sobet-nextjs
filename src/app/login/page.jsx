@@ -29,7 +29,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const formSchema = z.object({
-  email: z.string().email('Email không hợp lệ'),
+  username: z.string().min(3, 'Tên đăng nhập phải có ít nhất 3 ký tự'),
   password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
 });
 
@@ -40,7 +40,7 @@ export default function LoginPage() {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
     },
   });
@@ -50,10 +50,10 @@ export default function LoginPage() {
       setIsLoading(true);
       setLoginError('');
 
-      console.log('Submitting login with:', values.email);
+      console.log('Submitting login with username:', values.username);
 
       const formData = new FormData();
-      formData.append('email', values.email);
+      formData.append('username', values.username);
       formData.append('password', values.password);
 
       // Thực hiện đăng nhập
@@ -126,14 +126,14 @@ export default function LoginPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="email"
+                name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Tên đăng nhập</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="your.email@example.com"
-                        type="email"
+                        placeholder="Nhập tên đăng nhập"
+                        type="text"
                         {...field}
                         disabled={isLoading}
                       />
