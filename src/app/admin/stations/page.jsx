@@ -16,6 +16,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Form,
   FormControl,
   FormField,
@@ -61,6 +71,8 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Trash2,
+  Info,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useServerQuery, useServerMutation } from '@/hooks/useServerAction';
@@ -71,6 +83,7 @@ import {
   createStation,
   updateStation,
   toggleStationStatus,
+  deleteStation,
 } from '@/app/actions/stations';
 
 // Form schema cho việc tạo/chỉnh sửa đài cược
@@ -93,6 +106,7 @@ export default function StationsPage() {
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null);
 
   // Toggle region expansion
@@ -174,6 +188,8 @@ export default function StationsPage() {
     }
   );
 
+  console.log({ schedulesData });
+
   // Group stations by region
   const groupedStations = useMemo(() => {
     if (!stationsData?.data?.stations || !regionsData?.data) return {};
@@ -184,6 +200,7 @@ export default function StationsPage() {
         id: region.id,
         name: region.name,
         code: region.code,
+        aliases: region.aliases || [],
         stations: [],
       };
       return acc;
@@ -247,6 +264,21 @@ export default function StationsPage() {
       },
       onError: (error) => {
         toast.error('Lỗi khi thay đổi trạng thái đài cược: ' + error.message);
+      },
+    }
+  );
+
+  const deleteStationMutation = useServerMutation(
+    'deleteStation',
+    (id) => deleteStation(id),
+    {
+      onSuccess: () => {
+        toast.success('Đài cược đã được xóa thành công');
+        setDeleteDialogOpen(false);
+        refetchStations();
+      },
+      onError: (error) => {
+        toast.error('Lỗi khi xóa đài cược: ' + error.message);
       },
     }
   );
@@ -322,6 +354,11 @@ export default function StationsPage() {
       id: station.id,
       isActive: !station.is_active,
     });
+  };
+
+  const onDeleteStation = () => {
+    if (!selectedStation) return;
+    deleteStationMutation.mutate(selectedStation.id);
   };
 
   // Helper function để hiển thị lịch xổ số
@@ -625,7 +662,14 @@ export default function StationsPage() {
                       ) : (
                         <ChevronRight className="mr-2 h-4 w-4" />
                       )}
-                      {region.name}
+                      <div className="flex flex-col">
+                        <span className="font-semibold">{region.name}</span>
+                        {region.aliases && region.aliases.length > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            Bí danh: {region.aliases.join(', ')}
+                          </span>
+                        )}
+                      </div>
                       <Badge variant="outline" className="ml-2">
                         {region.stations.length} đài
                       </Badge>
@@ -640,46 +684,25 @@ export default function StationsPage() {
                             key={station.id}
                             className="rounded-md border p-4"
                           >
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <h3 className="font-medium">{station.name}</h3>
-                                <div className="text-sm text-muted-foreground">
-                                  {station.aliases?.slice(0, 3).join(', ')}
-                                  {station.aliases?.length > 3 && '...'}
-                                </div>
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex gap-2 items-start">
+                                <h3 className="font-semibold text-base">
+                                  {station.name}
+                                </h3>
+                                <Badge
+                                  variant={
+                                    station.is_active
+                                      ? 'default'
+                                      : 'destructive'
+                                  }
+                                  className="mt-1"
+                                >
+                                  {station.is_active
+                                    ? 'Hoạt động'
+                                    : 'Ngừng hoạt động'}
+                                </Badge>
                               </div>
-                              <Badge
-                                variant={
-                                  station.is_active ? 'default' : 'destructive'
-                                }
-                              >
-                                {station.is_active
-                                  ? 'Hoạt động'
-                                  : 'Ngừng hoạt động'}
-                              </Badge>
-                            </div>
-
-                            {station.schedules?.length > 0 && (
-                              <div className="mt-2">
-                                <div className="text-sm font-medium mb-1">
-                                  Lịch mở thưởng:
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {station.schedules.map((schedule, index) => (
-                                    <Badge
-                                      key={index}
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      {formatScheduleDay(schedule.day_of_week)}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {isSuperAdmin && (
-                              <div className="mt-3 flex justify-end">
+                              {isSuperAdmin && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button
@@ -703,7 +726,6 @@ export default function StationsPage() {
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Chỉnh sửa
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                       onClick={() => onToggleStatus(station)}
                                     >
@@ -719,8 +741,43 @@ export default function StationsPage() {
                                         </>
                                       )}
                                     </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => {
+                                        setSelectedStation(station);
+                                        setDeleteDialogOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Xóa
+                                    </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
+                              )}
+                            </div>
+
+                            {station.aliases?.length > 0 && (
+                              <div className="mt-3">
+                                <p className="text-sm text-muted-foreground break-words">
+                                  {station.aliases.join(', ')}
+                                </p>
+                              </div>
+                            )}
+
+                            {station.schedules?.length > 0 && (
+                              <div className="mt-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {station.schedules.map((schedule, index) => (
+                                    <Badge
+                                      key={index}
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      {formatScheduleDay(schedule.day_of_week)}
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -856,6 +913,29 @@ export default function StationsPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Xác nhận xóa đài cược */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa đài cược</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa đài cược này? Hành động này không thể
+              hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onDeleteStation}
+              disabled={deleteStationMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteStationMutation.isPending ? 'Đang xóa...' : 'Xóa'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

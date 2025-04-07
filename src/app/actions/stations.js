@@ -82,7 +82,7 @@ export async function fetchRegions() {
   try {
     const { data, error } = await supabaseAdmin
       .from('regions')
-      .select('id, name, code')
+      .select('id, name, code, aliases')
       .order('id');
 
     if (error) {
@@ -97,7 +97,6 @@ export async function fetchRegions() {
   }
 }
 
-// Hàm lấy danh sách lịch xổ số để hiển thị bộ lọc
 // Hàm lấy danh sách lịch xổ số để hiển thị bộ lọc
 export async function fetchSchedules() {
   try {
@@ -186,6 +185,29 @@ export async function toggleStationStatus(id, isActive) {
     return { data, error: null };
   } catch (error) {
     console.error('Unexpected error in toggleStationStatus:', error);
+    return { data: null, error: 'Internal server error' };
+  }
+}
+
+// Hàm xóa đài cược (chỉ Super Admin)
+export async function deleteStation(id) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('stations')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error deleting station:', error);
+      return { data: null, error: error.message };
+    }
+
+    revalidatePath('/admin/stations');
+    return { data, error: null };
+  } catch (error) {
+    console.error('Unexpected error in deleteStation:', error);
     return { data: null, error: 'Internal server error' };
   }
 }
