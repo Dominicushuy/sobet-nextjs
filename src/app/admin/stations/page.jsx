@@ -73,13 +73,12 @@ import {
   ChevronRight,
   Trash2,
   Info,
+  Calendar,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useServerQuery, useServerMutation } from '@/hooks/useServerAction';
 import {
-  fetchStations,
-  fetchRegions,
-  fetchSchedules,
+  fetchAllStationsData,
   createStation,
   updateStation,
   toggleStationStatus,
@@ -96,11 +95,12 @@ const stationSchema = z.object({
 
 export default function StationsPage() {
   const { user, isSuperAdmin } = useAuth();
+
+  // Các state lọc
   const [searchTerm, setSearchTerm] = useState('');
   const [regionFilter, setRegionFilter] = useState('all');
   const [activeFilter, setActiveFilter] = useState(undefined);
   const [scheduleFilter, setScheduleFilter] = useState('all');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [expandedRegions, setExpandedRegions] = useState({});
 
   // Dialog states
@@ -108,6 +108,20 @@ export default function StationsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null);
+
+  // Lấy tất cả dữ liệu đài cược và regions từ server
+  const {
+    data: allData,
+    isLoading,
+    refetch,
+  } = useServerQuery(['allStationsData'], () => fetchAllStationsData(), {
+    enabled: !!user?.id,
+    onError: (error) => {
+      toast.error('Lỗi khi tải dữ liệu: ' + error.message);
+    },
+  });
+
+  console.log('allData', allData);
 
   // Toggle region expansion
   const toggleRegionExpansion = (regionId) => {
@@ -138,88 +152,6 @@ export default function StationsPage() {
     },
   });
 
-  // Fetch stations with filters
-  const fetchStationsParams = useCallback(() => {
-    return {
-      isSuperAdmin,
-      searchTerm,
-      regionFilter,
-      activeFilter,
-      scheduleFilter,
-    };
-  }, [isSuperAdmin, searchTerm, regionFilter, activeFilter, scheduleFilter]);
-
-  const {
-    data: stationsData,
-    isLoading: isLoadingStations,
-    refetch: refetchStations,
-  } = useServerQuery(
-    ['stations', fetchStationsParams()],
-    () => fetchStations(fetchStationsParams()),
-    {
-      enabled: !!user?.id,
-      onError: (error) => {
-        toast.error('Lỗi khi tải danh sách đài cược: ' + error.message);
-      },
-    }
-  );
-
-  // Fetch regions for filter dropdown
-  const { data: regionsData, isLoading: isLoadingRegions } = useServerQuery(
-    ['regions'],
-    () => fetchRegions(),
-    {
-      enabled: !!user?.id,
-      onError: (error) => {
-        toast.error('Lỗi khi tải danh sách miền: ' + error.message);
-      },
-    }
-  );
-
-  // Fetch schedules for filter dropdown
-  const { data: schedulesData, isLoading: isLoadingSchedules } = useServerQuery(
-    ['schedules'],
-    () => fetchSchedules(),
-    {
-      enabled: !!user?.id,
-      onError: (error) => {
-        toast.error('Lỗi khi tải danh sách lịch: ' + error.message);
-      },
-    }
-  );
-
-  console.log({ schedulesData });
-
-  // Group stations by region
-  const groupedStations = useMemo(() => {
-    if (!stationsData?.data?.stations || !regionsData?.data) return {};
-
-    // Tạo object regions với mỗi region là một key
-    const regions = regionsData.data.reduce((acc, region) => {
-      acc[region.id] = {
-        id: region.id,
-        name: region.name,
-        code: region.code,
-        aliases: region.aliases || [],
-        stations: [],
-      };
-      return acc;
-    }, {});
-
-    // Nhóm stations theo region
-    stationsData.data.stations.forEach((station) => {
-      const regionId = station.region_id;
-      if (regions[regionId]) {
-        regions[regionId].stations.push(station);
-      }
-    });
-
-    // Chuyển object thành array để dễ dàng render
-    return Object.values(regions).filter(
-      (region) => region.stations.length > 0
-    );
-  }, [stationsData, regionsData]);
-
   // Mutations
   const createStationMutation = useServerMutation(
     'createStation',
@@ -229,7 +161,7 @@ export default function StationsPage() {
         toast.success('Đài cược đã được tạo thành công');
         setCreateDialogOpen(false);
         createForm.reset();
-        refetchStations();
+        refetch();
       },
       onError: (error) => {
         toast.error('Lỗi khi tạo đài cược: ' + error.message);
@@ -245,7 +177,7 @@ export default function StationsPage() {
         toast.success('Đài cược đã được cập nhật thành công');
         setEditDialogOpen(false);
         editForm.reset();
-        refetchStations();
+        refetch();
       },
       onError: (error) => {
         toast.error('Lỗi khi cập nhật đài cược: ' + error.message);
@@ -260,7 +192,7 @@ export default function StationsPage() {
       onSuccess: (result) => {
         const status = result.data.is_active ? 'kích hoạt' : 'vô hiệu hóa';
         toast.success(`Đài cược đã được ${status} thành công`);
-        refetchStations();
+        refetch();
       },
       onError: (error) => {
         toast.error('Lỗi khi thay đổi trạng thái đài cược: ' + error.message);
@@ -275,7 +207,7 @@ export default function StationsPage() {
       onSuccess: () => {
         toast.success('Đài cược đã được xóa thành công');
         setDeleteDialogOpen(false);
-        refetchStations();
+        refetch();
       },
       onError: (error) => {
         toast.error('Lỗi khi xóa đài cược: ' + error.message);
@@ -305,6 +237,191 @@ export default function StationsPage() {
     setRegionFilter('all');
     setActiveFilter(undefined);
     setScheduleFilter('all');
+  };
+
+  // Lọc và nhóm các đài theo miền
+  const groupedStationsByRegion = useMemo(() => {
+    if (!allData?.data) return [];
+
+    const { stations, regions } = allData.data;
+
+    if (!stations || !regions) return [];
+
+    // Tạo object với key là region_id
+    const groupedData = {};
+
+    // Khởi tạo mỗi region với mảng stations rỗng
+    regions.forEach((region) => {
+      groupedData[region.id] = {
+        ...region,
+        stations: [],
+      };
+    });
+
+    // Lọc stations theo điều kiện
+    const filteredStations = stations.filter((station) => {
+      // Lọc theo trạng thái (nếu không phải super admin, chỉ hiển thị đài hoạt động)
+      if (!isSuperAdmin && !station.is_active) return false;
+
+      // Áp dụng bộ lọc activeFilter nếu có
+      if (activeFilter !== undefined && station.is_active !== activeFilter)
+        return false;
+
+      // Lọc theo tên
+      if (
+        searchTerm &&
+        !station.name.toLowerCase().includes(searchTerm.toLowerCase())
+      ) {
+        // Kiểm tra thêm trong aliases
+        if (
+          !station.aliases ||
+          !station.aliases.some((alias) =>
+            alias.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        ) {
+          return false;
+        }
+      }
+
+      // Lọc theo miền
+      if (
+        regionFilter !== 'all' &&
+        station.region_id !== parseInt(regionFilter)
+      ) {
+        return false;
+      }
+
+      // Lọc theo lịch
+      if (scheduleFilter !== 'all') {
+        if (
+          !station.schedules ||
+          !station.schedules.some(
+            (schedule) => schedule.day_of_week === scheduleFilter
+          )
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Thêm các đài đã lọc vào nhóm tương ứng
+    filteredStations.forEach((station) => {
+      if (groupedData[station.region_id]) {
+        groupedData[station.region_id].stations.push(station);
+      }
+    });
+
+    // Chuyển đổi object thành array và chỉ lấy nhóm có đài
+    return Object.values(groupedData).filter(
+      (group) => group.stations.length > 0
+    );
+  }, [
+    allData,
+    searchTerm,
+    regionFilter,
+    activeFilter,
+    scheduleFilter,
+    isSuperAdmin,
+  ]);
+
+  // Lấy danh sách các ngày trong tuần
+  const daysOfWeek = useMemo(() => {
+    return [
+      { value: 'all', label: 'Tất cả các ngày' },
+      { value: 'monday', label: 'Thứ Hai' },
+      { value: 'tuesday', label: 'Thứ Ba' },
+      { value: 'wednesday', label: 'Thứ Tư' },
+      { value: 'thursday', label: 'Thứ Năm' },
+      { value: 'friday', label: 'Thứ Sáu' },
+      { value: 'saturday', label: 'Thứ Bảy' },
+      { value: 'sunday', label: 'Chủ Nhật' },
+      { value: 'daily', label: 'Hàng ngày' },
+    ];
+  }, []);
+
+  // Helper function để hiển thị lịch xổ số
+  const formatScheduleDay = (day) => {
+    const dayMap = {
+      monday: 'Thứ Hai',
+      tuesday: 'Thứ Ba',
+      wednesday: 'Thứ Tư',
+      thursday: 'Thứ Năm',
+      friday: 'Thứ Sáu',
+      saturday: 'Thứ Bảy',
+      sunday: 'Chủ Nhật',
+      daily: 'Hàng ngày',
+    };
+    return dayMap[day] || day;
+  };
+
+  // Sắp xếp lịch xổ số theo thứ trong tuần
+  const sortSchedules = (schedules) => {
+    if (!schedules || !schedules.length) return [];
+
+    const dayOrder = {
+      daily: 0,
+      monday: 1,
+      tuesday: 2,
+      wednesday: 3,
+      thursday: 4,
+      friday: 5,
+      saturday: 6,
+      sunday: 7,
+    };
+
+    return [...schedules].sort((a, b) => {
+      // Sắp xếp theo thứ tự ngày trong tuần
+      const dayDiff = dayOrder[a.day_of_week] - dayOrder[b.day_of_week];
+      if (dayDiff !== 0) return dayDiff;
+
+      // Nếu cùng ngày, sắp xếp theo order_number
+      return a.order_number - b.order_number;
+    });
+  };
+
+  // Nhóm lịch xổ số theo ngày
+  const groupSchedulesByDay = (schedules) => {
+    if (!schedules || !schedules.length) return [];
+
+    const grouped = {};
+
+    schedules.forEach((schedule) => {
+      if (!grouped[schedule.day_of_week]) {
+        grouped[schedule.day_of_week] = [];
+      }
+      grouped[schedule.day_of_week].push(schedule);
+    });
+
+    // Sắp xếp mỗi nhóm theo order_number
+    Object.keys(grouped).forEach((day) => {
+      grouped[day].sort((a, b) => a.order_number - b.order_number);
+    });
+
+    // Tạo mảng kết quả đã sắp xếp theo thứ tự ngày
+    const result = [];
+    const orderedDays = [
+      'daily',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+
+    orderedDays.forEach((day) => {
+      if (grouped[day]) {
+        result.push({
+          day,
+          schedules: grouped[day],
+        });
+      }
+    });
+
+    return result;
   };
 
   // Handle form submissions
@@ -359,44 +476,6 @@ export default function StationsPage() {
   const onDeleteStation = () => {
     if (!selectedStation) return;
     deleteStationMutation.mutate(selectedStation.id);
-  };
-
-  // Helper function để hiển thị lịch xổ số
-  const formatScheduleDay = (day) => {
-    const dayMap = {
-      monday: 'Thứ Hai',
-      tuesday: 'Thứ Ba',
-      wednesday: 'Thứ Tư',
-      thursday: 'Thứ Năm',
-      friday: 'Thứ Sáu',
-      saturday: 'Thứ Bảy',
-      sunday: 'Chủ Nhật',
-      daily: 'Hàng ngày',
-    };
-    return dayMap[day] || day;
-  };
-
-  // Helper function để lọc ngày
-  const getScheduleFilterOptions = () => {
-    const options = [
-      { value: 'monday', label: 'Thứ Hai' },
-      { value: 'tuesday', label: 'Thứ Ba' },
-      { value: 'wednesday', label: 'Thứ Tư' },
-      { value: 'thursday', label: 'Thứ Năm' },
-      { value: 'friday', label: 'Thứ Sáu' },
-      { value: 'saturday', label: 'Thứ Bảy' },
-      { value: 'sunday', label: 'Chủ Nhật' },
-      { value: 'daily', label: 'Hàng ngày' },
-    ];
-
-    // Lọc ra các ngày có trong dữ liệu
-    if (schedulesData?.data?.length) {
-      return options.filter((option) =>
-        schedulesData.data.includes(option.value)
-      );
-    }
-
-    return options;
   };
 
   return (
@@ -457,7 +536,7 @@ export default function StationsPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {regionsData?.data?.map((region) => (
+                            {allData?.data?.regions?.map((region) => (
                               <SelectItem
                                 key={region.id}
                                 value={region.id.toString()}
@@ -540,11 +619,20 @@ export default function StationsPage() {
               />
             </div>
             <div className="flex gap-2">
-              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="flex gap-2">
                     <Filter className="h-4 w-4" />
                     Bộ lọc
+                    {(regionFilter !== 'all' ||
+                      activeFilter !== undefined ||
+                      scheduleFilter !== 'all') && (
+                      <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center">
+                        {(regionFilter !== 'all' ? 1 : 0) +
+                          (activeFilter !== undefined ? 1 : 0) +
+                          (scheduleFilter !== 'all' ? 1 : 0)}
+                      </Badge>
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80" align="end">
@@ -562,7 +650,7 @@ export default function StationsPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Tất cả</SelectItem>
-                          {regionsData?.data?.map((region) => (
+                          {allData?.data?.regions?.map((region) => (
                             <SelectItem
                               key={region.id}
                               value={region.id.toString()}
@@ -613,10 +701,9 @@ export default function StationsPage() {
                           <SelectValue placeholder="Chọn ngày" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">Tất cả</SelectItem>
-                          {getScheduleFilterOptions().map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                          {daysOfWeek.map((day) => (
+                            <SelectItem key={day.value} value={day.value}>
+                              {day.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -643,14 +730,14 @@ export default function StationsPage() {
             </div>
           </div>
 
-          {isLoadingStations ? (
+          {isLoading ? (
             <div className="flex flex-col items-center justify-center py-10">
               <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
               <p className="mt-2 text-sm text-muted-foreground">Đang tải...</p>
             </div>
-          ) : groupedStations.length > 0 ? (
+          ) : groupedStationsByRegion.length > 0 ? (
             <div className="space-y-6">
-              {groupedStations.map((region) => (
+              {groupedStationsByRegion.map((region) => (
                 <div key={region.id} className="rounded-md border">
                   <div
                     className="flex items-center justify-between p-4 bg-muted/50 cursor-pointer"
@@ -679,109 +766,146 @@ export default function StationsPage() {
                   {expandedRegions[region.id] && (
                     <div className="p-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {region.stations.map((station) => (
-                          <div
-                            key={station.id}
-                            className="rounded-md border p-4"
-                          >
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex gap-2 items-start">
-                                <h3 className="font-semibold text-base">
-                                  {station.name}
-                                </h3>
-                                <Badge
-                                  variant={
-                                    station.is_active
-                                      ? 'default'
-                                      : 'destructive'
-                                  }
-                                  className="mt-1"
-                                >
-                                  {station.is_active
-                                    ? 'Hoạt động'
-                                    : 'Ngừng hoạt động'}
-                                </Badge>
-                              </div>
-                              {isSuperAdmin && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      className="h-8 w-8 p-0"
-                                    >
-                                      <span className="sr-only">Mở menu</span>
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>
-                                      Tùy chọn
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuItem
-                                      onClick={() => {
-                                        setSelectedStation(station);
-                                        setEditDialogOpen(true);
-                                      }}
-                                    >
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      Chỉnh sửa
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => onToggleStatus(station)}
-                                    >
-                                      {station.is_active ? (
-                                        <>
-                                          <PowerOff className="mr-2 h-4 w-4" />
-                                          Ngừng hoạt động
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Power className="mr-2 h-4 w-4" />
-                                          Kích hoạt
-                                        </>
-                                      )}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => {
-                                        setSelectedStation(station);
-                                        setDeleteDialogOpen(true);
-                                      }}
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Xóa
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
-                            </div>
+                        {region.stations.map((station) => {
+                          // Sắp xếp và nhóm lịch xổ số
+                          const groupedSchedules = groupSchedulesByDay(
+                            station.schedules
+                          );
 
-                            {station.aliases?.length > 0 && (
-                              <div className="mt-3">
-                                <p className="text-sm text-muted-foreground break-words">
-                                  {station.aliases.join(', ')}
-                                </p>
-                              </div>
-                            )}
-
-                            {station.schedules?.length > 0 && (
-                              <div className="mt-3">
-                                <div className="flex flex-wrap gap-1">
-                                  {station.schedules.map((schedule, index) => (
-                                    <Badge
-                                      key={index}
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      {formatScheduleDay(schedule.day_of_week)}
-                                    </Badge>
-                                  ))}
+                          return (
+                            <div
+                              key={station.id}
+                              className="rounded-md border p-4"
+                            >
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex gap-2 items-start">
+                                  <h3 className="font-semibold text-base">
+                                    {station.name}
+                                  </h3>
+                                  <Badge
+                                    variant={
+                                      station.is_active
+                                        ? 'default'
+                                        : 'destructive'
+                                    }
+                                    className="mt-1"
+                                  >
+                                    {station.is_active
+                                      ? 'Hoạt động'
+                                      : 'Ngừng hoạt động'}
+                                  </Badge>
                                 </div>
+                                {isSuperAdmin && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <span className="sr-only">Mở menu</span>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuLabel>
+                                        Tùy chọn
+                                      </DropdownMenuLabel>
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setSelectedStation(station);
+                                          setEditDialogOpen(true);
+                                        }}
+                                      >
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Chỉnh sửa
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => onToggleStatus(station)}
+                                      >
+                                        {station.is_active ? (
+                                          <>
+                                            <PowerOff className="mr-2 h-4 w-4" />
+                                            Ngừng hoạt động
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Power className="mr-2 h-4 w-4" />
+                                            Kích hoạt
+                                          </>
+                                        )}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        className="text-destructive"
+                                        onClick={() => {
+                                          setSelectedStation(station);
+                                          setDeleteDialogOpen(true);
+                                        }}
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Xóa
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        ))}
+
+                              {station.aliases?.length > 0 && (
+                                <div className="mt-2 mb-3">
+                                  <p className="text-sm text-muted-foreground break-words">
+                                    <span className="font-medium">
+                                      Bí danh:
+                                    </span>{' '}
+                                    {station.aliases.join(', ')}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Hiển thị nhóm lịch xổ số theo từng ngày */}
+                              <div className="mt-3">
+                                <div className="flex items-center mb-2">
+                                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                                  <span className="font-medium">
+                                    Lịch mở thưởng:
+                                  </span>
+                                </div>
+
+                                {groupedSchedules.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {groupedSchedules.map((group, idx) => (
+                                      <div key={idx} className="flex flex-col">
+                                        <div className="flex items-center">
+                                          <Badge
+                                            variant="outline"
+                                            className="mr-2"
+                                          >
+                                            {formatScheduleDay(group.day)}
+                                          </Badge>
+
+                                          {/* Hiển thị thứ tự xổ trong ngày nếu có nhiều hơn 1 đài */}
+                                          {group.schedules.length > 0 &&
+                                            group.day !== 'daily' && (
+                                              <div className="text-xs text-muted-foreground">
+                                                (Thứ tự:{' '}
+                                                {group.schedules
+                                                  .map((s) => s.order_number)
+                                                  .join(', ')}
+                                                )
+                                              </div>
+                                            )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">
+                                    Chưa có lịch xổ số
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -842,7 +966,7 @@ export default function StationsPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {regionsData?.data?.map((region) => (
+                        {allData?.data?.regions?.map((region) => (
                           <SelectItem
                             key={region.id}
                             value={region.id.toString()}

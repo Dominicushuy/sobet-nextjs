@@ -5,118 +5,53 @@ import { createClient } from '@/utils/supabase/server';
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
-// Hàm lấy danh sách đài cược với bộ lọc
-export async function fetchStations({
-  isSuperAdmin = false,
-  searchTerm = '',
-  regionFilter,
-  activeFilter,
-  scheduleFilter,
-} = {}) {
+// Hàm lấy tất cả dữ liệu đài cược, không lọc
+export async function fetchAllStationsData() {
   try {
-    // Tạo query để lấy tất cả đài cược
-    let query = supabaseAdmin
+    // Lấy tất cả đài cược với thông tin region và lịch
+    const { data: stations, error: stationsError } = await supabaseAdmin
       .from('stations')
       .select(
-        '*, region:regions(id, name, code), schedules:station_schedules(day_of_week, order_number)'
-      );
+        '*, region:regions(id, name, code, aliases), schedules:station_schedules(id, day_of_week, order_number)'
+      )
+      .order('name');
 
-    // Nếu không phải Super Admin, chỉ hiển thị các đài hoạt động
-    if (!isSuperAdmin) {
-      query = query.eq('is_active', true);
+    if (stationsError) {
+      console.error('Error fetching stations:', stationsError);
+      return { data: null, error: stationsError.message };
     }
 
-    // Áp dụng các bộ lọc
-    if (searchTerm) {
-      query = query.ilike('name', `%${searchTerm}%`);
-    }
-
-    if (regionFilter && regionFilter !== 'all') {
-      query = query.eq('region_id', regionFilter);
-    }
-
-    if (activeFilter !== undefined) {
-      query = query.eq('is_active', activeFilter);
-    }
-
-    // Lọc theo lịch xổ số
-    if (scheduleFilter && scheduleFilter !== 'all') {
-      const { data: stationIds, error: scheduleError } = await supabaseAdmin
-        .from('station_schedules')
-        .select('station_id')
-        .eq('day_of_week', scheduleFilter);
-
-      if (scheduleError) {
-        console.error('Error filtering by schedule:', scheduleError);
-        return { data: null, error: scheduleError.message };
-      }
-
-      if (stationIds && stationIds.length > 0) {
-        const ids = stationIds.map((item) => item.station_id);
-        query = query.in('id', ids);
-      } else {
-        // Nếu không tìm thấy đài nào với lịch này, trả về mảng rỗng
-        return { data: { stations: [] }, error: null };
-      }
-    }
-
-    // Thực hiện truy vấn và sắp xếp theo tên
-    const { data: stations, error } = await query.order('name', {
-      ascending: true,
-    });
-
-    if (error) {
-      console.error('Error fetching stations:', error);
-      return { data: null, error: error.message };
-    }
-
-    return { data: { stations }, error: null };
-  } catch (error) {
-    console.error('Unexpected error in fetchStations:', error);
-    return { data: null, error: 'Internal server error' };
-  }
-}
-
-// Hàm lấy danh sách miền để hiển thị bộ lọc
-export async function fetchRegions() {
-  try {
-    const { data, error } = await supabaseAdmin
+    // Lấy tất cả regions
+    const { data: regions, error: regionsError } = await supabaseAdmin
       .from('regions')
       .select('id, name, code, aliases')
       .order('id');
 
-    if (error) {
-      console.error('Error fetching regions:', error);
-      return { data: null, error: error.message };
+    if (regionsError) {
+      console.error('Error fetching regions:', regionsError);
+      return { data: null, error: regionsError.message };
     }
 
-    return { data, error: null };
-  } catch (error) {
-    console.error('Unexpected error in fetchRegions:', error);
-    return { data: null, error: 'Internal server error' };
-  }
-}
-
-// Hàm lấy danh sách lịch xổ số để hiển thị bộ lọc
-export async function fetchSchedules() {
-  try {
-    // Sử dụng distinct trong tham số của select
-    const { data, error } = await supabaseAdmin
+    // Lấy tất cả lịch xổ số
+    const { data: schedules, error: schedulesError } = await supabaseAdmin
       .from('station_schedules')
-      .select('day_of_week', { count: 'exact' })
-      .limit(20);
+      .select('id, station_id, day_of_week, order_number');
 
-    if (error) {
-      console.error('Error fetching schedules:', error);
-      return { data: null, error: error.message };
+    if (schedulesError) {
+      console.error('Error fetching schedules:', schedulesError);
+      return { data: null, error: schedulesError.message };
     }
 
-    // Lọc các giá trị unique từ result
-    const uniqueDays = [...new Set(data.map((item) => item.day_of_week))];
-
-    return { data: uniqueDays, error: null };
+    return {
+      data: {
+        stations,
+        regions,
+        schedules,
+      },
+      error: null,
+    };
   } catch (error) {
-    console.error('Unexpected error in fetchSchedules:', error);
+    console.error('Unexpected error in fetchAllStationsData:', error);
     return { data: null, error: 'Internal server error' };
   }
 }
