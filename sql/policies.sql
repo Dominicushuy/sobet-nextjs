@@ -470,3 +470,42 @@ CREATE POLICY "Super admin can modify number combinations"
 ON number_combinations
 FOR ALL
 USING (auth.is_super_admin());
+
+-- Policies cho bảng user_station_access
+CREATE POLICY "Super admin can view all user station access"
+ON user_station_access
+FOR SELECT
+USING (auth.is_super_admin());
+
+CREATE POLICY "Admin can view user station access of users they created"
+ON user_station_access
+FOR SELECT
+USING (
+  auth.is_admin() AND 
+  EXISTS (
+    SELECT 1 FROM users u
+    WHERE u.id = user_id AND u.created_by = auth.uid()
+  )
+);
+
+CREATE POLICY "User can view their own station access"
+ON user_station_access
+FOR SELECT
+USING (user_id = auth.uid());
+
+CREATE POLICY "Super admin can modify any user station access"
+ON user_station_access
+FOR ALL
+USING (auth.is_super_admin());
+
+CREATE POLICY "Admin can modify user station access of users they created"
+ON user_station_access
+FOR ALL
+USING (
+  auth.is_admin() AND 
+  EXISTS (
+    SELECT 1 FROM users u
+    WHERE u.id = user_id AND u.created_by = auth.uid()
+  ) AND
+  created_by = auth.uid()
+);

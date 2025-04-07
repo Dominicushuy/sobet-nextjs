@@ -21,7 +21,6 @@ CREATE TABLE users (
   role_id INTEGER NOT NULL REFERENCES roles(id),
   created_by UUID REFERENCES users(id),
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  last_login TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -184,4 +183,16 @@ CREATE TABLE verifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (date, admin_id)
+);
+
+-- Bảng quản lý quyền truy cập đài xổ số của người dùng
+CREATE TABLE user_station_access (
+  id SERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  station_id INTEGER NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
+  is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by UUID NOT NULL REFERENCES users(id), -- Admin đã thiết lập quyền này
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, station_id)
 );
