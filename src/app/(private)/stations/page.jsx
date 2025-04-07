@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -366,31 +366,6 @@ export default function StationsPage() {
       daily: 'Hàng ngày',
     };
     return dayMap[day] || day;
-  };
-
-  // Sắp xếp lịch xổ số theo thứ trong tuần
-  const sortSchedules = (schedules) => {
-    if (!schedules || !schedules.length) return [];
-
-    const dayOrder = {
-      daily: 0,
-      monday: 1,
-      tuesday: 2,
-      wednesday: 3,
-      thursday: 4,
-      friday: 5,
-      saturday: 6,
-      sunday: 7,
-    };
-
-    return [...schedules].sort((a, b) => {
-      // Sắp xếp theo thứ tự ngày trong tuần
-      const dayDiff = dayOrder[a.day_of_week] - dayOrder[b.day_of_week];
-      if (dayDiff !== 0) return dayDiff;
-
-      // Nếu cùng ngày, sắp xếp theo order_number
-      return a.order_number - b.order_number;
-    });
   };
 
   // Nhóm lịch xổ số theo ngày
@@ -840,18 +815,20 @@ export default function StationsPage() {
                                   <h3 className="font-semibold text-base">
                                     {station.name}
                                   </h3>
-                                  <Badge
-                                    variant={
-                                      station.is_active
-                                        ? 'default'
-                                        : 'destructive'
-                                    }
-                                    className="mt-1"
-                                  >
-                                    {station.is_active
-                                      ? 'Hoạt động'
-                                      : 'Ngừng hoạt động'}
-                                  </Badge>
+                                  {isSuperAdmin && (
+                                    <Badge
+                                      variant={
+                                        station.is_active
+                                          ? 'default'
+                                          : 'destructive'
+                                      }
+                                      className="mt-1"
+                                    >
+                                      {station.is_active
+                                        ? 'Hoạt động'
+                                        : 'Ngừng hoạt động'}
+                                    </Badge>
+                                  )}
                                 </div>
                                 {isSuperAdmin && (
                                   <DropdownMenu>

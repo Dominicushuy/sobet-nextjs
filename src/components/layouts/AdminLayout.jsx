@@ -15,6 +15,7 @@ import {
   FileText,
   Database,
   Shield,
+  List,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -111,6 +112,12 @@ export default function AdminLayout({ children }) {
       href: '/stations',
       label: 'Quản lý đài',
       icon: <Database size={20} />,
+      roles: ['admin', 'super_admin'],
+    },
+    {
+      href: '/bet-types',
+      label: 'Loại Cược',
+      icon: <List size={20} />,
       roles: ['admin', 'super_admin'],
     },
     {
