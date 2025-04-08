@@ -37,7 +37,7 @@ export const renderPayoutRate = (payoutRate) => {
                 {Object.keys(payoutRate).map((key) => (
                   <th
                     key={key}
-                    className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                    className="px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center"
                   >
                     {key.includes('digits') ? key : formatRegionName(key)}
                   </th>
@@ -49,7 +49,7 @@ export const renderPayoutRate = (payoutRate) => {
                 {Object.values(payoutRate).map((value, index) => (
                   <td
                     key={index}
-                    className="px-3 py-2 text-sm text-green-600 dark:text-green-400 font-semibold"
+                    className="px-4 py-3 text-sm text-green-600 dark:text-green-400 font-semibold text-center"
                   >
                     {typeof value === 'object'
                       ? JSON.stringify(value)
