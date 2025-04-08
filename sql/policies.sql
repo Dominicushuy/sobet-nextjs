@@ -509,3 +509,45 @@ USING (
   ) AND
   created_by = auth.uid()
 );
+
+-- Super admin can view all bet type settings
+CREATE POLICY "Super admin can view all bet type settings"
+ON user_bet_type_settings
+FOR SELECT
+USING (auth.is_super_admin());
+
+-- Admin can view bet type settings of users they created
+CREATE POLICY "Admin can view bet type settings of users they created"
+ON user_bet_type_settings
+FOR SELECT
+USING (
+  auth.is_admin() AND 
+  EXISTS (
+    SELECT 1 FROM users u
+    WHERE u.id = user_id AND u.created_by = auth.uid()
+  )
+);
+
+-- Users can view their own bet type settings
+CREATE POLICY "Users can view their own bet type settings"
+ON user_bet_type_settings
+FOR SELECT
+USING (user_id = auth.uid());
+
+-- Super admin can manage any bet type settings
+CREATE POLICY "Super admin can manage any bet type settings"
+ON user_bet_type_settings
+FOR ALL
+USING (auth.is_super_admin());
+
+-- Admin can manage bet type settings of users they created
+CREATE POLICY "Admin can manage bet type settings of users they created"
+ON user_bet_type_settings
+FOR ALL
+USING (
+  auth.is_admin() AND 
+  EXISTS (
+    SELECT 1 FROM users u
+    WHERE u.id = user_id AND u.created_by = auth.uid()
+  )
+);

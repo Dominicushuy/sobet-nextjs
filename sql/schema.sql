@@ -196,3 +196,16 @@ CREATE TABLE user_station_access (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, station_id)
 );
+
+-- Bảng user_bet_type_settings - Cài đặt loại cược cho từng người dùng
+CREATE TABLE user_bet_type_settings (
+  id SERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  bet_type_id INTEGER NOT NULL REFERENCES bet_types(id) ON DELETE CASCADE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  payout_rate JSONB, -- NULL = sử dụng tỷ lệ mặc định, NOT NULL = sử dụng tỷ lệ tùy chỉnh
+  created_by UUID NOT NULL REFERENCES users(id), -- Admin đã thiết lập cài đặt này
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, bet_type_id)
+);
