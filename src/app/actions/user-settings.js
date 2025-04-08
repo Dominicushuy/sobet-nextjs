@@ -78,6 +78,7 @@ export async function getUserStationAccess(userId) {
     const { data: stations, error: stationsError } = await supabaseAdmin
       .from('stations')
       .select('*, region:regions(id, name, code, aliases)')
+      .eq('is_active', true)
       .order('name');
 
     if (stationsError) {
