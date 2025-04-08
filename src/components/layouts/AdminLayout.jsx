@@ -109,13 +109,13 @@ export default function AdminLayout({ children }) {
       roles: ['admin', 'super_admin'],
     },
     {
-      href: '/stations',
+      href: '/admin/stations',
       label: 'Quản lý đài',
       icon: <Database size={20} />,
       roles: ['admin', 'super_admin'],
     },
     {
-      href: '/bet-types',
+      href: '/admin/bet-types',
       label: 'Loại Cược',
       icon: <List size={20} />,
       roles: ['admin', 'super_admin'],

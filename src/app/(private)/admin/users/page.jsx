@@ -67,6 +67,7 @@ import {
   X,
   Filter,
   Info,
+  Settings,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -92,6 +93,7 @@ import {
   resetUserPassword,
   checkUserLimit,
 } from '@/app/actions/users';
+import { useRouter } from 'next/navigation';
 
 // Form schema cho việc tạo user
 const createUserSchema = z.object({
@@ -136,7 +138,11 @@ const resetPasswordSchema = z
   });
 
 export default function UsersPage() {
+  // *** HOOKS ***
   const { user, isSuperAdmin } = useAuth();
+  const router = useRouter();
+
+  // *** STATE MANAGEMENT ***
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState(undefined);
   const [dateFrom, setDateFrom] = useState(undefined);
@@ -715,6 +721,16 @@ export default function UsersPage() {
                               >
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Chỉnh sửa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  router.push(
+                                    `/admin/users/${user.id}/settings`
+                                  )
+                                }
+                              >
+                                <Settings className="mr-2 h-4 w-4" />
+                                Cài đặt
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
