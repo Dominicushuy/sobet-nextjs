@@ -22,8 +22,8 @@ import {
 
 // Components
 import BetTypeList from './components/BetTypeList';
-import CombinationList from './components/CombinationList';
 import BetTypeEditor from './components/BetTypeEditor';
+import CombinationList from '@/components/bet-types/CombinationList';
 
 // Form schema for updating bet type
 const betTypeSchema = z.object({
