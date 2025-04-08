@@ -9,8 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Calculator, Check, Coins, Info, MapPin } from 'lucide-react';
-import { formatRegionName } from '@/components/bet-types/BetTypeCard';
+import { Calculator, Check, Info, MapPin } from 'lucide-react';
+import { formatRegionName, getPayoutRateLabel } from './utils';
 
 // Render combinations
 const renderCombinations = (combinations) => {
@@ -28,7 +28,7 @@ const renderCombinations = (combinations) => {
                     key={key}
                     className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                   >
-                    {key.includes('digits') ? key : formatRegionName(key)}
+                    {getPayoutRateLabel(key)}
                   </th>
                 ))}
               </tr>
