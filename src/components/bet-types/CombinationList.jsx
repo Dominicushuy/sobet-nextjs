@@ -1,4 +1,4 @@
-// src/app/(private)/admin/bet-types/components/CombinationList.jsx
+// src/components/bet-types/CombinationList.jsx
 import React from 'react';
 import {
   Table,
@@ -9,6 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { RefreshCw } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function CombinationList({ isLoading, combinations }) {
   if (isLoading) {
@@ -66,5 +67,55 @@ export default function CombinationList({ isLoading, combinations }) {
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+// Phiên bản Card dành cho hiển thị trong danh sách chi tiết
+export function CombinationCard({ combination }) {
+  return (
+    <Card className="h-full">
+      <CardContent className="pt-6">
+        <h3 className="text-lg font-semibold mb-2">{combination.name}</h3>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-medium">Bí danh:</p>
+            <p className="text-sm text-muted-foreground">
+              {combination.aliases && combination.aliases.length > 0
+                ? combination.aliases.join(', ')
+                : '-'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium">Định nghĩa:</p>
+            <p className="text-sm">{combination.definition}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium">Cú pháp:</p>
+            <code className="bg-muted px-2 py-1 rounded text-sm block">
+              {combination.syntax}
+            </code>
+          </div>
+          <div>
+            <p className="text-sm font-medium">Ví dụ:</p>
+            <div className="bg-blue-50 dark:bg-blue-950 p-2 rounded-md text-sm text-blue-600 dark:text-blue-400">
+              {combination.examples && combination.examples.length > 0
+                ? combination.examples.map((example, i) => (
+                    <p key={i}>{example}</p>
+                  ))
+                : 'Không có ví dụ'}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium">Áp dụng cho loại cược:</p>
+            <p className="text-sm">
+              {combination.applicable_bet_types &&
+              combination.applicable_bet_types.length > 0
+                ? combination.applicable_bet_types.join(', ')
+                : '-'}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

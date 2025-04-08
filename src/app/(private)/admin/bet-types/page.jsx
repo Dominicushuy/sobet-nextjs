@@ -6,10 +6,16 @@ import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, X } from 'lucide-react';
+import { Search, X, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useServerQuery, useServerMutation } from '@/hooks/useServerAction';
 import {
@@ -21,9 +27,11 @@ import {
 } from '@/app/actions/bet-types';
 
 // Components
-import BetTypeList from './components/BetTypeList';
-import BetTypeEditor from './components/BetTypeEditor';
+import BetTypeEditor from '@/components/bet-types/BetTypeEditor';
+import BetTypeCard from '@/components/bet-types/BetTypeCard';
 import CombinationList from '@/components/bet-types/CombinationList';
+import BetTypeDetails from '@/components/bet-types/BetTypeDetails';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Form schema for updating bet type
 const betTypeSchema = z.object({
@@ -39,6 +47,8 @@ const betTypeSchema = z.object({
 export default function BetTypesPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const [activeSection, setActiveSection] = useState('bet-types');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedBetType, setSelectedBetType] = useState(null);
   const [expandedBetType, setExpandedBetType] = useState(null);
@@ -120,6 +130,14 @@ export default function BetTypesPage() {
     if (!betTypesData?.data) return [];
 
     return betTypesData.data.filter((betType) => {
+      // Filter by region if a specific region is selected
+      if (
+        activeTab !== 'all' &&
+        !betType.applicable_regions?.includes(activeTab)
+      ) {
+        return false;
+      }
+
       if (!searchTerm) return true;
 
       // Search by name
@@ -136,7 +154,7 @@ export default function BetTypesPage() {
 
       return false;
     });
-  }, [betTypesData, searchTerm]);
+  }, [betTypesData, searchTerm, activeTab]);
 
   // Filter number combinations
   const filteredCombinations = useMemo(() => {
@@ -254,6 +272,14 @@ export default function BetTypesPage() {
     setEditDialogOpen(true);
   };
 
+  // Loading spinner
+  const LoadingSpinner = () => (
+    <div className="flex flex-col items-center justify-center py-10">
+      <RefreshCw className="h-6 w-6 animate-spin text-primary mb-4" />
+      <p className="text-sm text-muted-foreground">Đang tải dữ liệu...</p>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -269,52 +295,136 @@ export default function BetTypesPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Danh sách Loại Cược</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Tìm kiếm loại cược theo tên hoặc bí danh..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+      <div className="flex space-x-4">
+        <Button
+          variant={activeSection === 'bet-types' ? 'default' : 'outline'}
+          onClick={() => setActiveSection('bet-types')}
+        >
+          Loại Cược
+        </Button>
+        <Button
+          variant={activeSection === 'combinations' ? 'default' : 'outline'}
+          onClick={() => setActiveSection('combinations')}
+        >
+          Tổ Hợp Số
+        </Button>
+      </div>
+
+      {activeSection === 'bet-types' ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Danh sách Loại Cược</CardTitle>
+            <CardDescription>
+              {isSuperAdmin
+                ? 'Quản lý các loại cược trong hệ thống'
+                : 'Xem thông tin chi tiết về các loại cược'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm kiếm loại cược theo tên hoặc bí danh..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              {searchTerm && (
+                <Button variant="ghost" onClick={resetSearch}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-            {searchTerm && (
-              <Button variant="ghost" onClick={resetSearch}>
-                <X className="h-4 w-4" />
-              </Button>
+
+            <Tabs
+              defaultValue="all"
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="mb-6"
+            >
+              <TabsList className="grid grid-cols-4">
+                <TabsTrigger value="all">Tất cả</TabsTrigger>
+                <TabsTrigger value="north">Miền Bắc</TabsTrigger>
+                <TabsTrigger value="central">Miền Trung</TabsTrigger>
+                <TabsTrigger value="south">Miền Nam</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {isLoadingBetTypes ? (
+              <LoadingSpinner />
+            ) : filteredBetTypes.length > 0 ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredBetTypes.map((betType) => (
+                    <div key={betType.id} className="flex flex-col">
+                      <BetTypeCard
+                        betType={betType}
+                        isAdmin={isSuperAdmin}
+                        onToggleExpand={toggleBetTypeExpansion}
+                        isExpanded={expandedBetType === betType.id}
+                        onEdit={handleEditBetType}
+                        onToggleStatus={onToggleStatus}
+                      />
+                      {expandedBetType === betType.id && (
+                        <Card className="mt-2 border-t-0 rounded-t-none">
+                          <CardContent className="pt-4">
+                            <BetTypeDetails
+                              betType={betType}
+                              combinationsData={combinationsData}
+                            />
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-muted-foreground">
+                  {searchTerm
+                    ? 'Không tìm thấy loại cược nào khớp với từ khóa tìm kiếm'
+                    : 'Không có loại cược nào'}
+                </p>
+              </div>
             )}
-          </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Danh sách Tổ hợp Số</CardTitle>
+            <CardDescription>
+              Thông tin về các tổ hợp số có thể sử dụng khi đặt cược
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm kiếm tổ hợp số..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              {searchTerm && (
+                <Button variant="ghost" onClick={resetSearch}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
 
-          <BetTypeList
-            isLoading={isLoadingBetTypes}
-            betTypes={filteredBetTypes}
-            expandedBetType={expandedBetType}
-            toggleBetTypeExpansion={toggleBetTypeExpansion}
-            onEditBetType={handleEditBetType}
-            onToggleStatus={onToggleStatus}
-            isSuperAdmin={isSuperAdmin}
-            combinationsData={combinationsData}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Danh sách Tổ hợp Số</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CombinationList
-            isLoading={isLoadingCombinations}
-            combinations={filteredCombinations}
-          />
-        </CardContent>
-      </Card>
+            <CombinationList
+              isLoading={isLoadingCombinations}
+              combinations={filteredCombinations}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Dialog - Only shown for Super Admin */}
       {isSuperAdmin && (
