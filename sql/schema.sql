@@ -159,16 +159,22 @@ CREATE TABLE bet_code_lines (
 CREATE TABLE lottery_results (
   id SERIAL PRIMARY KEY,
   station_id INTEGER NOT NULL REFERENCES stations(id),
-  draw_date DATE NOT NULL,
-  result_data JSONB NOT NULL, -- Prize data organized by prize types
-  source VARCHAR(255), -- Source of data (API, manual input, etc.)
+  draw_date DATE NOT NULL,                    -- Ngày quay số
+  day_of_week VARCHAR(20) NOT NULL,           -- Thứ trong tuần
+  special_prize TEXT[] NOT NULL,              -- Giải đặc biệt
+  first_prize TEXT[] NOT NULL,                -- Giải nhất
+  second_prize TEXT[] NOT NULL,               -- Giải nhì
+  third_prize TEXT[] NOT NULL,                -- Giải ba
+  fourth_prize TEXT[] NOT NULL,               -- Giải tư
+  fifth_prize TEXT[] NOT NULL,                -- Giải năm
+  sixth_prize TEXT[] NOT NULL,                -- Giải sáu
+  seventh_prize TEXT[] NOT NULL,              -- Giải bảy
+  eighth_prize TEXT[],                        -- Giải tám (chỉ có ở Miền Nam và Miền Trung)
+  source VARCHAR(255),                        -- Nguồn dữ liệu
   created_by UUID REFERENCES users(id),
-  verified BOOLEAN NOT NULL DEFAULT FALSE,
-  verified_by UUID REFERENCES users(id),
-  verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (station_id, draw_date)
+  UNIQUE(station_id, draw_date)
 );
 
 -- Bảng Verifications (Đối soát)
