@@ -39,6 +39,11 @@ const navItems = [
     icon: LayoutDashboard,
   },
   {
+    title: 'Hồ sơ cá nhân',
+    href: '/profile',
+    icon: User,
+  },
+  {
     title: 'Mã cược',
     href: '/bet-codes',
     icon: FileText,
@@ -148,7 +153,7 @@ export default function UserLayout({ children }) {
                 <DropdownMenuItem asChild>
                   <Link href="/profile">
                     <User className="mr-2 h-4 w-4" />
-                    <span>Hồ sơ</span>
+                    <span>Hồ sơ cá nhân</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
