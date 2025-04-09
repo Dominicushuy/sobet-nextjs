@@ -31,13 +31,26 @@ export async function changeUserPassword(userId, currentPassword, newPassword) {
   try {
     const supabase = await createClient();
 
-    // Xác thực mật khẩu hiện tại trước
+    // Lấy email của người dùng
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('email')
+      .eq('id', userId)
+      .single();
+
+    if (userError) {
+      console.error('Error fetching user email:', userError);
+      return { data: null, error: 'Không thể lấy thông tin người dùng' };
+    }
+
+    // Xác thực mật khẩu hiện tại
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: undefined, // Sẽ lấy từ session
+      email: userData.email,
       password: currentPassword,
     });
 
     if (authError) {
+      console.error('Authentication error:', authError);
       return { data: null, error: 'Mật khẩu hiện tại không chính xác' };
     }
 
