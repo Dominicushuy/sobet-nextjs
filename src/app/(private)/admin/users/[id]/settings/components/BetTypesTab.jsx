@@ -69,6 +69,7 @@ import {
   resetUserBetTypeSettings,
   batchUpdateUserBetTypeSettings,
 } from '@/app/actions/user-bet-types';
+import PayoutRateEditor from './PayoutRateEditor';
 
 // Form schema cho việc cập nhật tỷ lệ trả thưởng
 const payoutRateSchema = z.object({
@@ -488,6 +489,7 @@ export default function BetTypesTab({ userId, currentUser }) {
       </CardFooter>
 
       {/* Dialog chỉnh sửa tỷ lệ trả thưởng */}
+      {/* Dialog chỉnh sửa tỷ lệ trả thưởng */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -496,68 +498,27 @@ export default function BetTypesTab({ userId, currentUser }) {
               Cài đặt tỷ lệ trả thưởng tùy chỉnh cho loại cược này
             </DialogDescription>
           </DialogHeader>
-          <Form {...payoutRateForm}>
-            <form
-              onSubmit={payoutRateForm.handleSubmit(onSubmitPayoutRate)}
-              className="space-y-4"
+          <div className="pt-4">
+            <PayoutRateEditor
+              form={payoutRateForm}
+              isPending={updatePayoutRateMutation.isPending}
+              onSubmitForm={onSubmitPayoutRate}
+              originalPayoutRate={
+                selectedBetType?.custom_payout_rate ||
+                selectedBetType?.payout_rate
+              }
+              selectedBetType={selectedBetType}
+            />
+          </div>
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
             >
-              {selectedBetType && (
-                <div className="grid w-full items-center gap-1.5">
-                  <FormLabel>Loại cược</FormLabel>
-                  <Input value={selectedBetType.name} disabled />
-                </div>
-              )}
-
-              <FormField
-                control={payoutRateForm.control}
-                name="payoutRate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tỷ lệ trả thưởng</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder='{"2 digits": 75, "3 digits": 650, "4 digits": 5500}'
-                        className="h-40 font-mono"
-                      />
-                    </FormControl>
-                    <div className="text-xs text-amber-500 mt-1 flex items-start">
-                      <Info className="h-3 w-3 mt-0.5 mr-1" />
-                      <span>
-                        Tỷ lệ trả thưởng cần nhập theo định dạng JSON. Có thể là
-                        một giá trị đơn (VD: 75) hoặc một đối tượng phức tạp với
-                        nhiều trường.
-                      </span>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditDialogOpen(false)}
-                >
-                  Hủy
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updatePayoutRateMutation.isPending}
-                >
-                  {updatePayoutRateMutation.isPending ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Đang lưu...
-                    </>
-                  ) : (
-                    'Lưu thay đổi'
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+              Hủy
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

@@ -1,4 +1,5 @@
 // src/components/bet-types/BetTypeCard.jsx
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import {
   MoreHorizontal,
   ChevronDown,
   ChevronRight,
+  Edit3,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -19,7 +21,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Edit3,
 } from '@/components/ui/dropdown-menu';
 import {
   formatRegionName,
