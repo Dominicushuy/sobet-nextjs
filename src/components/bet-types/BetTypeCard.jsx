@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronRight,
   Edit3,
+  Calculator,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -29,15 +30,22 @@ import {
   getPayoutRateLabel,
 } from './utils';
 
-export const renderPayoutRate = (payoutRate) => {
+export const renderPayoutRate = (payoutRate, multiplier = 1) => {
   if (!payoutRate) return <span className="text-muted-foreground">-</span>;
 
   try {
     if (typeof payoutRate === 'number') {
       return (
-        <span className="text-lg font-semibold text-green-600 dark:text-green-400">
-          1 ăn {payoutRate}
-        </span>
+        <div>
+          <span className="text-lg font-semibold text-green-600 dark:text-green-400">
+            1 ăn {payoutRate}
+          </span>
+          {multiplier !== 1 && (
+            <span className="ml-2 text-sm text-amber-600 dark:text-amber-400">
+              (x{multiplier} = {payoutRate * multiplier})
+            </span>
+          )}
+        </div>
       );
     } else if (typeof payoutRate === 'object') {
       return (
@@ -47,6 +55,11 @@ export const renderPayoutRate = (payoutRate) => {
               <span>{getPayoutRateLabel(key)}:</span>
               <span className="font-semibold text-green-600 dark:text-green-400">
                 1 ăn {value}
+                {multiplier !== 1 && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    (x{multiplier} = {value * multiplier})
+                  </span>
+                )}
               </span>
             </div>
           ))}
@@ -167,10 +180,23 @@ const BetTypeCard = ({
             </div>
             <div className="mt-1">
               {renderPayoutRate(
-                betType.custom_payout_rate || betType.payout_rate
+                betType.custom_payout_rate || betType.payout_rate,
+                betType.multiplier || 1
               )}
             </div>
           </div>
+          {/* Show multiplier if it's not 1 */}
+          {betType.multiplier && betType.multiplier !== 1 && (
+            <div>
+              <div className="text-sm font-medium flex items-center">
+                <Calculator className="h-4 w-4 mr-2 text-primary" />
+                Hệ số nhân:
+              </div>
+              <div className="mt-1">
+                <Badge variant="secondary">{betType.multiplier}x</Badge>
+              </div>
+            </div>
+          )}
         </div>
         <div className="mt-4 p-2 bg-blue-50 dark:bg-blue-950 rounded-md text-blue-600 dark:text-blue-400 text-sm">
           <strong>Cách đặt cược:</strong> {getBetTypeExample(betType)}

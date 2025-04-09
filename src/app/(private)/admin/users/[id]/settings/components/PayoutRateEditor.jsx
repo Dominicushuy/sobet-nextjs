@@ -11,7 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { RefreshCw, Info, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Info, AlertTriangle, Calculator } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -217,6 +217,39 @@ const PayoutRateEditor = ({
           <FormLabel>Loại cược</FormLabel>
           <Input value={selectedBetType?.name || ''} disabled />
         </div>
+
+        {/* Add multiplier field */}
+        <FormField
+          control={form.control}
+          name="multiplier"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center">
+                <Calculator className="mr-2 h-4 w-4" />
+                Hệ số nhân
+              </FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  placeholder="Nhập hệ số nhân (ví dụ: 1.5)"
+                  {...field}
+                />
+              </FormControl>
+              <div className="text-xs text-amber-500 mt-1 flex items-start">
+                <Info className="h-3 w-3 mt-0.5 mr-1" />
+                <span>
+                  Hệ số nhân sẽ được áp dụng khi tính toán tiền thắng. Giá trị
+                  mặc định là 1.
+                </span>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Separator className="my-4" />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-2 w-full mb-4">

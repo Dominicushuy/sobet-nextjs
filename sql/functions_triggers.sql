@@ -70,7 +70,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
--- Trigger function cải tiến để tự động tạo cài đặt loại cược mặc định cho người dùng mới
+-- Update create_default_user_bet_type_settings function to use bet_types.multiplier
 CREATE OR REPLACE FUNCTION create_default_user_bet_type_settings()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -80,13 +80,14 @@ BEGIN
     IF NEW.role_id = 3 THEN
         -- Tự động thêm cài đặt cho tất cả các loại cược đang hoạt động
         FOR bet_type_record IN (
-            SELECT id, payout_rate FROM bet_types WHERE is_active = TRUE
+            SELECT id, payout_rate, multiplier FROM bet_types WHERE is_active = TRUE
         ) LOOP
             INSERT INTO user_bet_type_settings (
                 user_id, 
                 bet_type_id, 
                 is_active,
-                payout_rate, 
+                payout_rate,
+                multiplier, 
                 created_by
             ) 
             VALUES (
@@ -94,6 +95,7 @@ BEGIN
                 bet_type_record.id, 
                 TRUE,
                 bet_type_record.payout_rate, -- Sao chép tỷ lệ từ bet_types
+                bet_type_record.multiplier, -- Sao chép hệ số nhân từ bet_types
                 NEW.created_by
             );
         END LOOP;

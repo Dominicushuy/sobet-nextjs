@@ -96,6 +96,17 @@ export async function toggleBetTypeStatus(id, isActive) {
 // Update bet type
 export async function updateBetType(id, betTypeData) {
   try {
+    // Process multiplier field if it exists
+    if (betTypeData.multiplier !== undefined) {
+      // Ensure multiplier is a number
+      const multiplier = parseFloat(betTypeData.multiplier);
+      if (!isNaN(multiplier)) {
+        betTypeData.multiplier = multiplier;
+      } else {
+        delete betTypeData.multiplier; // Remove if invalid
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from('bet_types')
       .update(betTypeData)

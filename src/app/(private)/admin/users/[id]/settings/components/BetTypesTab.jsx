@@ -1,3 +1,4 @@
+// src/app/(private)/admin/users/[id]/settings/components/BetTypesTab.jsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -56,6 +57,7 @@ import {
   RotateCcw,
   Power,
   PowerOff,
+  Calculator,
 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -74,6 +76,15 @@ import PayoutRateEditor from './PayoutRateEditor';
 // Form schema cho việc cập nhật tỷ lệ trả thưởng
 const payoutRateSchema = z.object({
   payoutRate: z.string().min(1, 'Cần nhập tỷ lệ trả thưởng'),
+  multiplier: z.string().refine(
+    (value) => {
+      const num = parseFloat(value);
+      return !isNaN(num) && num > 0;
+    },
+    {
+      message: 'Hệ số nhân phải là số dương',
+    }
+  ),
 });
 
 export default function BetTypesTab({ userId, currentUser }) {
@@ -118,21 +129,22 @@ export default function BetTypesTab({ userId, currentUser }) {
   // Update payout rate mutation
   const updatePayoutRateMutation = useServerMutation(
     'updateUserBetTypePayoutRate',
-    ({ betTypeId, payoutRate }) =>
+    ({ betTypeId, payoutRate, multiplier }) =>
       updateUserBetTypePayoutRate(
         userId,
         currentUser.id,
         betTypeId,
-        payoutRate
+        payoutRate,
+        multiplier
       ),
     {
       onSuccess: () => {
-        toast.success('Đã cập nhật tỷ lệ trả thưởng');
+        toast.success('Đã cập nhật tỷ lệ trả thưởng và hệ số nhân');
         setEditDialogOpen(false);
         refetchBetTypeSettings();
       },
       onError: (error) => {
-        toast.error(`Lỗi khi cập nhật tỷ lệ trả thưởng: ${error.message}`);
+        toast.error(`Lỗi khi cập nhật cài đặt: ${error.message}`);
       },
     }
   );
@@ -175,6 +187,7 @@ export default function BetTypesTab({ userId, currentUser }) {
     resolver: zodResolver(payoutRateSchema),
     defaultValues: {
       payoutRate: '',
+      multiplier: '1',
     },
   });
 
@@ -193,6 +206,9 @@ export default function BetTypesTab({ userId, currentUser }) {
 
       payoutRateForm.reset({
         payoutRate: payoutRateStr,
+        multiplier: selectedBetType.multiplier
+          ? selectedBetType.multiplier.toString()
+          : '1',
       });
     }
   }, [selectedBetType, payoutRateForm]);
@@ -206,6 +222,7 @@ export default function BetTypesTab({ userId, currentUser }) {
         is_active: isActive,
         setting_id: settingId,
         payout_rate: null, // Không thay đổi tỷ lệ trả thưởng
+        multiplier: null, // Không thay đổi hệ số nhân
       },
     }));
     setHasUnsavedChanges(true);
@@ -234,6 +251,7 @@ export default function BetTypesTab({ userId, currentUser }) {
     updatePayoutRateMutation.mutate({
       betTypeId: selectedBetType.id,
       payoutRate,
+      multiplier: parseFloat(data.multiplier),
     });
   };
 
@@ -332,6 +350,7 @@ export default function BetTypesTab({ userId, currentUser }) {
                     <TableHead>Trạng thái chung</TableHead>
                     <TableHead>Trạng thái riêng</TableHead>
                     <TableHead>Tỷ lệ trả thưởng</TableHead>
+                    <TableHead>Hệ số nhân</TableHead>
                     <TableHead className="text-right">Tùy chọn</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -393,6 +412,15 @@ export default function BetTypesTab({ userId, currentUser }) {
                               <Badge variant="secondary">Tùy chỉnh</Badge>
                             )}
                           </TableCell>
+                          <TableCell>
+                            {betType.multiplier && betType.multiplier !== 1 ? (
+                              <Badge variant="secondary">
+                                {betType.multiplier}x
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">1x</Badge>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -409,7 +437,7 @@ export default function BetTypesTab({ userId, currentUser }) {
                                   }}
                                 >
                                   <Pencil className="mr-2 h-4 w-4" />
-                                  Chỉnh sửa tỷ lệ
+                                  Chỉnh sửa cài đặt
                                 </DropdownMenuItem>
                                 {hasCustomSetting && (
                                   <DropdownMenuItem
@@ -449,7 +477,7 @@ export default function BetTypesTab({ userId, currentUser }) {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-10">
+                      <TableCell colSpan={7} className="text-center py-10">
                         <p className="text-muted-foreground">
                           {searchTerm
                             ? 'Không tìm thấy loại cược nào khớp với từ khóa tìm kiếm'
@@ -489,13 +517,12 @@ export default function BetTypesTab({ userId, currentUser }) {
       </CardFooter>
 
       {/* Dialog chỉnh sửa tỷ lệ trả thưởng */}
-      {/* Dialog chỉnh sửa tỷ lệ trả thưởng */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Chỉnh sửa tỷ lệ trả thưởng</DialogTitle>
+            <DialogTitle>Chỉnh sửa cài đặt loại cược</DialogTitle>
             <DialogDescription>
-              Cài đặt tỷ lệ trả thưởng tùy chỉnh cho loại cược này
+              Tùy chỉnh tỷ lệ trả thưởng và hệ số nhân cho loại cược này
             </DialogDescription>
           </DialogHeader>
           <div className="pt-4">

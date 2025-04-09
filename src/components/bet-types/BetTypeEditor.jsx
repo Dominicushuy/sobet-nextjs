@@ -1,4 +1,4 @@
-// src/app/(private)/admin/bet-types/components/BetTypeEditor.jsx
+// src/components/bet-types/BetTypeEditor.jsx
 import React from 'react';
 import {
   Form,
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Info } from 'lucide-react';
+import { Info, Calculator } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -176,6 +176,35 @@ export default function BetTypeEditor({
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="multiplier"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                    <Calculator className="mr-2 h-4 w-4" />
+                    Hệ số nhân mặc định
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      placeholder="Nhập hệ số nhân (ví dụ: 1)"
+                      {...field}
+                    />
+                  </FormControl>
+                  <div className="text-xs text-amber-500 mt-1 flex items-start">
+                    <Info className="h-3 w-3 mt-0.5 mr-1" />
+                    <span>
+                      Hệ số nhân mặc định cho loại cược này. Có thể được điều
+                      chỉnh cho từng người dùng.
+                    </span>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

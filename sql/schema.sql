@@ -90,6 +90,7 @@ CREATE TABLE bet_types (
   is_permutation BOOLEAN NOT NULL DEFAULT FALSE,
   special_calc VARCHAR(50),
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  multiplier NUMERIC NOT NULL DEFAULT 1;
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -205,6 +206,7 @@ CREATE TABLE user_bet_type_settings (
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   payout_rate JSONB, -- NULL = sử dụng tỷ lệ mặc định, NOT NULL = sử dụng tỷ lệ tùy chỉnh
   created_by UUID NOT NULL REFERENCES users(id), -- Admin đã thiết lập cài đặt này
+  multiplier NUMERIC NOT NULL DEFAULT 1;
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, bet_type_id)

@@ -47,6 +47,7 @@ export async function getUserBetTypeSettings(userId) {
           ? userSetting.is_active
           : betType.is_active,
         custom_payout_rate: userSetting ? userSetting.payout_rate : null,
+        multiplier: userSetting ? userSetting.multiplier : 1,
         setting_id: userSetting ? userSetting.id : null,
       };
     });
@@ -188,6 +189,35 @@ export async function resetUserBetTypeSettings(userId, betTypeId) {
       return { data: null, error: error.message };
     }
 
+    // Lấy giá trị mặc định từ bet_types
+    const { data: betType, error: betTypeError } = await supabaseAdmin
+      .from('bet_types')
+      .select('payout_rate, multiplier')
+      .eq('id', betTypeId)
+      .single();
+
+    if (betTypeError) {
+      console.error('Error fetching bet type defaults:', betTypeError);
+      return { data: null, error: betTypeError.message };
+    }
+
+    // Tạo lại setting với giá trị mặc định từ bet_types
+    const { error: insertError } = await supabaseAdmin
+      .from('user_bet_type_settings')
+      .insert({
+        user_id: userId,
+        bet_type_id: betTypeId,
+        is_active: true,
+        payout_rate: null, // Sử dụng tỷ lệ mặc định
+        multiplier: betType.multiplier, // Sử dụng hệ số nhân mặc định từ bet_types
+        created_by: userId, // Using userId as the creator since we don't have adminId here
+      });
+
+    if (insertError) {
+      console.error('Error creating default settings:', insertError);
+      return { data: null, error: insertError.message };
+    }
+
     revalidatePath(`/admin/users/${userId}/settings`);
     return { data: { success: true }, error: null };
   } catch (error) {
@@ -223,6 +253,7 @@ export async function batchUpdateUserBetTypeSettings(userId, adminId, updates) {
             bet_type_id: update.bet_type_id,
             is_active: update.is_active,
             payout_rate: update.payout_rate,
+            multiplier: update.multiplier || 1,
             created_by: adminId,
           });
         }

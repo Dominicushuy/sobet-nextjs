@@ -42,6 +42,10 @@ const betTypeSchema = z.object({
   matching_method: z.string().min(2, 'Cần nhập phương thức đối chiếu'),
   is_active: z.boolean().default(true),
   payout_rate: z.string().min(1, 'Cần nhập tỷ lệ trả thưởng'),
+  multiplier: z.string().transform((val) => {
+    const num = parseFloat(val);
+    return isNaN(num) ? 1 : num;
+  }),
 });
 
 export default function BetTypesPage() {
@@ -179,7 +183,7 @@ export default function BetTypesPage() {
     });
   }, [combinationsData, searchTerm]);
 
-  // Update form when selected bet type changes
+  // Cập nhật useEffect cho form khi chọn loại cược
   useEffect(() => {
     if (selectedBetType) {
       // Convert JSONB for payout_rate to string for the form
@@ -206,11 +210,13 @@ export default function BetTypesPage() {
         matching_method: selectedBetType.matching_method || '',
         is_active: selectedBetType.is_active,
         payout_rate: payoutRateStr,
+        multiplier: selectedBetType.multiplier
+          ? selectedBetType.multiplier.toString()
+          : '1',
       });
     }
   }, [selectedBetType, editForm]);
 
-  // Handle form submission
   const onUpdateBetType = (data) => {
     if (!selectedBetType) return;
 
@@ -234,6 +240,9 @@ export default function BetTypesPage() {
       payoutRate = data.payout_rate;
     }
 
+    // Convert multiplier to number
+    const multiplier = parseFloat(data.multiplier);
+
     updateBetTypeMutation.mutate({
       id: selectedBetType.id,
       data: {
@@ -244,6 +253,7 @@ export default function BetTypesPage() {
         matching_method: data.matching_method,
         is_active: data.is_active,
         payout_rate: payoutRate,
+        multiplier: isNaN(multiplier) ? 1 : multiplier,
       },
     });
   };
