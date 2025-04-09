@@ -60,24 +60,24 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await serverSignOut();
 
-      if (error) {
-        toast.error('Đã xảy ra lỗi khi đăng xuất');
-        console.error('Signout error:', error);
-        return;
-      }
-
+      // Xóa dữ liệu người dùng trong state trước khi đăng xuất
       setUser(null);
       setUserData(null);
       setRole(null);
-      toast.success('Đăng xuất thành công');
+
+      // Chuyển hướng ngay lập tức để tránh lỗi session missing
       // router.push('/login');
       window.location.href = '/login';
+
+      // Sau đó mới thực hiện đăng xuất từ server
+      // Không cần đợi hoặc kiểm tra kết quả vì người dùng đã được chuyển hướng
+      serverSignOut().catch((error) => {
+        console.error('Signout background error:', error);
+      });
     } catch (error) {
       console.error('Unexpected error during signout:', error);
       toast.error('Đã xảy ra lỗi khi đăng xuất');
-    } finally {
       setLoading(false);
     }
   };

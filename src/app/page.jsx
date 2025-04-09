@@ -1,17 +1,9 @@
 // src/app/page.jsx
-'use client';
 
-import { redirect, usePathname } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 
 export default async function Home() {
-  const pathname = usePathname();
-  const isLoginPage = pathname === '/login';
-
-  if (isLoginPage) {
-    return null; // Không làm gì nếu đang ở trang đăng nhập
-  }
-
   const supabase = await createClient();
 
   const {
