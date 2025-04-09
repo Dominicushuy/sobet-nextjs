@@ -229,6 +229,7 @@ export async function updateAdmin({ id, fullName }) {
 // Hàm kích hoạt/vô hiệu hóa admin
 export async function toggleAdminStatus({ id, isActive }) {
   try {
+    // 1. Cập nhật trạng thái của admin
     const { data, error } = await supabaseAdmin
       .from('users')
       .update({
@@ -242,6 +243,36 @@ export async function toggleAdminStatus({ id, isActive }) {
     if (error) {
       console.error('Error toggling admin status:', error);
       return { data: null, error: error.message };
+    }
+
+    // 2. Lấy role_id của user để lọc
+    const { data: userRoleData, error: userRoleError } = await supabaseAdmin
+      .from('roles')
+      .select('id')
+      .eq('name', 'user')
+      .single();
+
+    if (userRoleError) {
+      console.error('Error fetching user role:', userRoleError);
+      // Vẫn trả về thành công cho admin nhưng ghi nhật ký lỗi
+      return { data, error: null };
+    }
+
+    const userRoleId = userRoleData.id;
+
+    // 3. Cập nhật tất cả người dùng được tạo bởi admin này
+    const { error: userUpdateError } = await supabaseAdmin
+      .from('users')
+      .update({
+        is_active: isActive,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('created_by', id)
+      .eq('role_id', userRoleId); // Chỉ cập nhật người dùng thông thường, không phải admin khác
+
+    if (userUpdateError) {
+      console.error('Error updating users status:', userUpdateError);
+      // Vẫn trả về thành công cho admin nhưng ghi nhật ký lỗi
     }
 
     revalidatePath('/admin/admins');

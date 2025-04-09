@@ -8,7 +8,6 @@ import {
   useState,
   useCallback,
 } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { getSession, signOut as serverSignOut } from '@/app/actions/auth';
 
@@ -27,7 +26,6 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   const fetchSession = useCallback(async () => {
     try {
@@ -74,7 +72,8 @@ export const AuthProvider = ({ children }) => {
       setUserData(null);
       setRole(null);
       toast.success('Đăng xuất thành công');
-      router.push('/login');
+      // router.push('/login');
+      window.location.href = '/login';
     } catch (error) {
       console.error('Unexpected error during signout:', error);
       toast.error('Đã xảy ra lỗi khi đăng xuất');
