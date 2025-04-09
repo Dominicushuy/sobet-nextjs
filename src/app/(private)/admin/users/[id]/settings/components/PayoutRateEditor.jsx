@@ -23,6 +23,7 @@ const PayoutRateEditor = ({
   onSubmitForm,
   originalPayoutRate,
   selectedBetType,
+  onCancel,
 }) => {
   const [activeTab, setActiveTab] = useState('structured');
   const [hasParseError, setHasParseError] = useState(false);
@@ -269,6 +270,10 @@ const PayoutRateEditor = ({
         <Separator className="my-4" />
 
         <div className="flex justify-end space-x-4">
+          {/* Thêm nút hủy */}
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Hủy
+          </Button>
           <Button type="submit" disabled={isPending}>
             {isPending ? (
               <>

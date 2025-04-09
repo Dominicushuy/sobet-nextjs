@@ -508,17 +508,9 @@ export default function BetTypesTab({ userId, currentUser }) {
                 selectedBetType?.payout_rate
               }
               selectedBetType={selectedBetType}
+              onCancel={() => setEditDialogOpen(false)}
             />
           </div>
-          <DialogFooter className="mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditDialogOpen(false)}
-            >
-              Hủy
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>
