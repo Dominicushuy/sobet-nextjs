@@ -551,3 +551,36 @@ USING (
     WHERE u.id = user_id AND u.created_by = auth.uid()
   )
 );
+
+-- Add RLS policies for the new table
+CREATE POLICY "Super admin can view all user commission settings"
+ON user_commission_settings
+FOR SELECT
+USING (auth.is_super_admin());
+
+CREATE POLICY "Admin can view commission settings of users they created"
+ON user_commission_settings
+FOR SELECT
+USING (
+  auth.is_admin() AND 
+  EXISTS (
+    SELECT 1 FROM users u
+    WHERE u.id = user_id AND u.created_by = auth.uid()
+  )
+);
+
+CREATE POLICY "Super admin can modify any user commission settings"
+ON user_commission_settings
+FOR ALL
+USING (auth.is_super_admin());
+
+CREATE POLICY "Admin can modify commission settings of users they created"
+ON user_commission_settings
+FOR ALL
+USING (
+  auth.is_admin() AND 
+  EXISTS (
+    SELECT 1 FROM users u
+    WHERE u.id = user_id AND u.created_by = auth.uid()
+  )
+);

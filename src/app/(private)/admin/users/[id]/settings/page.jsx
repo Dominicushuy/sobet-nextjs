@@ -19,7 +19,7 @@ import { getUserDetails } from '@/app/actions/user-settings';
 import AccountTab from './components/AccountTab';
 import StationsTab from './components/StationsTab';
 import BetTypesTab from './components/BetTypesTab';
-import { RewardsTab, MultipliersTab } from './components/PlaceholderTabs'; // Placeholder tabs for future use
+import CommissionTab from './components/CommissionTab';
 
 export default function UserSettingsPage() {
   const { id } = useParams();
@@ -113,12 +113,11 @@ export default function UserSettingsPage() {
         value={activeTab}
         onValueChange={setActiveTab}
       >
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="account">Thông tin tài khoản</TabsTrigger>
           <TabsTrigger value="stations">Cài đặt đài xổ số</TabsTrigger>
           <TabsTrigger value="betTypes">Cài đặt loại cược</TabsTrigger>
-          <TabsTrigger value="rewards">Hệ số tính thưởng</TabsTrigger>
-          <TabsTrigger value="multipliers">Hệ số nhân</TabsTrigger>
+          <TabsTrigger value="commission">Cài đặt tỉ lệ</TabsTrigger>
         </TabsList>
 
         {/* Account Settings Tab */}
@@ -136,13 +135,9 @@ export default function UserSettingsPage() {
           <BetTypesTab userId={id} currentUser={currentUser} />
         </TabsContent>
 
-        {/* Placeholder Tabs */}
-        <TabsContent value="rewards">
-          <RewardsTab />
-        </TabsContent>
-
-        <TabsContent value="multipliers">
-          <MultipliersTab />
+        {/* Commission Settings Tab (new) */}
+        <TabsContent value="commission">
+          <CommissionTab userId={id} currentUser={currentUser} />
         </TabsContent>
       </Tabs>
     </div>

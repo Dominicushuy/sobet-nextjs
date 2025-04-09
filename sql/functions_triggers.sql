@@ -113,3 +113,36 @@ CREATE TRIGGER trigger_create_default_user_bet_type_settings
 AFTER INSERT ON users
 FOR EACH ROW
 EXECUTE FUNCTION create_default_user_bet_type_settings();
+
+
+-- Tạo hàm tự động tạo cài đặt hoa hồng mặc định cho người dùng mới
+CREATE OR REPLACE FUNCTION create_default_user_commission_settings()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- If user is regular user (role_id = 3), create default commission settings
+    IF NEW.role_id = 3 THEN
+        INSERT INTO user_commission_settings (
+            user_id,
+            price_rate,
+            export_price_rate,
+            return_price_rate,
+            created_by
+        )
+        VALUES (
+            NEW.id,
+            0.8,
+            0.74,
+            0.95,
+            NEW.created_by
+        );
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Tạo trigger để tự động tạo cài đặt hoa hồng mặc định cho người dùng mới
+CREATE TRIGGER trigger_create_default_user_commission_settings
+AFTER INSERT ON users
+FOR EACH ROW
+EXECUTE FUNCTION create_default_user_commission_settings();
