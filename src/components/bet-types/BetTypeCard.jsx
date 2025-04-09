@@ -27,11 +27,12 @@ import {
 import {
   formatRegionName,
   getBetTypeDescription,
+  getBetTypeExample,
   getPayoutRateLabel,
 } from './utils';
 
 // Render payout rate
-export const renderPayoutRate = (payoutRate) => {
+export const renderPayoutRate = (payoutRate, multiplier = 1) => {
   if (!payoutRate) return <span className="text-muted-foreground">-</span>;
 
   try {
@@ -41,6 +42,11 @@ export const renderPayoutRate = (payoutRate) => {
           <span className="text-lg font-semibold text-green-600 dark:text-green-400">
             1 ăn {payoutRate}
           </span>
+          {multiplier !== 1 && (
+            <span className="ml-2 text-sm text-amber-600 dark:text-amber-400">
+              (x{multiplier} = {payoutRate * multiplier})
+            </span>
+          )}
         </div>
       );
     } else if (typeof payoutRate === 'object') {
@@ -51,6 +57,11 @@ export const renderPayoutRate = (payoutRate) => {
               <span>{getPayoutRateLabel(key)}:</span>
               <span className="font-semibold text-green-600 dark:text-green-400">
                 1 ăn {value}
+                {multiplier !== 1 && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    (x{multiplier} = {value * multiplier})
+                  </span>
+                )}
               </span>
             </div>
           ))}
@@ -69,7 +80,7 @@ export const renderPayoutRate = (payoutRate) => {
 
 const BetTypeCard = ({
   betType,
-  isAdmin = false,
+  isSuperAdmin = false,
   onToggleExpand,
   isExpanded,
   onEdit,
@@ -82,18 +93,16 @@ const BetTypeCard = ({
           {/* Left: Expand button and name */}
           <div className="flex items-start md:w-1/4">
             <div className="flex items-center">
-              {isAdmin && (
-                <button
-                  onClick={() => onToggleExpand && onToggleExpand(betType.id)}
-                  className="mr-2 p-1 hover:bg-muted rounded"
-                >
-                  {isExpanded ? (
-                    <ChevronDown className="h-5 w-5" />
-                  ) : (
-                    <ChevronRight className="h-5 w-5" />
-                  )}
-                </button>
-              )}
+              <button
+                onClick={() => onToggleExpand && onToggleExpand(betType.id)}
+                className="mr-2 p-1 hover:bg-muted rounded"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </button>
               <div>
                 <h3 className="text-lg font-bold line-clamp-1">
                   {betType.name}
@@ -167,52 +176,47 @@ const BetTypeCard = ({
               ) : null}
             </div>
 
-            {/* Status badge and actions */}
+            {/* Status badge and actions - only for SuperAdmin */}
             <div className="flex flex-col items-end">
-              {isAdmin && (
-                <>
-                  <Badge
-                    variant={betType.is_active ? 'default' : 'destructive'}
-                    className="mb-2"
-                  >
-                    {betType.is_active ? 'Hoạt động' : 'Vô hiệu hóa'}
-                  </Badge>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Mở menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Tùy chọn</DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() => onEdit && onEdit(betType)}
-                      >
-                        <Edit3 className="mr-2 h-4 w-4" />
-                        Chỉnh sửa
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() =>
-                          onToggleStatus && onToggleStatus(betType)
-                        }
-                      >
-                        {betType.is_active ? (
-                          <>
-                            <PowerOff className="mr-2 h-4 w-4" />
-                            Vô hiệu hóa
-                          </>
-                        ) : (
-                          <>
-                            <Power className="mr-2 h-4 w-4" />
-                            Kích hoạt
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
+              <Badge
+                variant={betType.is_active ? 'default' : 'destructive'}
+                className="mb-2"
+              >
+                {betType.is_active ? 'Hoạt động' : 'Vô hiệu hóa'}
+              </Badge>
+
+              {isSuperAdmin && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <span className="sr-only">Mở menu</span>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Tùy chọn</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => onEdit && onEdit(betType)}>
+                      <Edit3 className="mr-2 h-4 w-4" />
+                      Chỉnh sửa
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => onToggleStatus && onToggleStatus(betType)}
+                    >
+                      {betType.is_active ? (
+                        <>
+                          <PowerOff className="mr-2 h-4 w-4" />
+                          Vô hiệu hóa
+                        </>
+                      ) : (
+                        <>
+                          <Power className="mr-2 h-4 w-4" />
+                          Kích hoạt
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           </div>

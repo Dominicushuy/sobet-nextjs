@@ -22,12 +22,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Shared components
 import BetTypeCard from '@/components/bet-types/BetTypeCard';
 import CombinationList from '@/components/bet-types/CombinationList';
+import BetTypeDetails from '@/components/bet-types/BetTypeDetails';
 
 export default function BetTypesPage() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [activeSection, setActiveSection] = useState('bet-types');
+  const [expandedBetType, setExpandedBetType] = useState(null);
 
   // Fetch bet types for the user
   const { data: betTypesData, isLoading: isLoadingBetTypes } = useServerQuery(
@@ -106,6 +108,11 @@ export default function BetTypesPage() {
       }) || []
     );
   }, [combinationsData, searchTerm]);
+
+  // Toggle bet type details expansion
+  const toggleBetTypeExpansion = (id) => {
+    setExpandedBetType(expandedBetType === id ? null : id);
+  };
 
   // Reset search
   const resetSearch = () => {
@@ -189,11 +196,24 @@ export default function BetTypesPage() {
             ) : filteredBetTypes.length > 0 ? (
               <div className="space-y-4">
                 {filteredBetTypes.map((betType) => (
-                  <BetTypeCard
-                    key={betType.id}
-                    betType={betType}
-                    isAdmin={false}
-                  />
+                  <div key={betType.id}>
+                    <BetTypeCard
+                      betType={betType}
+                      isSuperAdmin={false}
+                      onToggleExpand={toggleBetTypeExpansion}
+                      isExpanded={expandedBetType === betType.id}
+                    />
+                    {expandedBetType === betType.id && (
+                      <Card className="mb-6 mt-0 border-t-0 rounded-t-none">
+                        <CardContent className="pt-4">
+                          <BetTypeDetails
+                            betType={betType}
+                            combinationsData={combinationsData}
+                          />
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
                 ))}
               </div>
             ) : (

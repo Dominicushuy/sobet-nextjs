@@ -370,7 +370,7 @@ export default function BetTypesPage() {
                   <div key={betType.id}>
                     <BetTypeCard
                       betType={betType}
-                      isAdmin={isSuperAdmin}
+                      isSuperAdmin={isSuperAdmin}
                       onToggleExpand={toggleBetTypeExpansion}
                       isExpanded={expandedBetType === betType.id}
                       onEdit={handleEditBetType}
