@@ -365,31 +365,29 @@ export default function BetTypesPage() {
             {isLoadingBetTypes ? (
               <LoadingSpinner />
             ) : filteredBetTypes.length > 0 ? (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredBetTypes.map((betType) => (
-                    <div key={betType.id} className="flex flex-col">
-                      <BetTypeCard
-                        betType={betType}
-                        isAdmin={isSuperAdmin}
-                        onToggleExpand={toggleBetTypeExpansion}
-                        isExpanded={expandedBetType === betType.id}
-                        onEdit={handleEditBetType}
-                        onToggleStatus={onToggleStatus}
-                      />
-                      {expandedBetType === betType.id && (
-                        <Card className="mt-2 border-t-0 rounded-t-none">
-                          <CardContent className="pt-4">
-                            <BetTypeDetails
-                              betType={betType}
-                              combinationsData={combinationsData}
-                            />
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-4">
+                {filteredBetTypes.map((betType) => (
+                  <div key={betType.id}>
+                    <BetTypeCard
+                      betType={betType}
+                      isAdmin={isSuperAdmin}
+                      onToggleExpand={toggleBetTypeExpansion}
+                      isExpanded={expandedBetType === betType.id}
+                      onEdit={handleEditBetType}
+                      onToggleStatus={onToggleStatus}
+                    />
+                    {expandedBetType === betType.id && (
+                      <Card className="mb-6 mt-0 border-t-0 rounded-t-none">
+                        <CardContent className="pt-4">
+                          <BetTypeDetails
+                            betType={betType}
+                            combinationsData={combinationsData}
+                          />
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="text-center py-10">

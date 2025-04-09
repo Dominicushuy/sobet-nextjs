@@ -1,4 +1,4 @@
-// src/app/(private)/admin/bet-types/components/BetTypeDetails.jsx
+// src/components/bet-types/BetTypeDetails.jsx
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -9,8 +9,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Calculator, Check, Info, MapPin } from 'lucide-react';
+import { Calculator, Check, Info, MapPin, Coins } from 'lucide-react';
 import { formatRegionName, getPayoutRateLabel } from './utils';
+import { renderPayoutRate } from './BetTypeCard';
 
 // Render combinations
 const renderCombinations = (combinations) => {
@@ -73,75 +74,158 @@ const renderCombinations = (combinations) => {
 export default function BetTypeDetails({ betType, combinationsData }) {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Số kết hợp lô */}
-        <div className="bg-card rounded-lg border shadow-sm p-4">
-          <h3 className="text-lg font-semibold mb-4">Số kết hợp lô</h3>
-          {renderCombinations(betType.combinations)}
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          {/* Chi tiết cơ bản */}
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-semibold mb-4">Thông tin chi tiết</h3>
 
-        {/* Thông tin miền áp dụng */}
-        <div className="bg-card rounded-lg border shadow-sm p-4">
-          <h3 className="text-lg font-semibold mb-2 flex items-center">
-            <MapPin className="h-5 w-5 mr-2 text-primary" />
-            Miền áp dụng
-          </h3>
-          <div className="grid grid-cols-3 gap-2">
-            {['north', 'central', 'south'].map((region) => (
-              <div
-                key={region}
-                className={`flex items-center p-2 rounded-md ${
-                  betType.applicable_regions?.includes(region)
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                <Check
-                  className={`h-4 w-4 mr-2 ${
-                    betType.applicable_regions?.includes(region)
-                      ? 'opacity-100'
-                      : 'opacity-0'
-                  }`}
-                />
-                {formatRegionName(region)}
+            <div className="space-y-4">
+              {/* Bet rule */}
+              <div>
+                <div className="text-sm font-medium">Quy tắc cược:</div>
+                <div className="mt-1">
+                  {Array.isArray(betType.bet_rule) ? (
+                    <ul className="list-disc pl-5 space-y-1">
+                      {betType.bet_rule.map((rule, idx) => (
+                        <li key={idx}>{rule}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>{betType.bet_rule}</p>
+                  )}
+                </div>
               </div>
-            ))}
+
+              {/* Matching method */}
+              <div>
+                <div className="text-sm font-medium">
+                  Phương thức đối chiếu:
+                </div>
+                <div className="mt-1 p-2 bg-muted rounded-md">
+                  {betType.matching_method}
+                </div>
+              </div>
+
+              {/* Multiplier & Special calculation */}
+              <div className="grid grid-cols-2 gap-4">
+                {betType.multiplier && (
+                  <div>
+                    <div className="text-sm font-medium flex items-center">
+                      <Calculator className="h-4 w-4 mr-1 text-primary" />
+                      Hệ số nhân:
+                    </div>
+                    <div className="mt-1">
+                      <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-300">
+                        {betType.multiplier}x
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+
+                {betType.special_calc && (
+                  <div>
+                    <div className="text-sm font-medium flex items-center">
+                      <Calculator className="h-4 w-4 mr-1 text-primary" />
+                      Tính toán đặc biệt:
+                    </div>
+                    <div className="mt-1">
+                      <Badge variant="outline">
+                        {betType.special_calc === 'bridge'
+                          ? 'Kiểu đá'
+                          : betType.special_calc}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed payout rates */}
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Coins className="h-5 w-5 mr-2 text-primary" />
+              Tỷ lệ trả thưởng chi tiết
+            </h3>
+            <div className="space-y-2">
+              {renderPayoutRate(betType.payout_rate)}
+            </div>
           </div>
         </div>
 
-        {/* Thông tin bổ sung */}
-        <div className="bg-card rounded-lg border shadow-sm p-4">
-          <h3 className="text-lg font-semibold mb-2 flex items-center">
-            <Info className="h-5 w-5 mr-2 text-primary" />
-            Thông tin bổ sung
-          </h3>
-          <div className="space-y-2">
-            <div>
-              <p className="text-sm font-medium">Hoán vị:</p>
-              <Badge variant={betType.is_permutation ? 'default' : 'outline'}>
-                {betType.is_permutation
-                  ? 'Có tính hoán vị'
-                  : 'Không tính hoán vị'}
-              </Badge>
-            </div>
+        <div className="space-y-6">
+          {/* Số kết hợp lô */}
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-semibold mb-4">Số kết hợp lô</h3>
+            {renderCombinations(betType.combinations)}
+          </div>
 
-            {betType.special_calc && (
+          {/* Thông tin miền áp dụng */}
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <MapPin className="h-5 w-5 mr-2 text-primary" />
+              Miền áp dụng
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {['north', 'central', 'south'].map((region) => (
+                <div
+                  key={region}
+                  className={`flex items-center p-2 rounded-md ${
+                    betType.applicable_regions?.includes(region)
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  <Check
+                    className={`h-4 w-4 mr-2 ${
+                      betType.applicable_regions?.includes(region)
+                        ? 'opacity-100'
+                        : 'opacity-0'
+                    }`}
+                  />
+                  {formatRegionName(region)}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Thông tin bổ sung */}
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Info className="h-5 w-5 mr-2 text-primary" />
+              Thông tin bổ sung
+            </h3>
+            <div className="space-y-2">
               <div>
-                <p className="text-sm font-medium">Tính toán đặc biệt:</p>
-                <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 p-2 rounded-md">
-                  {betType.special_calc === 'bridge'
-                    ? 'Kiểu đá: Tính dựa trên số cặp số trúng và số lần xuất hiện'
-                    : betType.special_calc}
-                </p>
+                <p className="text-sm font-medium">Hoán vị:</p>
+                <Badge variant={betType.is_permutation ? 'default' : 'outline'}>
+                  {betType.is_permutation
+                    ? 'Có tính hoán vị'
+                    : 'Không tính hoán vị'}
+                </Badge>
               </div>
-            )}
+
+              <div>
+                <p className="text-sm font-medium">Cách đặt cược:</p>
+                <div className="mt-1 p-3 bg-blue-50 dark:bg-blue-950 rounded-md text-blue-600 dark:text-blue-400">
+                  <code className="font-mono">
+                    {betType.aliases?.[0] || betType.name.toLowerCase()}
+                    [số tiền]
+                  </code>
+                  <p className="mt-2">
+                    {betType.aliases?.slice(0, 5).join(', ')}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Các tổ hợp số áp dụng */}
-      <div className="bg-card rounded-lg border shadow-sm p-4">
-        <h3 className="text-lg font-semibold mb-2 flex items-center">
+      <div className="rounded-lg border p-4">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
           <Calculator className="h-5 w-5 mr-2 text-primary" />
           Các tổ hợp số áp dụng
         </h3>

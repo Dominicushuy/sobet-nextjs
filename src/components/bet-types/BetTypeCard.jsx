@@ -1,9 +1,8 @@
 // src/components/bet-types/BetTypeCard.jsx
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import {
   Info,
@@ -14,6 +13,8 @@ import {
   ChevronRight,
   Edit3,
   Calculator,
+  Power,
+  PowerOff,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -26,11 +27,11 @@ import {
 import {
   formatRegionName,
   getBetTypeDescription,
-  getBetTypeExample,
   getPayoutRateLabel,
 } from './utils';
 
-export const renderPayoutRate = (payoutRate, multiplier = 1) => {
+// Render payout rate
+export const renderPayoutRate = (payoutRate) => {
   if (!payoutRate) return <span className="text-muted-foreground">-</span>;
 
   try {
@@ -40,11 +41,6 @@ export const renderPayoutRate = (payoutRate, multiplier = 1) => {
           <span className="text-lg font-semibold text-green-600 dark:text-green-400">
             1 ăn {payoutRate}
           </span>
-          {multiplier !== 1 && (
-            <span className="ml-2 text-sm text-amber-600 dark:text-amber-400">
-              (x{multiplier} = {payoutRate * multiplier})
-            </span>
-          )}
         </div>
       );
     } else if (typeof payoutRate === 'object') {
@@ -55,11 +51,6 @@ export const renderPayoutRate = (payoutRate, multiplier = 1) => {
               <span>{getPayoutRateLabel(key)}:</span>
               <span className="font-semibold text-green-600 dark:text-green-400">
                 1 ăn {value}
-                {multiplier !== 1 && (
-                  <span className="ml-1 text-amber-600 dark:text-amber-400">
-                    (x{multiplier} = {value * multiplier})
-                  </span>
-                )}
               </span>
             </div>
           ))}
@@ -85,121 +76,146 @@ const BetTypeCard = ({
   onToggleStatus,
 }) => {
   return (
-    <Card key={betType.id} className="h-full flex flex-col">
-      <CardHeader className="bg-muted/50 pb-2">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg flex items-center">
-            {isAdmin && (
-              <button
-                onClick={() => onToggleExpand && onToggleExpand(betType.id)}
-                className="mr-2"
-              >
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </button>
-            )}
-            {betType.name}
-          </CardTitle>
-          <div className="flex items-center space-x-2">
-            {betType.custom_payout_rate ? (
-              <Badge variant="secondary">Tỷ lệ tùy chỉnh</Badge>
-            ) : (
-              <Badge variant="outline">Tỷ lệ mặc định</Badge>
-            )}
-            {isAdmin && (
-              <Badge variant={betType.is_active ? 'default' : 'destructive'}>
-                {betType.is_active ? 'Hoạt động' : 'Vô hiệu hóa'}
-              </Badge>
-            )}
-            {isAdmin && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-8 w-8 p-0">
-                    <span className="sr-only">Mở menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Tùy chọn</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => onEdit && onEdit(betType)}>
-                    <Edit3 className="mr-2 h-4 w-4" />
-                    Chỉnh sửa
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onToggleStatus && onToggleStatus(betType)}
-                  >
-                    <Info className="mr-2 h-4 w-4" />
-                    {betType.is_active ? 'Vô hiệu hóa' : 'Kích hoạt'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </div>
-        <div className="text-sm text-muted-foreground mt-1">
-          <strong>Bí danh:</strong>{' '}
-          {betType.aliases && betType.aliases.length > 0
-            ? betType.aliases.join(', ')
-            : '-'}
-        </div>
-      </CardHeader>
-      <CardContent className="pt-4 flex-1 flex flex-col justify-between">
-        <div className="space-y-3">
-          <div>
-            <div className="text-sm font-medium flex items-center">
-              <Info className="h-4 w-4 mr-2 text-primary" />
-              Mô tả:
-            </div>
-            <div className="text-sm bg-muted p-2 rounded-md mt-1">
-              {getBetTypeDescription(betType)}
+    <Card className="w-full mb-4 hover:bg-muted/20 transition-colors">
+      <CardContent className="p-4">
+        <div className="flex flex-col md:flex-row">
+          {/* Left: Expand button and name */}
+          <div className="flex items-start md:w-1/4">
+            <div className="flex items-center">
+              {isAdmin && (
+                <button
+                  onClick={() => onToggleExpand && onToggleExpand(betType.id)}
+                  className="mr-2 p-1 hover:bg-muted rounded"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                </button>
+              )}
+              <div>
+                <h3 className="text-lg font-bold line-clamp-1">
+                  {betType.name}
+                </h3>
+                <div className="text-sm text-muted-foreground line-clamp-1">
+                  {betType.aliases && betType.aliases.length > 0
+                    ? betType.aliases.join(', ')
+                    : '-'}
+                </div>
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-sm font-medium flex items-center">
-              <MapPin className="h-4 w-4 mr-2 text-primary" />
-              Miền áp dụng:
+
+          {/* Middle: Description and regions */}
+          <div className="md:w-2/4 mt-2 md:mt-0">
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4">
+              {/* Description */}
+              <div className="md:w-3/5">
+                <div className="text-sm font-medium flex items-center">
+                  <Info className="h-4 w-4 mr-1 text-primary" />
+                  Mô tả
+                </div>
+                <div className="text-sm line-clamp-2">
+                  {getBetTypeDescription(betType)}
+                </div>
+              </div>
+
+              {/* Regions */}
+              <div className="md:w-2/5">
+                <div className="text-sm font-medium flex items-center">
+                  <MapPin className="h-4 w-4 mr-1 text-primary" />
+                  Áp dụng
+                </div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {betType.applicable_regions &&
+                    betType.applicable_regions.map((region) => (
+                      <Badge key={region} variant="outline" className="text-xs">
+                        {formatRegionName(region)}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
             </div>
-            <div className="flex gap-1 mt-1">
-              {betType.applicable_regions &&
-                betType.applicable_regions.map((region) => (
-                  <Badge key={region} variant="outline">
-                    {formatRegionName(region)}
+          </div>
+
+          {/* Right: Payout rates and actions */}
+          <div className="md:w-1/4 mt-2 md:mt-0 flex justify-between items-start">
+            <div>
+              <div className="text-sm font-medium flex items-center">
+                <Coins className="h-4 w-4 mr-1 text-primary" />
+                Tỷ lệ trả thưởng
+              </div>
+              <div className="text-sm">
+                {typeof betType.payout_rate === 'number' ? (
+                  <Badge className="mt-1 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900 dark:text-green-300">
+                    1 ăn {betType.payout_rate}
+                    {betType.multiplier && betType.multiplier !== 1 && (
+                      <span className="ml-1">x{betType.multiplier}</span>
+                    )}
                   </Badge>
-                ))}
+                ) : (
+                  <Badge className="mt-1" variant="outline">
+                    Chi tiết
+                  </Badge>
+                )}
+              </div>
+              {betType.custom_payout_rate ? (
+                <Badge variant="secondary" className="mt-1 text-xs">
+                  Tùy chỉnh
+                </Badge>
+              ) : null}
             </div>
-          </div>
-          <Separator />
-          <div>
-            <div className="text-sm font-medium flex items-center">
-              <Coins className="h-4 w-4 mr-2 text-primary" />
-              Tỷ lệ trả thưởng:
-            </div>
-            <div className="mt-1">
-              {renderPayoutRate(
-                betType.custom_payout_rate || betType.payout_rate,
-                betType.multiplier || 1
+
+            {/* Status badge and actions */}
+            <div className="flex flex-col items-end">
+              {isAdmin && (
+                <>
+                  <Badge
+                    variant={betType.is_active ? 'default' : 'destructive'}
+                    className="mb-2"
+                  >
+                    {betType.is_active ? 'Hoạt động' : 'Vô hiệu hóa'}
+                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Mở menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Tùy chọn</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => onEdit && onEdit(betType)}
+                      >
+                        <Edit3 className="mr-2 h-4 w-4" />
+                        Chỉnh sửa
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() =>
+                          onToggleStatus && onToggleStatus(betType)
+                        }
+                      >
+                        {betType.is_active ? (
+                          <>
+                            <PowerOff className="mr-2 h-4 w-4" />
+                            Vô hiệu hóa
+                          </>
+                        ) : (
+                          <>
+                            <Power className="mr-2 h-4 w-4" />
+                            Kích hoạt
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               )}
             </div>
           </div>
-          {/* Show multiplier if it's not 1 */}
-          {betType.multiplier && betType.multiplier !== 1 && (
-            <div>
-              <div className="text-sm font-medium flex items-center">
-                <Calculator className="h-4 w-4 mr-2 text-primary" />
-                Hệ số nhân:
-              </div>
-              <div className="mt-1">
-                <Badge variant="secondary">{betType.multiplier}x</Badge>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="mt-4 p-2 bg-blue-50 dark:bg-blue-950 rounded-md text-blue-600 dark:text-blue-400 text-sm">
-          <strong>Cách đặt cược:</strong> {getBetTypeExample(betType)}
         </div>
       </CardContent>
     </Card>
