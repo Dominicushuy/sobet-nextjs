@@ -1,7 +1,7 @@
 // src/app/(private)/lottery-results/page.jsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useLotteryResults } from '@/hooks/useLotteryResults';
 import { useServerQuery } from '@/hooks/useServerAction';
@@ -9,7 +9,7 @@ import {
   fetchLotteryResults,
   checkResultsExist,
 } from '@/app/actions/lottery-results';
-import { LotteryResultTable } from '@/components/lottery/LotteryResultTable';
+import { LotteryResultCard } from '@/components/lottery/LotteryResultCard';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -26,7 +26,29 @@ import {
 export default function LotteryResultsPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [selectedDate, setSelectedDate] = useState(null);
-  const [results, setResults] = useState([]);
+  const [isAfterDrawTime, setIsAfterDrawTime] = useState(false);
+
+  // Check if current time is after draw time (16:30)
+  useEffect(() => {
+    const checkTime = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTime = currentHour * 60 + currentMinute; // Convert to minutes
+      const drawTime = 16 * 60 + 30; // 16:30 in minutes
+
+      setIsAfterDrawTime(currentTime >= drawTime);
+    };
+
+    // Check immediately on mount
+    checkTime();
+
+    // Set up interval to check every minute
+    const intervalId = setInterval(checkTime, 60000);
+
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Fetch base lottery results data
   const { latestDate, isCrawling, crawlResults } = useLotteryResults();
@@ -66,18 +88,11 @@ export default function LotteryResultsPage() {
         date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
       }),
     {
-      onSuccess: (result) => {
-        if (result.data) {
-          setResults(result.data);
-        }
-      },
       onError: (error) => {
         toast.error(`Lỗi khi lấy kết quả: ${error.message}`);
       },
     }
   );
-
-  console.log('Filtered Results:', filteredData);
 
   // Handle date change
   const handleDateChange = (date) => {
@@ -108,16 +123,21 @@ export default function LotteryResultsPage() {
     }
   };
 
+  // Get results from filteredData
+  const results = filteredData?.data || [];
+
   // Group results by region for better organization
   const groupedResults = {};
   if (results && results.length > 0) {
     results.forEach((result) => {
       const regionId = result.station?.region?.id;
       const regionName = result.station?.region?.name || 'Unknown';
+      const regionCode = result.station?.region?.code || 'unknown';
 
       if (!groupedResults[regionId]) {
         groupedResults[regionId] = {
           name: regionName,
+          code: regionCode,
           results: [],
         };
       }
@@ -126,9 +146,15 @@ export default function LotteryResultsPage() {
     });
   }
 
+  // Sort regions in this order: north, central, south
+  const regionOrder = { north: 1, central: 2, south: 3 };
+  const sortedGroups = Object.values(groupedResults).sort(
+    (a, b) => regionOrder[a.code] - regionOrder[b.code]
+  );
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 container mx-auto px-4 py-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Kết quả xổ số</h1>
           <p className="text-muted-foreground">
@@ -136,87 +162,92 @@ export default function LotteryResultsPage() {
           </p>
         </div>
 
-        {(isSuperAdmin || isAdmin) && (
-          <div className="flex space-x-2">
-            <Button onClick={handleCrawl} disabled={isCrawling}>
-              <RefreshCw
-                className={`mr-2 h-4 w-4 ${isCrawling ? 'animate-spin' : ''}`}
-              />
-              Cập nhật kết quả mới
-            </Button>
-          </div>
+        {(isSuperAdmin || isAdmin) && isAfterDrawTime && (
+          <Button onClick={handleCrawl} disabled={isCrawling}>
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isCrawling ? 'animate-spin' : ''}`}
+            />
+            Cập nhật kết quả mới
+          </Button>
         )}
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between gap-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* DatePicker */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full md:w-[240px] justify-start text-left font-normal"
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                {selectedDate ? (
-                  format(selectedDate, 'PPP', { locale: vi })
-                ) : (
-                  <span>Chọn ngày xem kết quả</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <CalendarComponent
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateChange}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-
-          {/* Crawl button for specific date */}
-          {(isSuperAdmin || isAdmin) &&
-            selectedDate &&
-            dateResults?.data === false && (
-              <Button
-                onClick={handleCrawlForDate}
-                disabled={isCrawling || isCheckingDate}
-                variant="secondary"
-              >
-                <RefreshCw
-                  className={`mr-2 h-4 w-4 ${isCrawling ? 'animate-spin' : ''}`}
+      <div className="bg-card rounded-lg p-4 shadow-sm">
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* DatePicker */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full md:w-[240px] justify-start text-left font-normal"
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {selectedDate ? (
+                    format(selectedDate, 'PPP', { locale: vi })
+                  ) : (
+                    <span>Chọn ngày xem kết quả</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateChange}
+                  initialFocus
                 />
-                Lấy kết quả ngày{' '}
-                {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : ''}
-              </Button>
-            )}
-        </div>
+              </PopoverContent>
+            </Popover>
 
-        <div className="flex items-center gap-2">
-          <CalendarCheck className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            Kết quả ngày:{' '}
-            {selectedDate
-              ? format(selectedDate, 'dd/MM/yyyy')
-              : latestDate
-                ? new Date(latestDate).toLocaleDateString()
-                : ''}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => refetchFiltered()}
-            disabled={isLoadingResults}
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isLoadingResults ? 'animate-spin' : ''}`}
-            />
-          </Button>
+            {/* Crawl button for specific date */}
+            {(isSuperAdmin || isAdmin) &&
+              selectedDate &&
+              dateResults?.data === false && (
+                <Button
+                  onClick={handleCrawlForDate}
+                  disabled={isCrawling || isCheckingDate}
+                  variant="secondary"
+                >
+                  <RefreshCw
+                    className={`mr-2 h-4 w-4 ${isCrawling ? 'animate-spin' : ''}`}
+                  />
+                  Lấy kết quả ngày{' '}
+                  {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : ''}
+                </Button>
+              )}
+          </div>
+
+          <div className="flex items-center bg-primary/10 px-4 py-2 rounded-md border border-primary/20">
+            <div className="flex items-center">
+              <CalendarCheck className="h-5 w-5 text-primary mr-2" />
+              <div className="flex flex-col">
+                <span className="text-xs text-primary font-medium uppercase">
+                  Kết quả ngày
+                </span>
+                <span className="text-lg font-bold">
+                  {selectedDate
+                    ? format(selectedDate, 'dd/MM/yyyy')
+                    : latestDate
+                      ? format(new Date(latestDate), 'dd/MM/yyyy')
+                      : 'Đang tải...'}
+                </span>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refetchFiltered()}
+              disabled={isLoadingResults}
+              className="ml-2"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isLoadingResults ? 'animate-spin' : ''}`}
+              />
+            </Button>
+          </div>
         </div>
       </div>
-
-      <Separator />
 
       {isLoadingResults ? (
         <div className="flex justify-center my-12">
@@ -224,31 +255,32 @@ export default function LotteryResultsPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {Object.values(groupedResults).length > 0 ? (
-            Object.values(groupedResults).map((group, index) => (
+          {sortedGroups.length > 0 ? (
+            sortedGroups.map((group, index) => (
               <div key={index} className="space-y-4">
-                <h2 className="text-xl font-bold border-b pb-2">
-                  {group.name}
-                </h2>
-                <div className="grid gap-6">
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-xl font-bold">{group.name}</h2>
+                  <Separator className="flex-1" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {group.results.map((result) => (
-                    <LotteryResultTable key={result.id} result={result} />
+                    <LotteryResultCard key={result.id} result={result} />
                   ))}
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-center py-12">
+            <div className="text-center py-12 bg-card rounded-lg shadow-sm">
               <Filter className="mx-auto h-12 w-12 text-muted-foreground/50" />
               <h3 className="mt-4 text-lg font-semibold">
                 Không tìm thấy kết quả
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground max-w-md mx-auto">
                 {selectedDate && dateResults?.data === false
                   ? isSuperAdmin || isAdmin
                     ? 'Vui lòng nhấn "Lấy kết quả" để lấy kết quả cho ngày đã chọn.'
                     : 'Chưa có kết quả cho ngày đã chọn. Vui lòng thử chọn ngày khác.'
-                  : isSuperAdmin || isAdmin
+                  : isSuperAdmin || (isAdmin && isAfterDrawTime)
                     ? 'Vui lòng nhấn "Cập nhật kết quả mới" để lấy kết quả mới nhất.'
                     : 'Chưa có kết quả cho ngày hôm nay. Vui lòng thử lại sau.'}
               </p>
