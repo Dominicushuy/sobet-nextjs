@@ -6,7 +6,10 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useLotteryResults } from '@/hooks/useLotteryResults';
 import { useServerQuery } from '@/hooks/useServerAction';
 import { fetchAllStationsData } from '@/app/actions/stations';
-import { fetchLotteryResults } from '@/app/actions/lottery-results';
+import {
+  fetchLotteryResults,
+  checkResultsExist,
+} from '@/app/actions/lottery-results';
 import { RegionTabs } from '@/components/lottery/RegionTabs';
 import { LotteryResultTable } from '@/components/lottery/LotteryResultTable';
 import { Button } from '@/components/ui/button';
@@ -19,12 +22,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RefreshCw, CalendarCheck, Filter } from 'lucide-react';
+import { RefreshCw, CalendarCheck, Filter, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 export default function LotteryResultsPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [results, setResults] = useState([]);
 
   // Fetch base lottery results data
@@ -41,17 +53,43 @@ export default function LotteryResultsPage() {
     }
   );
 
+  // Check if the selected date has results
+  const { data: dateResults, isLoading: isCheckingDate } = useServerQuery(
+    [
+      'dateHasResults',
+      selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+    ],
+    () =>
+      selectedDate
+        ? checkResultsExist(format(selectedDate, 'yyyy-MM-dd'))
+        : { data: true, error: null },
+    {
+      enabled: !!selectedDate,
+      onError: (error) => {
+        toast.error(`Error checking date results: ${error.message}`);
+      },
+    }
+  );
+
   // Fetch filtered results
   const {
     data: filteredData,
     isLoading: isLoadingResults,
     refetch: refetchFiltered,
   } = useServerQuery(
-    ['filteredResults', { region: selectedRegion, stationId: selectedStation }],
+    [
+      'filteredResults',
+      {
+        region: selectedRegion,
+        stationId: selectedStation,
+        date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+      },
+    ],
     () =>
       fetchLotteryResults({
         region: selectedRegion,
         stationId: selectedStation,
+        date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
       }),
     {
       onSuccess: (result) => {
@@ -77,10 +115,32 @@ export default function LotteryResultsPage() {
     setSelectedStation(stationId === 'all' ? null : parseInt(stationId));
   };
 
-  // Handle crawl
+  // Handle date change
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+  };
+
+  // Handle crawl for latest results
   const handleCrawl = () => {
     if (user?.id) {
       crawlResults(user.id);
+    }
+  };
+
+  // Handle crawl for specific date
+  const handleCrawlForDate = () => {
+    if (user?.id && selectedDate) {
+      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+      toast.info(
+        `Đang lấy kết quả cho ngày ${format(selectedDate, 'dd/MM/yyyy')}`
+      );
+      crawlResults({
+        userId: user.id,
+        date: formattedDate,
+      });
+      setTimeout(() => {
+        refetchFiltered();
+      }, 2000);
     }
   };
 
@@ -92,6 +152,9 @@ export default function LotteryResultsPage() {
   const filteredStations = selectedRegion
     ? stations.filter((station) => station.region_id === selectedRegion)
     : stations;
+
+  // Check if selected date has results
+  const hasResults = !selectedDate || dateResults?.data === true;
 
   return (
     <div className="space-y-6">
@@ -130,13 +193,59 @@ export default function LotteryResultsPage() {
               ))}
             </SelectContent>
           </Select>
+
+          {/* DatePicker */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full md:w-[240px] justify-start text-left font-normal"
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {selectedDate ? (
+                  format(selectedDate, 'PPP', { locale: vi })
+                ) : (
+                  <span>Chọn ngày xem kết quả</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateChange}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Crawl button for specific date */}
+          {(isSuperAdmin || isAdmin) &&
+            selectedDate &&
+            dateResults?.data === false && (
+              <Button
+                onClick={handleCrawlForDate}
+                disabled={isCrawling || isCheckingDate}
+                variant="secondary"
+              >
+                <RefreshCw
+                  className={`mr-2 h-4 w-4 ${isCrawling ? 'animate-spin' : ''}`}
+                />
+                Lấy kết quả ngày{' '}
+                {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : ''}
+              </Button>
+            )}
         </div>
 
         <div className="flex items-center gap-2">
           <CalendarCheck className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
             Kết quả ngày:{' '}
-            {latestDate ? new Date(latestDate).toLocaleDateString() : ''}
+            {selectedDate
+              ? format(selectedDate, 'dd/MM/yyyy')
+              : latestDate
+                ? new Date(latestDate).toLocaleDateString()
+                : ''}
           </span>
           <Button
             variant="ghost"
@@ -175,9 +284,13 @@ export default function LotteryResultsPage() {
                   Không tìm thấy kết quả
                 </h3>
                 <p className="text-muted-foreground">
-                  {isSuperAdmin || isAdmin
-                    ? 'Vui lòng nhấn "Cập nhật kết quả mới" để lấy kết quả mới nhất.'
-                    : 'Chưa có kết quả cho ngày hôm nay. Vui lòng thử lại sau.'}
+                  {selectedDate && dateResults?.data === false
+                    ? isSuperAdmin || isAdmin
+                      ? 'Vui lòng nhấn "Lấy kết quả" để lấy kết quả cho ngày đã chọn.'
+                      : 'Chưa có kết quả cho ngày đã chọn. Vui lòng thử chọn ngày khác.'
+                    : isSuperAdmin || isAdmin
+                      ? 'Vui lòng nhấn "Cập nhật kết quả mới" để lấy kết quả mới nhất.'
+                      : 'Chưa có kết quả cho ngày hôm nay. Vui lòng thử lại sau.'}
                 </p>
               </div>
             )}

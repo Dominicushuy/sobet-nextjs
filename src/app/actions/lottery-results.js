@@ -7,33 +7,34 @@ import { revalidatePath } from 'next/cache';
 import axios from 'axios';
 import { JSDOM } from 'jsdom';
 
-// Hàm lấy kết quả xổ số từ database với logic dựa trên thời gian
-export async function fetchLotteryResults({ region, stationId } = {}) {
+// Cập nhật hàm fetchLotteryResults để hỗ trợ tham số date
+export async function fetchLotteryResults({ region, stationId, date } = {}) {
   try {
     const supabase = await createClient();
 
-    // Xác định ngày lấy kết quả dựa trên thời gian hiện tại
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinute; // Thời gian hiện tại tính bằng phút
-
-    // Thời gian mốc: 16:30 (Nam), 17:15 (Trung), 18:00 (Bắc)
-    const NAM_TIME = 16 * 60 + 30; // 16:30
-
-    // Xác định ngày cần lấy kết quả
+    // Sử dụng date nếu được cung cấp, nếu không thì sử dụng logic dựa trên thời gian hiện tại
     let targetDate;
-    if (currentTime < NAM_TIME) {
-      // Nếu thời gian hiện tại < 16:30, lấy kết quả của ngày hôm qua
-      targetDate = new Date(now);
-      targetDate.setDate(targetDate.getDate() - 1);
+    if (date) {
+      targetDate = date;
     } else {
-      // Nếu >= 16:30, lấy kết quả của ngày hiện tại
-      targetDate = now;
-    }
+      // Logic hiện tại để xác định ngày dựa trên thời gian
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTime = currentHour * 60 + currentMinute;
 
-    // Format ngày thành chuỗi YYYY-MM-DD
-    const formattedDate = targetDate.toISOString().split('T')[0];
+      const NAM_TIME = 16 * 60 + 30; // 16:30
+
+      if (currentTime < NAM_TIME) {
+        targetDate = new Date(now);
+        targetDate.setDate(targetDate.getDate() - 1);
+      } else {
+        targetDate = now;
+      }
+
+      // Format ngày thành chuỗi YYYY-MM-DD
+      targetDate = targetDate.toISOString().split('T')[0];
+    }
 
     // Khởi tạo query để lấy kết quả
     let query = supabase
@@ -41,7 +42,7 @@ export async function fetchLotteryResults({ region, stationId } = {}) {
       .select(
         '*, station:stations(id, name, region_id, region:regions(id, name, code))'
       )
-      .eq('draw_date', formattedDate);
+      .eq('draw_date', targetDate);
 
     if (stationId) {
       query = query.eq('station_id', stationId);
@@ -72,6 +73,28 @@ export async function fetchLotteryResults({ region, stationId } = {}) {
   } catch (error) {
     console.error('Unexpected error in fetchLotteryResults:', error);
     return { data: null, error: 'Internal server error' };
+  }
+}
+
+// Thêm hàm mới để kiểm tra xem một ngày đã có kết quả chưa
+export async function checkResultsExist(date) {
+  try {
+    const supabase = await createClient();
+
+    const { count, error } = await supabase
+      .from('lottery_results')
+      .select('*', { count: 'exact', head: true })
+      .eq('draw_date', date);
+
+    if (error) {
+      console.error('Error checking results existence:', error);
+      return { data: false, error: error.message };
+    }
+
+    return { data: count > 0, error: null };
+  } catch (error) {
+    console.error('Unexpected error in checkResultsExist:', error);
+    return { data: false, error: 'Internal server error' };
   }
 }
 
@@ -136,7 +159,7 @@ function formatDate(rawDate) {
 }
 
 // Hàm để crawl kết quả mới nhất từ nguồn bên ngoài
-export async function crawlLatestResults(userId) {
+export async function crawlLatestResults(userId, specificDate = null) {
   try {
     // Lấy danh sách đài và miền từ database
     const supabase = await createClient();
@@ -166,21 +189,43 @@ export async function crawlLatestResults(userId) {
       }
     });
 
-    // Lấy kết quả mới nhất từ nguồn
+    // Lấy kết quả từ nguồn
     const baseUrl = 'https://www.minhngoc.net.vn/ket-qua-xo-so';
     const mienList = ['mien-bac', 'mien-trung', 'mien-nam'];
-    const daysMapping = [
-      'chu-nhat',
-      'thu-hai',
-      'thu-ba',
-      'thu-tu',
-      'thu-nam',
-      'thu-sau',
-      'thu-bay',
-    ];
 
-    const today = new Date();
-    const dayOfWeek = daysMapping[today.getDay()];
+    // Xử lý ngày cụ thể nếu được cung cấp
+    let targetDate;
+    let dayOfWeek;
+
+    if (specificDate) {
+      // Sử dụng ngày cụ thể được cung cấp
+      targetDate = new Date(specificDate);
+
+      // Xác định thứ trong tuần từ ngày cụ thể
+      const daysMapping = [
+        'chu-nhat',
+        'thu-hai',
+        'thu-ba',
+        'thu-tu',
+        'thu-nam',
+        'thu-sau',
+        'thu-bay',
+      ];
+      dayOfWeek = daysMapping[targetDate.getDay()];
+    } else {
+      // Sử dụng ngày hiện tại
+      targetDate = new Date();
+      const daysMapping = [
+        'chu-nhat',
+        'thu-hai',
+        'thu-ba',
+        'thu-tu',
+        'thu-nam',
+        'thu-sau',
+        'thu-bay',
+      ];
+      dayOfWeek = daysMapping[targetDate.getDay()];
+    }
 
     const results = [];
 
@@ -194,6 +239,7 @@ export async function crawlLatestResults(userId) {
         const document = dom.window.document;
 
         if (mien === 'mien-bac') {
+          // [Mã xử lý cho miền Bắc giữ nguyên]
           const boxKqxs = document.querySelector('.box_kqxs');
           if (boxKqxs) {
             // Lấy thông tin tỉnh
@@ -208,13 +254,25 @@ export async function crawlLatestResults(userId) {
             }
 
             // Lấy ngày
-            const ngayElement = boxKqxs.querySelector('.ngay a');
-            const rawDate = ngayElement ? ngayElement.textContent.trim() : '';
-            const ngay = formatDate(rawDate);
+            let ngay;
+            // Nếu có ngày cụ thể, sử dụng ngày đó
+            if (specificDate) {
+              ngay = specificDate;
+            } else {
+              const ngayElement = boxKqxs.querySelector('.ngay a');
+              const rawDate = ngayElement ? ngayElement.textContent.trim() : '';
+              ngay = formatDate(rawDate);
+            }
 
             // Lấy thứ
-            const thuElement = boxKqxs.querySelector('.thu a');
-            const thu = thuElement ? thuElement.textContent.trim() : '';
+            let thu;
+            if (specificDate) {
+              // Thứ đã được xác định ở trên
+              thu = dayOfWeek;
+            } else {
+              const thuElement = boxKqxs.querySelector('.thu a');
+              thu = thuElement ? thuElement.textContent.trim() : '';
+            }
 
             // Tìm station phù hợp
             const matchedStation = stationMap[tenTinh.toLowerCase()];
@@ -266,16 +324,27 @@ export async function crawlLatestResults(userId) {
             }
           }
         } else {
-          // Xử lý cho miền Nam và miền Trung
+          // [Mã xử lý cho miền Nam và miền Trung giữ nguyên]
           const targetTable = document.querySelector('table.bkqmiennam');
           if (targetTable) {
             // Lấy thông tin ngày và thứ
-            const thuElement = targetTable.querySelector('.thu a');
-            const thu = thuElement ? thuElement.textContent.trim() : '';
+            let thu;
+            if (specificDate) {
+              // Thứ đã được xác định ở trên
+              thu = dayOfWeek;
+            } else {
+              const thuElement = targetTable.querySelector('.thu a');
+              thu = thuElement ? thuElement.textContent.trim() : '';
+            }
 
-            const ngayElement = targetTable.querySelector('.ngay a');
-            const rawDate = ngayElement ? ngayElement.textContent.trim() : '';
-            const ngay = formatDate(rawDate);
+            let ngay;
+            if (specificDate) {
+              ngay = specificDate;
+            } else {
+              const ngayElement = targetTable.querySelector('.ngay a');
+              const rawDate = ngayElement ? ngayElement.textContent.trim() : '';
+              ngay = formatDate(rawDate);
+            }
 
             if (ngay) {
               // Xử lý cho từng tỉnh

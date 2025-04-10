@@ -47,7 +47,11 @@ export function useLotteryResults() {
   // Crawl latest results
   const { mutate: crawlResults, isPending: isCrawling } = useServerMutation(
     'crawlResults',
-    (userId) => crawlLatestResults(userId),
+    (params) => {
+      const { userId, date } =
+        typeof params === 'object' ? params : { userId: params, date: null };
+      return crawlLatestResults(userId, date);
+    },
     {
       onSuccess: (result) => {
         if (result.data) {
