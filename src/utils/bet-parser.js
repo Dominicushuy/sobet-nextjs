@@ -10,7 +10,8 @@ export function parseBetCode(
   accessibleStations,
   betTypes,
   priceRate,
-  numberCombinations = []
+  numberCombinations = [],
+  regions = []
 ) {
   try {
     // Split the bet code into lines
@@ -38,12 +39,14 @@ export function parseBetCode(
       }
     }
 
-    // Validate station information
+    // Validate station information - truyền thêm regions
     const stationData = parseStationInfo(
       stationInfo,
       allStations,
-      accessibleStations
+      accessibleStations,
+      regions
     );
+
     if (stationData.error) {
       return { data: null, error: stationData.error };
     }
@@ -105,7 +108,12 @@ export function parseBetCode(
 }
 
 // Parse station information
-export function parseStationInfo(stationInfo, allStations, accessibleStations) {
+export function parseStationInfo(
+  stationInfo,
+  allStations,
+  accessibleStations,
+  regions = []
+) {
   try {
     stationInfo = stationInfo.toLowerCase().trim();
 
@@ -133,10 +141,11 @@ export function parseStationInfo(stationInfo, allStations, accessibleStations) {
         };
       }
 
-      // Find the region
-      const region = allStations.find(
-        (s) => s.region?.code === regionCode
-      )?.region;
+      // Find the region from regions or from station relationships
+      const region =
+        regions?.find((r) => r.code === regionCode) ||
+        allStations.find((s) => s.region?.code === regionCode)?.region;
+
       if (!region) {
         return { data: null, error: 'Không thể xác định thông tin miền' };
       }
@@ -173,6 +182,8 @@ export function parseStationInfo(stationInfo, allStations, accessibleStations) {
     const specificStations = [];
 
     for (const code of stationCodes) {
+      if (!code.trim()) continue;
+
       // Find station by code or alias
       const station = findStationByCodeOrAlias(code, allStations);
 
@@ -215,14 +226,16 @@ export function parseStationInfo(stationInfo, allStations, accessibleStations) {
 export function findStationByCodeOrAlias(code, allStations) {
   code = code.toLowerCase().trim();
 
-  // First try exact match on name or code
+  if (!code) return null;
+
+  // Tìm kiếm chính xác first
   let station = allStations.find(
     (s) =>
       s.name.toLowerCase() === code ||
       (s.aliases && s.aliases.some((alias) => alias.toLowerCase() === code))
   );
 
-  // If not found, try partial match
+  // Nếu không tìm thấy, thử tìm kiếm một phần
   if (!station) {
     station = allStations.find(
       (s) =>

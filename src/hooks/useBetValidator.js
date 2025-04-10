@@ -55,6 +55,7 @@ export function useBetValidator() {
         betTypes,
         commissionSettings,
         numberCombinations,
+        regions,
       } = betData;
 
       return parseBetCode(
@@ -63,7 +64,8 @@ export function useBetValidator() {
         accessibleStations,
         betTypes,
         commissionSettings.priceRate,
-        numberCombinations
+        numberCombinations,
+        regions
       );
     },
     [betData]
