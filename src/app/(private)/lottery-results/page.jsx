@@ -5,23 +5,14 @@ import { useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useLotteryResults } from '@/hooks/useLotteryResults';
 import { useServerQuery } from '@/hooks/useServerAction';
-import { fetchAllStationsData } from '@/app/actions/stations';
 import {
   fetchLotteryResults,
   checkResultsExist,
 } from '@/app/actions/lottery-results';
-import { RegionTabs } from '@/components/lottery/RegionTabs';
 import { LotteryResultTable } from '@/components/lottery/LotteryResultTable';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { RefreshCw, CalendarCheck, Filter, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -34,24 +25,11 @@ import {
 
 export default function LotteryResultsPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
-  const [selectedRegion, setSelectedRegion] = useState(null);
-  const [selectedStation, setSelectedStation] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [results, setResults] = useState([]);
 
   // Fetch base lottery results data
   const { latestDate, isCrawling, crawlResults } = useLotteryResults();
-
-  // Fetch stations data
-  const { data: stationsData, isLoading: isLoadingStations } = useServerQuery(
-    'stationsData',
-    () => fetchAllStationsData(),
-    {
-      onError: (error) => {
-        toast.error(`Error fetching stations data: ${error.message}`);
-      },
-    }
-  );
 
   // Check if the selected date has results
   const { data: dateResults, isLoading: isCheckingDate } = useServerQuery(
@@ -71,7 +49,7 @@ export default function LotteryResultsPage() {
     }
   );
 
-  // Fetch filtered results
+  // Fetch results by date only (no region or station filter)
   const {
     data: filteredData,
     isLoading: isLoadingResults,
@@ -80,15 +58,11 @@ export default function LotteryResultsPage() {
     [
       'filteredResults',
       {
-        region: selectedRegion,
-        stationId: selectedStation,
         date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
       },
     ],
     () =>
       fetchLotteryResults({
-        region: selectedRegion,
-        stationId: selectedStation,
         date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
       }),
     {
@@ -103,17 +77,7 @@ export default function LotteryResultsPage() {
     }
   );
 
-  // Filter results when region changes
-  const handleRegionChange = (regionId) => {
-    const regionIdNum = regionId === 'all' ? null : parseInt(regionId);
-    setSelectedRegion(regionIdNum);
-    setSelectedStation(null);
-  };
-
-  // Filter results when station changes
-  const handleStationChange = (stationId) => {
-    setSelectedStation(stationId === 'all' ? null : parseInt(stationId));
-  };
+  console.log('Filtered Results:', filteredData);
 
   // Handle date change
   const handleDateChange = (date) => {
@@ -144,17 +108,23 @@ export default function LotteryResultsPage() {
     }
   };
 
-  // Get regions from stations data
-  const regions = stationsData?.data?.regions || [];
+  // Group results by region for better organization
+  const groupedResults = {};
+  if (results && results.length > 0) {
+    results.forEach((result) => {
+      const regionId = result.station?.region?.id;
+      const regionName = result.station?.region?.name || 'Unknown';
 
-  // Get stations based on selected region
-  const stations = stationsData?.data?.stations || [];
-  const filteredStations = selectedRegion
-    ? stations.filter((station) => station.region_id === selectedRegion)
-    : stations;
+      if (!groupedResults[regionId]) {
+        groupedResults[regionId] = {
+          name: regionName,
+          results: [],
+        };
+      }
 
-  // Check if selected date has results
-  const hasResults = !selectedDate || dateResults?.data === true;
+      groupedResults[regionId].results.push(result);
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -180,20 +150,6 @@ export default function LotteryResultsPage() {
 
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div className="flex flex-col md:flex-row gap-4">
-          <Select onValueChange={handleStationChange} defaultValue="all">
-            <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder="Chọn đài" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả các đài</SelectItem>
-              {filteredStations.map((station) => (
-                <SelectItem key={station.id} value={station.id.toString()}>
-                  {station.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           {/* DatePicker */}
           <Popover>
             <PopoverTrigger asChild>
@@ -262,40 +218,43 @@ export default function LotteryResultsPage() {
 
       <Separator />
 
-      {isLoadingResults || isLoadingStations ? (
+      {isLoadingResults ? (
         <div className="flex justify-center my-12">
           <RefreshCw className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <RegionTabs
-          regions={regions}
-          defaultValue="all"
-          onChange={handleRegionChange}
-        >
-          <div className="grid grid-cols-1 gap-8">
-            {results && results.length > 0 ? (
-              results.map((result) => (
-                <LotteryResultTable key={result.id} result={result} />
-              ))
-            ) : (
-              <div className="text-center py-12">
-                <Filter className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">
-                  Không tìm thấy kết quả
-                </h3>
-                <p className="text-muted-foreground">
-                  {selectedDate && dateResults?.data === false
-                    ? isSuperAdmin || isAdmin
-                      ? 'Vui lòng nhấn "Lấy kết quả" để lấy kết quả cho ngày đã chọn.'
-                      : 'Chưa có kết quả cho ngày đã chọn. Vui lòng thử chọn ngày khác.'
-                    : isSuperAdmin || isAdmin
-                      ? 'Vui lòng nhấn "Cập nhật kết quả mới" để lấy kết quả mới nhất.'
-                      : 'Chưa có kết quả cho ngày hôm nay. Vui lòng thử lại sau.'}
-                </p>
+        <div className="space-y-8">
+          {Object.values(groupedResults).length > 0 ? (
+            Object.values(groupedResults).map((group, index) => (
+              <div key={index} className="space-y-4">
+                <h2 className="text-xl font-bold border-b pb-2">
+                  {group.name}
+                </h2>
+                <div className="grid gap-6">
+                  {group.results.map((result) => (
+                    <LotteryResultTable key={result.id} result={result} />
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
-        </RegionTabs>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <Filter className="mx-auto h-12 w-12 text-muted-foreground/50" />
+              <h3 className="mt-4 text-lg font-semibold">
+                Không tìm thấy kết quả
+              </h3>
+              <p className="text-muted-foreground">
+                {selectedDate && dateResults?.data === false
+                  ? isSuperAdmin || isAdmin
+                    ? 'Vui lòng nhấn "Lấy kết quả" để lấy kết quả cho ngày đã chọn.'
+                    : 'Chưa có kết quả cho ngày đã chọn. Vui lòng thử chọn ngày khác.'
+                  : isSuperAdmin || isAdmin
+                    ? 'Vui lòng nhấn "Cập nhật kết quả mới" để lấy kết quả mới nhất.'
+                    : 'Chưa có kết quả cho ngày hôm nay. Vui lòng thử lại sau.'}
+              </p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

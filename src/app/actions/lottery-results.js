@@ -1,23 +1,22 @@
 // src/app/actions/lottery-results.js
 'use server';
 
-import { createClient } from '@/utils/supabase/server';
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import axios from 'axios';
 import { JSDOM } from 'jsdom';
 
 // Cập nhật hàm fetchLotteryResults để hỗ trợ tham số date
-export async function fetchLotteryResults({ region, stationId, date } = {}) {
+export async function fetchLotteryResults({ date } = {}) {
   try {
-    const supabase = await createClient();
+    // const supabase = await createClient();
 
-    // Sử dụng date nếu được cung cấp, nếu không thì sử dụng logic dựa trên thời gian hiện tại
+    // Xác định ngày cần lấy kết quả
     let targetDate;
     if (date) {
       targetDate = date;
     } else {
-      // Logic hiện tại để xác định ngày dựa trên thời gian
+      // Logic để xác định ngày dựa trên thời gian
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
@@ -36,40 +35,35 @@ export async function fetchLotteryResults({ region, stationId, date } = {}) {
       targetDate = targetDate.toISOString().split('T')[0];
     }
 
-    // Khởi tạo query để lấy kết quả
-    let query = supabase
+    // Sửa lại cú pháp quan hệ trong query
+    const { data, error } = await supabaseAdmin
       .from('lottery_results')
       .select(
-        '*, station:stations(id, name, region_id, region:regions(id, name, code))'
+        `
+        *,
+        station:stations(
+          id,
+          name,
+          region_id,
+          region:regions(
+            id,
+            name,
+            code
+          )
+        )
+      `
       )
-      .eq('draw_date', targetDate);
-
-    if (stationId) {
-      query = query.eq('station_id', stationId);
-    } else if (region) {
-      // Nếu có region nhưng không có stationId, lấy tất cả stations trong region đó
-      const { data: stations } = await supabase
-        .from('stations')
-        .select('id')
-        .eq('region_id', region);
-
-      if (stations && stations.length > 0) {
-        const stationIds = stations.map((station) => station.id);
-        query = query.in('station_id', stationIds);
-      }
-    }
-
-    // Lấy kết quả theo ngày đã xác định
-    const { data, error } = await query.order('station_id', {
-      ascending: true,
-    });
+      .eq('draw_date', targetDate)
+      .order('station_id', { ascending: true });
 
     if (error) {
       console.error('Error fetching lottery results:', error);
       return { data: null, error: error.message };
     }
 
-    return { data, error: null };
+    // console.log(`Found ${data?.length || 0} results for date ${targetDate}`);
+
+    return { data: data || [], error: null };
   } catch (error) {
     console.error('Unexpected error in fetchLotteryResults:', error);
     return { data: null, error: 'Internal server error' };
@@ -79,9 +73,7 @@ export async function fetchLotteryResults({ region, stationId, date } = {}) {
 // Thêm hàm mới để kiểm tra xem một ngày đã có kết quả chưa
 export async function checkResultsExist(date) {
   try {
-    const supabase = await createClient();
-
-    const { count, error } = await supabase
+    const { count, error } = await supabaseAdmin
       .from('lottery_results')
       .select('*', { count: 'exact', head: true })
       .eq('draw_date', date);
@@ -161,10 +153,7 @@ function formatDate(rawDate) {
 // Hàm để crawl kết quả mới nhất từ nguồn bên ngoài
 export async function crawlLatestResults(userId, specificDate = null) {
   try {
-    // Lấy danh sách đài và miền từ database
-    const supabase = await createClient();
-
-    const { data: stations, error: stationsError } = await supabase
+    const { data: stations, error: stationsError } = await supabaseAdmin
       .from('stations')
       .select(
         'id, name, region_id, aliases, region:regions(id, name, code, aliases)'
