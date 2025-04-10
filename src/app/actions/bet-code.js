@@ -131,7 +131,7 @@ export async function fetchBetData(userId) {
   }
 }
 
-// Function to submit a validated bet code
+// Function to submit a validated bet code (updated for merged table structure)
 export async function submitBetCode(userId, betCode) {
   try {
     if (!userId || !betCode) {
@@ -140,7 +140,24 @@ export async function submitBetCode(userId, betCode) {
 
     const supabase = await createClient();
 
-    // Create new bet code in database
+    // Format bet lines for the JSONB field
+    const betLines = betCode.betData.lines.map((line, index) => ({
+      line_number: index + 1,
+      original_line: line.originalLine,
+      parsed_data: line.parsedData || {},
+      numbers: line.numbers,
+      bet_type_id: line.betTypeId,
+      bet_type_alias: line.betTypeAlias,
+      amount: line.amount,
+      stake: line.stake,
+      potential_prize: line.potentialPrize,
+      is_permutation: line.isPermutation || false,
+      permutations: line.permutations || null,
+      is_valid: !line.error,
+      error: line.error || null,
+    }));
+
+    // Create new bet code in database with bet_lines field
     const { data: newBetCode, error: betCodeError } = await supabase
       .from('bet_codes')
       .insert({
@@ -154,6 +171,7 @@ export async function submitBetCode(userId, betCode) {
         bet_data: betCode.betData,
         stake_amount: betCode.stakeAmount,
         potential_winning: betCode.potentialWinning,
+        bet_lines: betLines, // Add the bet lines as JSONB array
       })
       .select('id')
       .single();
@@ -162,35 +180,6 @@ export async function submitBetCode(userId, betCode) {
       return {
         data: null,
         error: 'Lỗi khi lưu mã cược: ' + betCodeError.message,
-      };
-    }
-
-    // Create bet code lines
-    const betCodeLines = betCode.betData.lines.map((line, index) => ({
-      bet_code_id: newBetCode.id,
-      line_number: index + 1,
-      original_line: line.originalLine,
-      parsed_data: line.parsedData,
-      numbers: line.numbers,
-      bet_type_id: line.betTypeId,
-      bet_type_alias: line.betTypeAlias,
-      amount: line.amount,
-      stake: line.stake,
-      potential_prize: line.potentialPrize,
-      is_permutation: line.isPermutation || false,
-      permutations: line.permutations || null,
-      is_valid: !line.error,
-      error: line.error || null,
-    }));
-
-    const { error: linesError } = await supabase
-      .from('bet_code_lines')
-      .insert(betCodeLines);
-
-    if (linesError) {
-      return {
-        data: null,
-        error: 'Lỗi khi lưu chi tiết mã cược: ' + linesError.message,
       };
     }
 

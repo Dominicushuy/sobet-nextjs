@@ -1,586 +1,339 @@
--- policies.sql - Row Level Security (RLS) Policies cho hệ thống quản lý cược xổ số
-
--- Bật RLS cho tất cả bảng
-DO $$
+-- Clear tất cả các policies hiện có
+DO $$ 
 DECLARE
-    t record;
+    r RECORD;
 BEGIN
-    FOR t IN 
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_type = 'BASE TABLE'
-        AND table_name != 'spatial_ref_sys'
-    LOOP
-        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t.table_name);
+    FOR r IN (
+        SELECT
+            schemaname,
+            tablename,
+            policyname
+        FROM
+            pg_policies
+        WHERE
+            schemaname = 'public'
+    ) LOOP
+        EXECUTE FORMAT('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
     END LOOP;
-END
-$$ LANGUAGE plpgsql;
+END $$;
 
--- Functions kiểm tra vai trò
-CREATE OR REPLACE FUNCTION auth.is_super_admin()
+-- Bật RLS cho tất cả các bảng
+ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE regions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE station_schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE station_relationships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bet_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE number_combinations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bet_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lottery_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE verifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_station_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_bet_type_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_commission_settings ENABLE ROW LEVEL SECURITY;
+
+-- Tạo các helper function để kiểm tra vai trò
+CREATE OR REPLACE FUNCTION public.is_super_admin()
 RETURNS BOOLEAN AS $$
+DECLARE
+    user_role TEXT;
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 
-    FROM auth.users au
-    JOIN public.users u ON au.id::uuid = u.id
-    JOIN public.roles r ON u.role_id = r.id
-    WHERE au.id = auth.uid() AND r.name = 'super_admin'
-  );
+    SELECT r.name INTO user_role
+    FROM users u
+    JOIN roles r ON u.role_id = r.id
+    WHERE u.id = auth.uid();
+    
+    RETURN user_role = 'super_admin';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION auth.is_admin()
+CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
+DECLARE
+    user_role TEXT;
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 
-    FROM auth.users au
-    JOIN public.users u ON au.id::uuid = u.id
-    JOIN public.roles r ON u.role_id = r.id
-    WHERE au.id = auth.uid() AND r.name = 'admin'
-  );
+    SELECT r.name INTO user_role
+    FROM users u
+    JOIN roles r ON u.role_id = r.id
+    WHERE u.id = auth.uid();
+    
+    RETURN user_role = 'admin';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION auth.is_admin_or_super_admin()
+CREATE OR REPLACE FUNCTION public.is_admin_or_super_admin()
 RETURNS BOOLEAN AS $$
+DECLARE
+    user_role TEXT;
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 
-    FROM auth.users au
-    JOIN public.users u ON au.id::uuid = u.id
-    JOIN public.roles r ON u.role_id = r.id
-    WHERE au.id = auth.uid() AND r.name IN ('admin', 'super_admin')
-  );
+    SELECT r.name INTO user_role
+    FROM users u
+    JOIN roles r ON u.role_id = r.id
+    WHERE u.id = auth.uid();
+    
+    RETURN user_role IN ('admin', 'super_admin');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION auth.is_regular_user()
+-- Tạo function để kiểm tra xem admin có quản lý user này hay không
+CREATE OR REPLACE FUNCTION public.is_user_manager(user_id UUID)
 RETURNS BOOLEAN AS $$
+DECLARE
+    is_manager BOOLEAN;
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 
-    FROM auth.users au
-    JOIN public.users u ON au.id::uuid = u.id
-    JOIN public.roles r ON u.role_id = r.id
-    WHERE au.id = auth.uid() AND r.name = 'user'
-  );
+    IF public.is_super_admin() THEN
+        RETURN TRUE;
+    END IF;
+    
+    -- Kiểm tra xem người dùng hiện tại có phải là người tạo user_id không
+    SELECT EXISTS (
+        SELECT 1 FROM users 
+        WHERE id = user_id AND created_by = auth.uid()
+    ) INTO is_manager;
+    
+    RETURN is_manager;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 1. Policies cho bảng Roles
-CREATE POLICY "Anyone can view roles"
-ON roles
-FOR SELECT
-USING (true);
-
-CREATE POLICY "Only super admin can modify roles"
-ON roles
-FOR ALL
-USING (auth.is_super_admin());
-
--- 2. Policies cho bảng Users
-CREATE POLICY "Super admin can see all users"
-ON users
-FOR SELECT
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can see users they created and themselves"
-ON users
-FOR SELECT
-USING (
-  auth.is_admin() AND 
-  (created_by = auth.uid() OR id = auth.uid())
-);
-
-CREATE POLICY "Regular users can only see themselves"
-ON users
-FOR SELECT
-USING (id = auth.uid());
-
-CREATE POLICY "Super admin can insert users"
-ON users
-FOR INSERT
-WITH CHECK (auth.is_super_admin());
-
-CREATE POLICY "Admin can insert users with user role"
-ON users
-FOR INSERT
-WITH CHECK (
-  auth.is_admin() AND 
-  EXISTS (
-    SELECT 1 FROM roles r
-    WHERE r.id = role_id AND r.name = 'user'
-  )
-);
-
-CREATE POLICY "Super admin can update any user"
-ON users
-FOR UPDATE
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can update users they created"
-ON users
-FOR UPDATE
-USING (
-  auth.is_admin() AND 
-  created_by = auth.uid()
-);
-
-CREATE POLICY "Users can update their own non-role information"
-ON users
-FOR UPDATE
-USING (id = auth.uid());
-
-CREATE POLICY "Super admin can delete users"
-ON users
-FOR DELETE
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can delete users they created"
-ON users
-FOR DELETE
-USING (
-  auth.is_admin() AND 
-  created_by = auth.uid()
-);
-
--- 3. Policies cho bảng AdminSettings
-CREATE POLICY "Super admin can view all admin settings"
-ON admin_settings
-FOR SELECT
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can view their own settings"
-ON admin_settings
-FOR SELECT
-USING (
-  auth.is_admin() AND 
-  admin_id = auth.uid()
-);
-
-CREATE POLICY "Super admin can modify admin settings"
-ON admin_settings
-FOR ALL
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can modify their own settings"
-ON admin_settings
-FOR UPDATE
-USING (
-  auth.is_admin() AND 
-  admin_id = auth.uid()
-);
-
--- 4. Policies cho bảng Regions
-CREATE POLICY "Anyone can view regions"
-ON regions
-FOR SELECT
-USING (true);
-
-CREATE POLICY "Only super admin can modify regions"
-ON regions
-FOR ALL
-USING (auth.is_super_admin());
-
--- 5. Policies cho bảng Stations
-CREATE POLICY "Anyone can view active stations"
-ON stations
-FOR SELECT
-USING (is_active = TRUE);
-
-CREATE POLICY "Admin or super admin can view all stations"
-ON stations
-FOR SELECT
-USING (auth.is_admin_or_super_admin());
-
-CREATE POLICY "Super admin can modify stations"
-ON stations
-FOR ALL
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can update station activity status"
-ON stations
-FOR UPDATE
-USING (auth.is_admin());
-
--- 6. Policies cho bảng StationSchedules
-CREATE POLICY "Anyone can view station schedules"
-ON station_schedules
-FOR SELECT
-USING (true);
-
-CREATE POLICY "Only super admin can modify station schedules"
-ON station_schedules
-FOR ALL
-USING (auth.is_super_admin());
-
--- 7. Policies cho bảng StationRelationships
-CREATE POLICY "Anyone can view station relationships"
-ON station_relationships
-FOR SELECT
-USING (true);
-
-CREATE POLICY "Only super admin can modify station relationships"
-ON station_relationships
-FOR ALL
-USING (auth.is_super_admin());
-
--- 8. Policies cho bảng BetTypes
-CREATE POLICY "Anyone can view active bet types"
-ON bet_types
-FOR SELECT
-USING (is_active = TRUE);
-
-CREATE POLICY "Admin or super admin can view all bet types"
-ON bet_types
-FOR SELECT
-USING (auth.is_admin_or_super_admin());
-
-CREATE POLICY "Super admin can modify bet types"
-ON bet_types
-FOR ALL
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can update bet type activity status"
-ON bet_types
-FOR UPDATE
-USING (auth.is_admin());
-
--- 9. Policies cho bảng BetCodes
-CREATE POLICY "Super admin can view all bet codes"
-ON bet_codes
-FOR SELECT
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can view all bet codes"
-ON bet_codes
-FOR SELECT
-USING (auth.is_admin());
-
-CREATE POLICY "Users can view their own bet codes"
-ON bet_codes
-FOR SELECT
-USING (user_id = auth.uid());
-
-CREATE POLICY "Users can insert their own bet codes"
-ON bet_codes
-FOR INSERT
-WITH CHECK (
-  auth.is_regular_user() AND 
-  user_id = auth.uid() AND 
-  created_by = auth.uid() AND 
-  status = 'draft'
-);
-
-CREATE POLICY "Admin can insert bet codes for users"
-ON bet_codes
-FOR INSERT
-WITH CHECK (auth.is_admin());
-
-CREATE POLICY "Super admin can update any bet code"
-ON bet_codes
-FOR UPDATE
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can update any bet code"
-ON bet_codes
-FOR UPDATE
-USING (auth.is_admin());
-
-CREATE POLICY "Users can update their own draft bet codes"
-ON bet_codes
-FOR UPDATE
-USING (
-  auth.is_regular_user() AND 
-  user_id = auth.uid() AND 
-  status = 'draft'
-);
-
-CREATE POLICY "Super admin can delete any bet code"
-ON bet_codes
-FOR DELETE
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can delete any bet code"
-ON bet_codes
-FOR DELETE
-USING (auth.is_admin());
-
-CREATE POLICY "Users can delete their own draft bet codes"
-ON bet_codes
-FOR DELETE
-USING (
-  auth.is_regular_user() AND 
-  user_id = auth.uid() AND 
-  status = 'draft'
-);
-
--- 10. Policies cho bảng BetCodeLines
-CREATE POLICY "Super admin can view all bet code lines"
-ON bet_code_lines
-FOR SELECT
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can view all bet code lines"
-ON bet_code_lines
-FOR SELECT
-USING (auth.is_admin());
-
-CREATE POLICY "Users can view their own bet code lines"
-ON bet_code_lines
-FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM bet_codes bc
-    WHERE bc.id = bet_code_id AND bc.user_id = auth.uid()
-  )
-);
-
-CREATE POLICY "Users can insert their own bet code lines"
-ON bet_code_lines
-FOR INSERT
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM bet_codes bc
-    WHERE bc.id = bet_code_id AND bc.user_id = auth.uid() AND bc.status = 'draft'
-  )
-);
-
-CREATE POLICY "Admin can insert any bet code lines"
-ON bet_code_lines
-FOR INSERT
-WITH CHECK (auth.is_admin_or_super_admin());
-
-CREATE POLICY "Super admin can update any bet code line"
-ON bet_code_lines
-FOR UPDATE
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can update any bet code line"
-ON bet_code_lines
-FOR UPDATE
-USING (auth.is_admin());
-
-CREATE POLICY "Users can update their own draft bet code lines"
-ON bet_code_lines
-FOR UPDATE
-USING (
-  EXISTS (
-    SELECT 1 FROM bet_codes bc
-    WHERE bc.id = bet_code_id AND bc.user_id = auth.uid() AND bc.status = 'draft'
-  )
-);
-
-CREATE POLICY "Super admin can delete any bet code line"
-ON bet_code_lines
-FOR DELETE
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can delete any bet code line"
-ON bet_code_lines
-FOR DELETE
-USING (auth.is_admin());
-
-CREATE POLICY "Users can delete their own draft bet code lines"
-ON bet_code_lines
-FOR DELETE
-USING (
-  EXISTS (
-    SELECT 1 FROM bet_codes bc
-    WHERE bc.id = bet_code_id AND bc.user_id = auth.uid() AND bc.status = 'draft'
-  )
-);
-
--- 11. Policies cho bảng LotteryResults
-CREATE POLICY "Anyone can view verified lottery results"
-ON lottery_results
-FOR SELECT
-USING (verified = TRUE);
-
-CREATE POLICY "Admin or super admin can view all lottery results"
-ON lottery_results
-FOR SELECT
-USING (auth.is_admin_or_super_admin());
-
-CREATE POLICY "Super admin can modify lottery results"
-ON lottery_results
-FOR ALL
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can insert and update lottery results"
-ON lottery_results
-FOR INSERT
-WITH CHECK (auth.is_admin());
-
-CREATE POLICY "Admin can update lottery results"
-ON lottery_results
-FOR UPDATE
-USING (auth.is_admin());
-
--- 12. Policies cho bảng Verifications
-CREATE POLICY "Super admin can view all verifications"
-ON verifications
-FOR SELECT
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can view their own verifications"
-ON verifications
-FOR SELECT
-USING (
-  auth.is_admin() AND 
-  admin_id = auth.uid()
-);
-
-CREATE POLICY "Super admin can modify verifications"
-ON verifications
-FOR ALL
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can insert their own verifications"
-ON verifications
-FOR INSERT
-WITH CHECK (
-  auth.is_admin() AND 
-  admin_id = auth.uid()
-);
-
-CREATE POLICY "Admin can update their own verifications"
-ON verifications
-FOR UPDATE
-USING (
-  auth.is_admin() AND 
-  admin_id = auth.uid()
-);
-
--- 15. Policies cho bảng NumberCombinations
-CREATE POLICY "Anyone can view active number combinations"
-ON number_combinations
-FOR SELECT
-USING (is_active = TRUE);
-
-CREATE POLICY "Admin or super admin can view all number combinations"
-ON number_combinations
-FOR SELECT
-USING (auth.is_admin_or_super_admin());
-
-CREATE POLICY "Super admin can modify number combinations"
-ON number_combinations
-FOR ALL
-USING (auth.is_super_admin());
-
--- Policies cho bảng user_station_access
-CREATE POLICY "Super admin can view all user station access"
-ON user_station_access
-FOR SELECT
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can view user station access of users they created"
-ON user_station_access
-FOR SELECT
-USING (
-  auth.is_admin() AND 
-  EXISTS (
-    SELECT 1 FROM users u
-    WHERE u.id = user_id AND u.created_by = auth.uid()
-  )
-);
-
-CREATE POLICY "User can view their own station access"
-ON user_station_access
-FOR SELECT
-USING (user_id = auth.uid());
-
-CREATE POLICY "Super admin can modify any user station access"
-ON user_station_access
-FOR ALL
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can modify user station access of users they created"
-ON user_station_access
-FOR ALL
-USING (
-  auth.is_admin() AND 
-  EXISTS (
-    SELECT 1 FROM users u
-    WHERE u.id = user_id AND u.created_by = auth.uid()
-  ) AND
-  created_by = auth.uid()
-);
-
--- Super admin can view all bet type settings
-CREATE POLICY "Super admin can view all bet type settings"
-ON user_bet_type_settings
-FOR SELECT
-USING (auth.is_super_admin());
-
--- Admin can view bet type settings of users they created
-CREATE POLICY "Admin can view bet type settings of users they created"
-ON user_bet_type_settings
-FOR SELECT
-USING (
-  auth.is_admin() AND 
-  EXISTS (
-    SELECT 1 FROM users u
-    WHERE u.id = user_id AND u.created_by = auth.uid()
-  )
-);
-
--- Users can view their own bet type settings
-CREATE POLICY "Users can view their own bet type settings"
-ON user_bet_type_settings
-FOR SELECT
-USING (user_id = auth.uid());
-
--- Super admin can manage any bet type settings
-CREATE POLICY "Super admin can manage any bet type settings"
-ON user_bet_type_settings
-FOR ALL
-USING (auth.is_super_admin());
-
--- Admin can manage bet type settings of users they created
-CREATE POLICY "Admin can manage bet type settings of users they created"
-ON user_bet_type_settings
-FOR ALL
-USING (
-  auth.is_admin() AND 
-  EXISTS (
-    SELECT 1 FROM users u
-    WHERE u.id = user_id AND u.created_by = auth.uid()
-  )
-);
-
--- Add RLS policies for the new table
-CREATE POLICY "Super admin can view all user commission settings"
-ON user_commission_settings
-FOR SELECT
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can view commission settings of users they created"
-ON user_commission_settings
-FOR SELECT
-USING (
-  auth.is_admin() AND 
-  EXISTS (
-    SELECT 1 FROM users u
-    WHERE u.id = user_id AND u.created_by = auth.uid()
-  )
-);
-
-CREATE POLICY "Super admin can modify any user commission settings"
-ON user_commission_settings
-FOR ALL
-USING (auth.is_super_admin());
-
-CREATE POLICY "Admin can modify commission settings of users they created"
-ON user_commission_settings
-FOR ALL
-USING (
-  auth.is_admin() AND 
-  EXISTS (
-    SELECT 1 FROM users u
-    WHERE u.id = user_id AND u.created_by = auth.uid()
-  )
-);
+--------------------------
+-- Policies cho Roles
+--------------------------
+-- Super admin có thể làm mọi thứ
+CREATE POLICY "super_admin_all_roles" ON roles
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin và User chỉ có thể xem
+CREATE POLICY "all_users_can_view_roles" ON roles
+    FOR SELECT
+    USING (true);
+
+--------------------------
+-- Policies cho Users
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_users" ON users
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có thể quản lý người dùng do họ tạo ra
+CREATE POLICY "admin_manage_created_users" ON users
+    USING (public.is_admin() AND (created_by = auth.uid() OR id = auth.uid()))
+    WITH CHECK (public.is_admin() AND (created_by = auth.uid()));
+
+-- Mọi người dùng chỉ có thể xem thông tin của chính mình
+CREATE POLICY "users_view_self" ON users
+    FOR SELECT
+    USING (id = auth.uid());
+
+--------------------------
+-- Policies cho Admin Settings
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_admin_settings" ON admin_settings
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin chỉ có thể xem và cập nhật cài đặt của chính mình
+CREATE POLICY "admin_manage_own_settings" ON admin_settings
+    USING (public.is_admin() AND admin_id = auth.uid())
+    WITH CHECK (public.is_admin() AND admin_id = auth.uid());
+
+--------------------------
+-- Policies cho Regions
+--------------------------
+-- Super admin và Admin có toàn quyền
+CREATE POLICY "admin_manage_regions" ON regions
+    USING (public.is_admin_or_super_admin())
+    WITH CHECK (public.is_admin_or_super_admin());
+
+-- Tất cả người dùng có thể xem
+CREATE POLICY "all_users_view_regions" ON regions
+    FOR SELECT
+    USING (true);
+
+--------------------------
+-- Policies cho Stations
+--------------------------
+-- Super admin và Admin có toàn quyền
+CREATE POLICY "admin_manage_stations" ON stations
+    USING (public.is_admin_or_super_admin())
+    WITH CHECK (public.is_admin_or_super_admin());
+
+-- Tất cả người dùng có thể xem
+CREATE POLICY "all_users_view_stations" ON stations
+    FOR SELECT
+    USING (true);
+
+--------------------------
+-- Policies cho Station Schedules
+--------------------------
+-- Super admin và Admin có toàn quyền
+CREATE POLICY "admin_manage_station_schedules" ON station_schedules
+    USING (public.is_admin_or_super_admin())
+    WITH CHECK (public.is_admin_or_super_admin());
+
+-- Tất cả người dùng có thể xem
+CREATE POLICY "all_users_view_station_schedules" ON station_schedules
+    FOR SELECT
+    USING (true);
+
+--------------------------
+-- Policies cho Station Relationships
+--------------------------
+-- Super admin và Admin có toàn quyền
+CREATE POLICY "admin_manage_station_relationships" ON station_relationships
+    USING (public.is_admin_or_super_admin())
+    WITH CHECK (public.is_admin_or_super_admin());
+
+-- Tất cả người dùng có thể xem
+CREATE POLICY "all_users_view_station_relationships" ON station_relationships
+    FOR SELECT
+    USING (true);
+
+--------------------------
+-- Policies cho Bet Types
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_bet_types" ON bet_types
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có quyền cập nhật một số trường
+CREATE POLICY "admin_update_limited_bet_types" ON bet_types
+    FOR UPDATE
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
+
+-- Tất cả người dùng có thể xem
+CREATE POLICY "all_users_view_bet_types" ON bet_types
+    FOR SELECT
+    USING (true);
+
+--------------------------
+-- Policies cho Number Combinations
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_number_combinations" ON number_combinations
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có quyền cập nhật một số trường
+CREATE POLICY "admin_update_limited_number_combinations" ON number_combinations
+    FOR UPDATE
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
+
+-- Tất cả người dùng có thể xem
+CREATE POLICY "all_users_view_number_combinations" ON number_combinations
+    FOR SELECT
+    USING (true);
+
+--------------------------
+-- Policies cho Bet Codes
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_bet_codes" ON bet_codes
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có thể xem và cập nhật mã cược của người dùng họ quản lý
+CREATE POLICY "admin_manage_user_bet_codes" ON bet_codes
+    USING (public.is_admin() AND public.is_user_manager(user_id))
+    WITH CHECK (public.is_admin() AND public.is_user_manager(user_id));
+
+-- User chỉ có thể xem và tạo mã cược của chính mình
+CREATE POLICY "users_view_own_bet_codes" ON bet_codes
+    FOR SELECT
+    USING (user_id = auth.uid());
+
+CREATE POLICY "users_create_own_bet_codes" ON bet_codes
+    FOR INSERT
+    WITH CHECK (user_id = auth.uid() AND created_by = auth.uid());
+
+--------------------------
+-- Policies cho Lottery Results
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_lottery_results" ON lottery_results
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có thể thêm và cập nhật kết quả xổ số
+CREATE POLICY "admin_manage_lottery_results" ON lottery_results
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
+
+-- Tất cả người dùng có thể xem
+CREATE POLICY "all_users_view_lottery_results" ON lottery_results
+    FOR SELECT
+    USING (true);
+
+--------------------------
+-- Policies cho Verifications
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_verifications" ON verifications
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin chỉ có thể xem và tạo đối soát của chính mình
+CREATE POLICY "admin_manage_own_verifications" ON verifications
+    USING (public.is_admin() AND admin_id = auth.uid())
+    WITH CHECK (public.is_admin() AND admin_id = auth.uid());
+
+--------------------------
+-- Policies cho User Station Access
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_user_station_access" ON user_station_access
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có thể quản lý quyền truy cập đài cho người dùng họ quản lý
+CREATE POLICY "admin_manage_user_station_access" ON user_station_access
+    USING (public.is_admin() AND public.is_user_manager(user_id))
+    WITH CHECK (public.is_admin() AND public.is_user_manager(user_id));
+
+-- User chỉ có thể xem quyền truy cập đài của chính mình
+CREATE POLICY "users_view_own_station_access" ON user_station_access
+    FOR SELECT
+    USING (user_id = auth.uid());
+
+--------------------------
+-- Policies cho User Bet Type Settings
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_user_bet_type_settings" ON user_bet_type_settings
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có thể quản lý cài đặt loại cược cho người dùng họ quản lý
+CREATE POLICY "admin_manage_user_bet_type_settings" ON user_bet_type_settings
+    USING (public.is_admin() AND public.is_user_manager(user_id))
+    WITH CHECK (public.is_admin() AND public.is_user_manager(user_id));
+
+-- User chỉ có thể xem cài đặt loại cược của chính mình
+CREATE POLICY "users_view_own_bet_type_settings" ON user_bet_type_settings
+    FOR SELECT
+    USING (user_id = auth.uid());
+
+--------------------------
+-- Policies cho User Commission Settings
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_user_commission_settings" ON user_commission_settings
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có thể quản lý cài đặt hoa hồng cho người dùng họ quản lý
+CREATE POLICY "admin_manage_user_commission_settings" ON user_commission_settings
+    USING (public.is_admin() AND public.is_user_manager(user_id))
+    WITH CHECK (public.is_admin() AND public.is_user_manager(user_id));
+
+-- User chỉ có thể xem cài đặt hoa hồng của chính mình
+CREATE POLICY "users_view_own_commission_settings" ON user_commission_settings
+    FOR SELECT
+    USING (user_id = auth.uid());

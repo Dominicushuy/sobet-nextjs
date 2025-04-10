@@ -113,7 +113,6 @@ CREATE TABLE number_combinations (
 -- Enum cho trạng thái mã cược
 CREATE TYPE bet_code_status AS ENUM ('draft', 'confirmed', 'processed', 'deleted');
 
--- Bảng BetCodes (Mã cược)
 CREATE TABLE bet_codes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id),
@@ -129,30 +128,9 @@ CREATE TABLE bet_codes (
   is_winning BOOLEAN,
   verified_at TIMESTAMPTZ,
   processed_at TIMESTAMPTZ,
+  bet_lines JSONB NOT NULL, -- Chứa tất cả thông tin dòng cược trước đây
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Bảng BetCodeLines (Chi tiết dòng cược)
-CREATE TABLE bet_code_lines (
-  id SERIAL PRIMARY KEY,
-  bet_code_id UUID NOT NULL REFERENCES bet_codes(id) ON DELETE CASCADE,
-  line_number INTEGER NOT NULL,
-  original_line TEXT NOT NULL,
-  parsed_data JSONB NOT NULL,
-  numbers TEXT[] NOT NULL,
-  bet_type_id INTEGER REFERENCES bet_types(id),
-  bet_type_alias VARCHAR(50) NOT NULL,
-  amount NUMERIC(10, 2) NOT NULL,
-  stake NUMERIC(10, 2) NOT NULL, -- Calculated stake
-  potential_prize NUMERIC(12, 2) NOT NULL, -- Potential winning
-  is_permutation BOOLEAN NOT NULL DEFAULT FALSE,
-  permutations JSONB,
-  is_valid BOOLEAN NOT NULL DEFAULT TRUE,
-  error TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (bet_code_id, line_number)
 );
 
 -- Bảng LotteryResults (Kết quả xổ số)
