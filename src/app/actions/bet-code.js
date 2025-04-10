@@ -1,9 +1,7 @@
 'use server';
 
 import { supabaseAdmin } from '@/utils/supabase/admin';
-import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { uid } from 'uid';
 
 // Fetch data needed for bet code validation
 export async function fetchBetData(userId) {
@@ -126,8 +124,6 @@ export async function submitBetCode(userId, betCode) {
       return { data: null, error: 'Dữ liệu không hợp lệ' };
     }
 
-    const supabase = await createClient();
-
     // Format bet lines for the JSONB field
     const betLines = betCode.betData.lines.map((line, index) => ({
       line_number: index + 1,
@@ -146,10 +142,9 @@ export async function submitBetCode(userId, betCode) {
     }));
 
     // Create new bet code in database with bet_lines field
-    const { data: newBetCode, error: betCodeError } = await supabase
+    const { data: newBetCode, error: betCodeError } = await supabaseAdmin
       .from('bet_codes')
       .insert({
-        id: uid(16),
         user_id: userId,
         created_by: userId,
         status: 'confirmed',
