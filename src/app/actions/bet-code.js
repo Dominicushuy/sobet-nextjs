@@ -16,7 +16,6 @@ export async function fetchBetData(userId) {
       { data: stationAccess, error: stationError },
       { data: betTypeSettings, error: betTypeError },
       { data: commissionSettings, error: commissionError },
-      { data: allStations, error: allStationsError },
       { data: betTypes, error: betTypesError },
       { data: numberCombinations, error: numberCombinationsError },
       { data: regions, error: regionsError }, // Lấy thêm regions
@@ -62,10 +61,6 @@ export async function fetchBetData(userId) {
 
     if (betTypeError) {
       return { data: null, error: 'Lỗi khi lấy thông tin cài đặt loại cược' };
-    }
-
-    if (allStationsError) {
-      return { data: null, error: 'Lỗi khi lấy thông tin đài' };
     }
 
     if (betTypesError) {
@@ -120,8 +115,7 @@ export async function fetchBetData(userId) {
       data: {
         user: userData,
         accessibleStations,
-        allStations,
-        regions, // Thêm regions vào response
+        regions,
         betTypes: Array.from(betTypeMap.values()),
         numberCombinations,
         commissionSettings: {

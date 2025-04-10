@@ -51,7 +51,6 @@ export function useBetValidator() {
 
       const {
         accessibleStations,
-        allStations,
         betTypes,
         commissionSettings,
         numberCombinations,
@@ -60,7 +59,6 @@ export function useBetValidator() {
 
       return parseBetCode(
         betCodeText,
-        allStations,
         accessibleStations,
         betTypes,
         commissionSettings.priceRate,

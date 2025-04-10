@@ -6,7 +6,6 @@
 // Parse and validate bet code
 export function parseBetCode(
   betCodeText,
-  allStations,
   accessibleStations,
   betTypes,
   priceRate,
@@ -42,7 +41,6 @@ export function parseBetCode(
     // Validate station information - truyền thêm regions
     const stationData = parseStationInfo(
       stationInfo,
-      allStations,
       accessibleStations,
       regions
     );
@@ -110,7 +108,6 @@ export function parseBetCode(
 // Parse station information
 export function parseStationInfo(
   stationInfo,
-  allStations,
   accessibleStations,
   regions = []
 ) {
@@ -144,7 +141,7 @@ export function parseStationInfo(
       // Find the region from regions or from station relationships
       const region =
         regions?.find((r) => r.code === regionCode) ||
-        allStations.find((s) => s.region?.code === regionCode)?.region;
+        accessibleStations.find((s) => s.region?.code === regionCode)?.region;
 
       if (!region) {
         return { data: null, error: 'Không thể xác định thông tin miền' };
@@ -185,7 +182,7 @@ export function parseStationInfo(
       if (!code.trim()) continue;
 
       // Find station by code or alias
-      const station = findStationByCodeOrAlias(code, allStations);
+      const station = findStationByCodeOrAlias(code, accessibleStations);
 
       if (!station) {
         return { data: null, error: `Không tìm thấy đài với mã: ${code}` };
@@ -223,13 +220,13 @@ export function parseStationInfo(
 }
 
 // Find a station by code or alias
-export function findStationByCodeOrAlias(code, allStations) {
+export function findStationByCodeOrAlias(code, accessibleStations) {
   code = code.toLowerCase().trim();
 
   if (!code) return null;
 
   // Tìm kiếm chính xác first
-  let station = allStations.find(
+  let station = accessibleStations.find(
     (s) =>
       s.name.toLowerCase() === code ||
       (s.aliases && s.aliases.some((alias) => alias.toLowerCase() === code))
@@ -237,7 +234,7 @@ export function findStationByCodeOrAlias(code, allStations) {
 
   // Nếu không tìm thấy, thử tìm kiếm một phần
   if (!station) {
-    station = allStations.find(
+    station = accessibleStations.find(
       (s) =>
         s.name.toLowerCase().includes(code) ||
         (s.aliases &&
