@@ -19,7 +19,6 @@ export async function fetchBetData(userId) {
       { data: betTypeSettings, error: betTypeError },
       { data: commissionSettings, error: commissionError },
       { data: allStations, error: allStationsError },
-      { data: allBetTypes, error: allBetTypesError },
       { data: numberCombinations, error: numberCombinationsError },
     ] = await Promise.all([
       supabaseAdmin.from('users').select('*').eq('id', userId).single(),
@@ -35,7 +34,8 @@ export async function fetchBetData(userId) {
         .select(
           'bet_type_id, is_active, payout_rate, multiplier, bet_types(id, name, aliases, applicable_regions, bet_rule, matching_method, payout_rate, combinations, is_permutation, special_calc)'
         )
-        .eq('user_id', userId),
+        .eq('user_id', userId)
+        .eq('is_active', true),
       supabaseAdmin
         .from('user_commission_settings')
         .select('*')
@@ -68,10 +68,6 @@ export async function fetchBetData(userId) {
       return { data: null, error: 'Lỗi khi lấy thông tin đài' };
     }
 
-    if (allBetTypesError) {
-      return { data: null, error: 'Lỗi khi lấy thông tin loại cược' };
-    }
-
     if (numberCombinationsError) {
       return { data: null, error: 'Lỗi khi lấy thông tin kiểu kết hợp số' };
     }
@@ -88,14 +84,6 @@ export async function fetchBetData(userId) {
 
     // Create a map of bet type settings
     const betTypeMap = new Map();
-    allBetTypes.forEach((betType) => {
-      betTypeMap.set(betType.id, {
-        ...betType,
-        is_active_for_user: true,
-        custom_payout_rate: null,
-        multiplier: 1,
-      });
-    });
 
     // Override with user settings if they exist
     betTypeSettings.forEach((setting) => {
