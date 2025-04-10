@@ -1,6 +1,6 @@
 'use client';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -17,7 +17,6 @@ const BetMessage = ({ message }) => {
     >
       {!isUser && (
         <Avatar className="h-8 w-8">
-          <AvatarImage src="/bot-avatar.png" alt="Bot" />
           <AvatarFallback className="bg-primary text-primary-foreground">
             B
           </AvatarFallback>
