@@ -1,0 +1,196 @@
+'use server';
+
+import { supabaseAdmin } from '@/utils/supabase/admin';
+import { createClient } from '@/utils/supabase/server';
+import { revalidatePath } from 'next/cache';
+import { uid } from 'uid';
+
+// Fetch data needed for bet code validation
+export async function fetchBetData(userId) {
+  try {
+    if (!userId) {
+      return { data: null, error: 'Người dùng chưa đăng nhập' };
+    }
+
+    // Get user's settings and permissions
+    const [
+      { data: userData, error: userError },
+      { data: stationAccess, error: stationError },
+      { data: betTypeSettings, error: betTypeError },
+      { data: commissionSettings, error: commissionError },
+      { data: allStations, error: allStationsError },
+      { data: allBetTypes, error: allBetTypesError },
+    ] = await Promise.all([
+      supabaseAdmin.from('users').select('*').eq('id', userId).single(),
+      supabaseAdmin
+        .from('user_station_access')
+        .select(
+          'station_id, is_enabled, stations(id, name, region_id, aliases, is_active, region:regions(id, name, code, aliases))'
+        )
+        .eq('user_id', userId)
+        .eq('is_enabled', true),
+      supabaseAdmin
+        .from('user_bet_type_settings')
+        .select(
+          'bet_type_id, is_active, payout_rate, multiplier, bet_types(id, name, aliases, applicable_regions, bet_rule, matching_method, payout_rate, combinations, is_permutation, special_calc)'
+        )
+        .eq('user_id', userId),
+      supabaseAdmin
+        .from('user_commission_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('stations')
+        .select('*, region:regions(id, name, code, aliases)')
+        .eq('is_active', true),
+      supabaseAdmin.from('bet_types').select('*').eq('is_active', true),
+    ]);
+
+    if (userError || !userData) {
+      return { data: null, error: 'Không tìm thấy thông tin người dùng' };
+    }
+
+    if (stationError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin quyền truy cập đài' };
+    }
+
+    if (betTypeError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin cài đặt loại cược' };
+    }
+
+    if (allStationsError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin đài' };
+    }
+
+    if (allBetTypesError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin loại cược' };
+    }
+
+    // Set default commission settings if not found
+    const priceRate = commissionSettings?.price_rate || 0.8;
+    const exportPriceRate = commissionSettings?.export_price_rate || 0.74;
+    const returnPriceRate = commissionSettings?.return_price_rate || 0.95;
+
+    // Create a list of accessible stations
+    const accessibleStations = stationAccess
+      .filter((access) => access.is_enabled && access.stations)
+      .map((access) => access.stations);
+
+    // Create a map of bet type settings
+    const betTypeMap = new Map();
+    allBetTypes.forEach((betType) => {
+      betTypeMap.set(betType.id, {
+        ...betType,
+        is_active_for_user: true,
+        custom_payout_rate: null,
+        multiplier: 1,
+      });
+    });
+
+    // Override with user settings if they exist
+    betTypeSettings.forEach((setting) => {
+      if (setting.bet_types && betTypeMap.has(setting.bet_type_id)) {
+        const betType = betTypeMap.get(setting.bet_type_id);
+        betTypeMap.set(setting.bet_type_id, {
+          ...betType,
+          is_active_for_user: setting.is_active,
+          custom_payout_rate: setting.payout_rate,
+          multiplier: setting.multiplier || 1,
+        });
+      }
+    });
+
+    return {
+      data: {
+        user: userData,
+        accessibleStations,
+        allStations,
+        betTypes: Array.from(betTypeMap.values()),
+        commissionSettings: {
+          priceRate,
+          exportPriceRate,
+          returnPriceRate,
+        },
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error('Error fetching bet data:', error);
+    return { data: null, error: 'Lỗi lấy dữ liệu cược: ' + error.message };
+  }
+}
+
+// Function to submit a validated bet code
+export async function submitBetCode(userId, betCode) {
+  try {
+    if (!userId || !betCode) {
+      return { data: null, error: 'Dữ liệu không hợp lệ' };
+    }
+
+    const supabase = await createClient();
+
+    // Create new bet code in database
+    const { data: newBetCode, error: betCodeError } = await supabase
+      .from('bet_codes')
+      .insert({
+        id: uid(16),
+        user_id: userId,
+        created_by: userId,
+        status: 'confirmed',
+        original_text: betCode.originalText,
+        formatted_text: betCode.formattedText,
+        station_data: betCode.stationData,
+        bet_data: betCode.betData,
+        stake_amount: betCode.stakeAmount,
+        potential_winning: betCode.potentialWinning,
+      })
+      .select('id')
+      .single();
+
+    if (betCodeError) {
+      return {
+        data: null,
+        error: 'Lỗi khi lưu mã cược: ' + betCodeError.message,
+      };
+    }
+
+    // Create bet code lines
+    const betCodeLines = betCode.betData.lines.map((line, index) => ({
+      bet_code_id: newBetCode.id,
+      line_number: index + 1,
+      original_line: line.originalLine,
+      parsed_data: line.parsedData,
+      numbers: line.numbers,
+      bet_type_id: line.betTypeId,
+      bet_type_alias: line.betTypeAlias,
+      amount: line.amount,
+      stake: line.stake,
+      potential_prize: line.potentialPrize,
+      is_permutation: line.isPermutation || false,
+      permutations: line.permutations || null,
+      is_valid: !line.error,
+      error: line.error || null,
+    }));
+
+    const { error: linesError } = await supabase
+      .from('bet_code_lines')
+      .insert(betCodeLines);
+
+    if (linesError) {
+      return {
+        data: null,
+        error: 'Lỗi khi lưu chi tiết mã cược: ' + linesError.message,
+      };
+    }
+
+    // Revalidate paths
+    revalidatePath('/bet');
+    revalidatePath('/dashboard');
+
+    return { data: newBetCode, error: null };
+  } catch (error) {
+    console.error('Error submitting bet code:', error);
+    return { data: null, error: 'Lỗi lưu mã cược: ' + error.message };
+  }
+}

@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
   FileText,
-  BarChart,
   Settings,
   User,
   Menu,
@@ -19,6 +18,7 @@ import {
   Database,
   List,
   Ticket,
+  MessageCircle,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -45,6 +45,11 @@ const navItems = [
     icon: User,
   },
   {
+    title: 'Đặt cược',
+    href: '/bet',
+    icon: MessageCircle,
+  },
+  {
     title: 'Mã cược',
     href: '/bet-codes',
     icon: FileText,
@@ -63,16 +68,6 @@ const navItems = [
     title: 'Kết quả xổ số',
     href: '/lottery-results',
     icon: Ticket,
-  },
-  {
-    title: 'Thống kê',
-    href: '/stats',
-    icon: BarChart,
-  },
-  {
-    title: 'Cài đặt',
-    href: '/settings',
-    icon: Settings,
   },
 ];
 
