@@ -1,7 +1,7 @@
 'use server';
 
 import { supabaseAdmin } from '@/utils/supabase/admin';
-import { revalidatePath } from 'next/cache';
+// import { revalidatePath } from 'next/cache';
 
 // Fetch data needed for bet code validation
 export async function fetchBetData(userId) {
@@ -162,36 +162,41 @@ export async function submitBetCode(userId, betCode) {
       error: line.error || null,
     }));
 
-    // Create new bet code in database with bet_lines field
-    const { data: newBetCode, error: betCodeError } = await supabaseAdmin
-      .from('bet_codes')
-      .insert({
-        user_id: userId,
-        created_by: userId,
-        status: 'confirmed',
-        original_text: betCode.originalText,
-        formatted_text: betCode.formattedText,
-        station_data: betCode.stationData,
-        bet_data: betCode.betData,
-        stake_amount: betCode.stakeAmount,
-        potential_winning: betCode.potentialWinning,
-        bet_lines: betLines, // Add the bet lines as JSONB array
-      })
-      .select('id')
-      .single();
+    return {
+      data: betLines,
+      error: null,
+    };
 
-    if (betCodeError) {
-      return {
-        data: null,
-        error: 'Lỗi khi lưu mã cược: ' + betCodeError.message,
-      };
-    }
+    // Create new bet code in database with bet_lines field
+    // const { data: newBetCode, error: betCodeError } = await supabaseAdmin
+    //   .from('bet_codes')
+    //   .insert({
+    //     user_id: userId,
+    //     created_by: userId,
+    //     status: 'confirmed',
+    //     original_text: betCode.originalText,
+    //     formatted_text: betCode.formattedText,
+    //     station_data: betCode.stationData,
+    //     bet_data: betCode.betData,
+    //     stake_amount: betCode.stakeAmount,
+    //     potential_winning: betCode.potentialWinning,
+    //     bet_lines: betLines, // Add the bet lines as JSONB array
+    //   })
+    //   .select('id')
+    //   .single();
+
+    // if (betCodeError) {
+    //   return {
+    //     data: null,
+    //     error: 'Lỗi khi lưu mã cược: ' + betCodeError.message,
+    //   };
+    // }
 
     // Revalidate paths
-    revalidatePath('/bet');
-    revalidatePath('/dashboard');
+    // revalidatePath('/bet');
+    // revalidatePath('/dashboard');
 
-    return { data: newBetCode, error: null };
+    // return { data: newBetCode, error: null };
   } catch (error) {
     console.error('Error submitting bet code:', error);
     return { data: null, error: 'Lỗi lưu mã cược: ' + error.message };
