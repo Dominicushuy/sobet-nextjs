@@ -15,8 +15,6 @@ export function useBetValidator() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  console.log('Bet data:', betData);
-
   // Fetch the necessary data once when the hook initializes
   useEffect(() => {
     const loadBetData = async () => {
@@ -49,15 +47,21 @@ export function useBetValidator() {
         return { data: null, error: 'Dữ liệu cược chưa được tải' };
       }
 
-      const { accessibleStations, allStations, betTypes, commissionSettings } =
-        betData;
+      const {
+        accessibleStations,
+        allStations,
+        betTypes,
+        commissionSettings,
+        numberCombinations,
+      } = betData;
 
       return parseBetCode(
         betCodeText,
         allStations,
         accessibleStations,
         betTypes,
-        commissionSettings.priceRate
+        commissionSettings.priceRate,
+        numberCombinations
       );
     },
     [betData]

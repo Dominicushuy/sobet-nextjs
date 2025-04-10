@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 /**
  * Utility functions for parsing and validating bet codes on the client side
  */
@@ -8,7 +9,8 @@ export function parseBetCode(
   allStations,
   accessibleStations,
   betTypes,
-  priceRate
+  priceRate,
+  numberCombinations = []
 ) {
   try {
     // Split the bet code into lines
@@ -58,7 +60,8 @@ export function parseBetCode(
         line,
         betTypes,
         stationData.data.count,
-        priceRate
+        priceRate,
+        numberCombinations
       );
       if (parsedLine.error) {
         parsedLines.push({
@@ -233,7 +236,13 @@ export function findStationByCodeOrAlias(code, allStations) {
 }
 
 // Parse a bet line
-export function parseBetLine(line, betTypes, stationCount, priceRate) {
+export function parseBetLine(
+  line,
+  betTypes,
+  stationCount,
+  priceRate,
+  numberCombinations = []
+) {
   try {
     line = line.trim();
     if (!line) {
@@ -276,11 +285,41 @@ export function parseBetLine(line, betTypes, stationCount, priceRate) {
     const betTypeIndex = line.indexOf(betTypeMatch[0]);
     const numbersPart = line.substring(0, betTypeIndex);
 
-    // Parse numbers (can be separated by dots, commas, or spaces)
-    const numbers = numbersPart
-      .split(/[.,\s]+/)
-      .map((n) => n.trim())
-      .filter((n) => n);
+    // Check for special number combinations
+    let numbers = [];
+    const combinationResult = parseNumberCombinations(
+      numbersPart,
+      numberCombinations
+    );
+
+    if (combinationResult.numbers.length > 0) {
+      // Use special combination numbers
+      numbers = combinationResult.numbers;
+    } else {
+      // Parse standard numbers (can be separated by dots, commas, or spaces)
+      numbers = numbersPart
+        .split(/[.,\s\-]+/)
+        .map((n) => n.trim())
+        .filter((n) => n);
+
+      // Parse "kéo" (sequence) pattern: start/stepkéoend
+      const keoPattern = /(\d+)\/(\d+)keo(\d+)/i;
+      const keoMatch = numbersPart.match(keoPattern);
+
+      if (keoMatch) {
+        const start = parseInt(keoMatch[1]);
+        const next = parseInt(keoMatch[2]);
+        const end = parseInt(keoMatch[3]);
+        const step = next - start;
+
+        if (!isNaN(start) && !isNaN(next) && !isNaN(end) && step > 0) {
+          numbers = [];
+          for (let i = start; i <= end; i += step) {
+            numbers.push(i.toString().padStart(keoMatch[1].length, '0'));
+          }
+        }
+      }
+    }
 
     if (numbers.length === 0) {
       return { data: null, error: 'Không tìm thấy số cược hợp lệ' };
@@ -359,6 +398,149 @@ export function parseBetLine(line, betTypes, stationCount, priceRate) {
       error: 'Lỗi khi phân tích dòng cược: ' + error.message,
     };
   }
+}
+
+// Parse special number combinations (tài, xỉu, chẵn, lẻ, etc.)
+export function parseNumberCombinations(numbersPart, numberCombinations) {
+  const result = {
+    numbers: [],
+    combinationUsed: false,
+  };
+
+  if (!numberCombinations || numberCombinations.length === 0) {
+    return result;
+  }
+
+  // Clean the numbers part
+  const cleanedPart = numbersPart.toLowerCase().trim();
+
+  // Check for special combinations
+  for (const combo of numberCombinations) {
+    // Check if the combo name or any alias is in the numbers part
+    const nameMatches = cleanedPart === combo.name.toLowerCase();
+    const aliasMatches =
+      combo.aliases &&
+      combo.aliases.some((alias) => cleanedPart === alias.toLowerCase());
+
+    if (nameMatches || aliasMatches) {
+      // Generate numbers based on the combination definition
+      result.numbers = generateNumbersFromCombination(combo);
+      result.combinationUsed = true;
+      return result;
+    }
+  }
+
+  // Check for kéo (sequence) pattern
+  const keoPattern = /(\d+)\/(\d+)keo(\d+)/i;
+  const keoMatch = cleanedPart.match(keoPattern);
+
+  if (keoMatch) {
+    const start = parseInt(keoMatch[1]);
+    const next = parseInt(keoMatch[2]);
+    const end = parseInt(keoMatch[3]);
+    const step = next - start;
+
+    if (!isNaN(start) && !isNaN(next) && !isNaN(end) && step > 0) {
+      const digits = keoMatch[1].length;
+
+      for (let i = start; i <= end; i += step) {
+        result.numbers.push(i.toString().padStart(digits, '0'));
+      }
+
+      result.combinationUsed = true;
+    }
+  }
+
+  return result;
+}
+
+// Generate numbers from a combination definition
+export function generateNumbersFromCombination(combo) {
+  const numbers = [];
+
+  switch (combo.name.toLowerCase()) {
+    case 'tài':
+      // 50 numbers from 50-99
+      for (let i = 50; i <= 99; i++) {
+        numbers.push(i.toString().padStart(2, '0'));
+      }
+      break;
+
+    case 'xỉu':
+      // 50 numbers from 00-49
+      for (let i = 0; i <= 49; i++) {
+        numbers.push(i.toString().padStart(2, '0'));
+      }
+      break;
+
+    case 'chẵn':
+      // 50 even numbers from 00-98
+      for (let i = 0; i <= 98; i += 2) {
+        numbers.push(i.toString().padStart(2, '0'));
+      }
+      break;
+
+    case 'lẻ':
+      // 50 odd numbers from 01-99
+      for (let i = 1; i <= 99; i += 2) {
+        numbers.push(i.toString().padStart(2, '0'));
+      }
+      break;
+
+    case 'chẵn chẵn':
+      // 25 numbers where both digits are even
+      for (let i = 0; i <= 8; i += 2) {
+        for (let j = 0; j <= 8; j += 2) {
+          numbers.push(`${i}${j}`);
+        }
+      }
+      break;
+
+    case 'lẻ lẻ':
+      // 25 numbers where both digits are odd
+      for (let i = 1; i <= 9; i += 2) {
+        for (let j = 1; j <= 9; j += 2) {
+          numbers.push(`${i}${j}`);
+        }
+      }
+      break;
+
+    case 'chẵn lẻ':
+      // 25 numbers where first digit is even, second is odd
+      for (let i = 0; i <= 8; i += 2) {
+        for (let j = 1; j <= 9; j += 2) {
+          numbers.push(`${i}${j}`);
+        }
+      }
+      break;
+
+    case 'lẻ chẵn':
+      // 25 numbers where first digit is odd, second is even
+      for (let i = 1; i <= 9; i += 2) {
+        for (let j = 0; j <= 8; j += 2) {
+          numbers.push(`${i}${j}`);
+        }
+      }
+      break;
+
+    default:
+      // For other combinations, try to use the calculation method
+      if (combo.calculation_method) {
+        try {
+          // This is a basic implementation - in a real system,
+          // you might need to interpret the calculation method string
+          // and execute it safely
+          // For now, we'll just return an empty array for custom methods
+          console.log(
+            `Custom calculation method for ${combo.name} not implemented`
+          );
+        } catch (error) {
+          console.error('Error calculating numbers from combination:', error);
+        }
+      }
+  }
+
+  return numbers;
 }
 
 // Calculate stake

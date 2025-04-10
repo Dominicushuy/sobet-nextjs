@@ -20,6 +20,7 @@ export async function fetchBetData(userId) {
       { data: commissionSettings, error: commissionError },
       { data: allStations, error: allStationsError },
       { data: allBetTypes, error: allBetTypesError },
+      { data: numberCombinations, error: numberCombinationsError },
     ] = await Promise.all([
       supabaseAdmin.from('users').select('*').eq('id', userId).single(),
       supabaseAdmin
@@ -45,6 +46,10 @@ export async function fetchBetData(userId) {
         .select('*, region:regions(id, name, code, aliases)')
         .eq('is_active', true),
       supabaseAdmin.from('bet_types').select('*').eq('is_active', true),
+      supabaseAdmin
+        .from('number_combinations')
+        .select('*')
+        .eq('is_active', true),
     ]);
 
     if (userError || !userData) {
@@ -65,6 +70,10 @@ export async function fetchBetData(userId) {
 
     if (allBetTypesError) {
       return { data: null, error: 'Lỗi khi lấy thông tin loại cược' };
+    }
+
+    if (numberCombinationsError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin kiểu kết hợp số' };
     }
 
     // Set default commission settings if not found
@@ -107,6 +116,7 @@ export async function fetchBetData(userId) {
         accessibleStations,
         allStations,
         betTypes: Array.from(betTypeMap.values()),
+        numberCombinations,
         commissionSettings: {
           priceRate,
           exportPriceRate,
