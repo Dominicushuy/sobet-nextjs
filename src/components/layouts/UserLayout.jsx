@@ -18,6 +18,7 @@ import {
   LogOut,
   Database,
   List,
+  Ticket,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -57,6 +58,11 @@ const navItems = [
     title: 'Loại cược',
     href: '/bet-types',
     icon: List,
+  },
+  {
+    title: 'Kết quả xổ số',
+    href: '/lottery-results',
+    icon: Ticket,
   },
   {
     title: 'Thống kê',

@@ -16,6 +16,7 @@ import {
   Database,
   Shield,
   List,
+  Ticket,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -127,9 +128,9 @@ export default function AdminLayout({ children }) {
       roles: ['admin', 'super_admin'],
     },
     {
-      href: '/admin/results',
+      href: '/lottery-results',
       label: 'Kết quả xổ số',
-      icon: <Database size={20} />,
+      icon: <Ticket size={20} />,
       roles: ['admin', 'super_admin'],
     },
     {

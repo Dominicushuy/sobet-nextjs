@@ -1,0 +1,288 @@
+{
+  "metadata": {
+    "version": "1.2",
+    "nguon": "https://www.minhngoc.net.vn/ket-qua-xo-so",
+    "ngayLayDuLieu": "2025-04-10T01:24:09.466Z",
+    "tongSoMien": 3,
+    "quyTacApDung": "Lấy dữ liệu theo thời gian cụ thể của từng miền: Nam (16:30), Trung (17:15), Bắc (18:00)",
+    "tongSoNgay": 1,
+    "cacNgayDaLay": "thu-tu"
+  },
+  "duLieu": {
+    "thu-tu": {
+      "mien-bac": {
+        "tinh": "Bắc Ninh",
+        "ngay": "2025-04-09",
+        "thu": "Thứ tư",
+        "loaiVe": "6DL-3DL-2DL-13DL-11DL-5DL",
+        "ketQua": {
+          "giaiDacBiet": [
+            "00159"
+          ],
+          "giaiNhat": [
+            "91760"
+          ],
+          "giaiNhi": [
+            "74428",
+            "74019"
+          ],
+          "giaiBa": [
+            "40491",
+            "46915",
+            "68086",
+            "58335",
+            "18113",
+            "90856"
+          ],
+          "giaiTu": [
+            "9226",
+            "6463",
+            "4240",
+            "6222"
+          ],
+          "giaiNam": [
+            "6722",
+            "9480",
+            "1297",
+            "9896",
+            "5718",
+            "9018"
+          ],
+          "giaiSau": [
+            "889",
+            "416",
+            "313"
+          ],
+          "giaiBay": [
+            "52",
+            "17",
+            "42",
+            "38"
+          ]
+        }
+      },
+      "mien-trung": {
+        "ngay": "2025-04-09",
+        "thu": "Thứ tư",
+        "cacTinh": [
+          {
+            "tinh": "Đà Nẵng",
+            "maTinh": "XSDNG",
+            "ketQua": {
+              "giaiDacBiet": [
+                "680635"
+              ],
+              "giaiNhat": [
+                "70608"
+              ],
+              "giaiNhi": [
+                "54530"
+              ],
+              "giaiBa": [
+                "65274",
+                "19292"
+              ],
+              "giaiTu": [
+                "78910",
+                "08480",
+                "57008",
+                "40898",
+                "13847",
+                "44408",
+                "70161"
+              ],
+              "giaiNam": [
+                "7340"
+              ],
+              "giaiSau": [
+                "8406",
+                "0688",
+                "5055"
+              ],
+              "giaiBay": [
+                "125"
+              ],
+              "giaiTam": [
+                "98"
+              ]
+            }
+          },
+          {
+            "tinh": "Khánh Hòa",
+            "maTinh": "XSKH",
+            "ketQua": {
+              "giaiDacBiet": [
+                "997212"
+              ],
+              "giaiNhat": [
+                "40784"
+              ],
+              "giaiNhi": [
+                "80024"
+              ],
+              "giaiBa": [
+                "35388",
+                "42954"
+              ],
+              "giaiTu": [
+                "03076",
+                "32079",
+                "70074",
+                "31378",
+                "95047",
+                "30033",
+                "18079"
+              ],
+              "giaiNam": [
+                "1540"
+              ],
+              "giaiSau": [
+                "7290",
+                "3741",
+                "1993"
+              ],
+              "giaiBay": [
+                "073"
+              ],
+              "giaiTam": [
+                "27"
+              ]
+            }
+          }
+        ]
+      },
+      "mien-nam": {
+        "ngay": "2025-04-09",
+        "thu": "Thứ tư",
+        "cacTinh": [
+          {
+            "tinh": "Đồng Nai",
+            "maTinh": "XSDN - 4K2",
+            "ketQua": {
+              "giaiDacBiet": [
+                "987073"
+              ],
+              "giaiNhat": [
+                "43653"
+              ],
+              "giaiNhi": [
+                "48647"
+              ],
+              "giaiBa": [
+                "08252",
+                "04159"
+              ],
+              "giaiTu": [
+                "89776",
+                "96856",
+                "37267",
+                "64247",
+                "09769",
+                "07757",
+                "08846"
+              ],
+              "giaiNam": [
+                "8434"
+              ],
+              "giaiSau": [
+                "3882",
+                "4783",
+                "7822"
+              ],
+              "giaiBay": [
+                "130"
+              ],
+              "giaiTam": [
+                "21"
+              ]
+            }
+          },
+          {
+            "tinh": "Cần Thơ",
+            "maTinh": "XSCT - K2T4",
+            "ketQua": {
+              "giaiDacBiet": [
+                "412855"
+              ],
+              "giaiNhat": [
+                "38295"
+              ],
+              "giaiNhi": [
+                "35828"
+              ],
+              "giaiBa": [
+                "57128",
+                "33414"
+              ],
+              "giaiTu": [
+                "77755",
+                "11906",
+                "71147",
+                "69387",
+                "86910",
+                "52937",
+                "31766"
+              ],
+              "giaiNam": [
+                "7989"
+              ],
+              "giaiSau": [
+                "4155",
+                "4686",
+                "7864"
+              ],
+              "giaiBay": [
+                "054"
+              ],
+              "giaiTam": [
+                "11"
+              ]
+            }
+          },
+          {
+            "tinh": "Sóc Trăng",
+            "maTinh": "XSST - K2T4",
+            "ketQua": {
+              "giaiDacBiet": [
+                "036423"
+              ],
+              "giaiNhat": [
+                "73358"
+              ],
+              "giaiNhi": [
+                "19733"
+              ],
+              "giaiBa": [
+                "74580",
+                "77060"
+              ],
+              "giaiTu": [
+                "01730",
+                "60411",
+                "83278",
+                "45427",
+                "85104",
+                "58716",
+                "15989"
+              ],
+              "giaiNam": [
+                "5063"
+              ],
+              "giaiSau": [
+                "3732",
+                "7849",
+                "7251"
+              ],
+              "giaiBay": [
+                "561"
+              ],
+              "giaiTam": [
+                "67"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
