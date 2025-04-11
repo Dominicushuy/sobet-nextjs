@@ -68,3 +68,20 @@ export function generatePermutations(number) {
 
   return Array.from(uniquePerms);
 }
+
+/**
+ * Lấy ngày xổ số dự kiến
+ * @returns {string} Ngày xổ số dưới dạng chuỗi ISO (YYYY-MM-DD)
+ */
+export function getDrawDate() {
+  const now = new Date();
+  const drawDate = new Date(now);
+
+  // Nếu sau 18:00 (6 PM), ngày xổ số là ngày mai
+  if (now.getHours() >= 18) {
+    drawDate.setDate(drawDate.getDate() + 1);
+  }
+
+  // Định dạng ngày dưới dạng chuỗi ISO (YYYY-MM-DD)
+  return drawDate.toISOString().split('T')[0];
+}

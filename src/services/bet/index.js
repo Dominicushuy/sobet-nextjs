@@ -3,7 +3,7 @@ import { isStationLine, parseBetCode } from './parser';
 import { formatBetCode } from './formatter';
 import { calculateStake } from './stakeCalculator';
 import { calculatePotentialPrize } from './prizeCalculator';
-import { generatePermutations } from '@/utils/bet';
+import { generatePermutations, getDrawDate } from '@/utils/bet';
 
 /**
  * Dịch vụ phân tích và xử lý mã cược
@@ -28,17 +28,8 @@ export const betCodeService = {
       // Phân tích mã cược
       const parseResult = parseBetCode(formattedText, betConfig);
 
-      // Calculate the draw date based on current time
-      const now = new Date();
-      const drawDate = new Date(now);
-
-      // If it's after 18:00 (6 PM), drawing is tomorrow
-      if (now.getHours() >= 18) {
-        drawDate.setDate(drawDate.getDate() + 1);
-      }
-
       // Format date as ISO string (YYYY-MM-DD)
-      const formattedDrawDate = drawDate.toISOString().split('T')[0];
+      const formattedDrawDate = getDrawDate();
 
       // Nếu mã cược hợp lệ, tính toán số tiền và tiềm năng thắng
       let calculationResults = { stakeResult: null, prizeResult: null };
@@ -194,6 +185,7 @@ export const betCodeService = {
       multiStation: true,
       stationBetCodes,
       analysisResults,
+      drawDate: getDrawDate(),
     };
   },
 
