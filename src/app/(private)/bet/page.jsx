@@ -1,3 +1,5 @@
+// src/app/(private)/bet/page.jsx
+
 'use client';
 
 import React from 'react';

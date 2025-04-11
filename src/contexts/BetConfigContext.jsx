@@ -1,4 +1,4 @@
-// src/hooks/useBetConfig.js
+// src/contexts/BetConfigContext.jsx
 'use client';
 
 import { useState, useEffect, useContext, createContext } from 'react';
