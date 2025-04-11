@@ -11,7 +11,7 @@ const DEFAULT_CONFIG = {
   accessibleStations: [],
   regions: [],
   numberCombinations: [],
-  stationSchedules: [], // Added default empty station schedules
+  stationSchedules: [],
   commissionSettings: {
     priceRate: 0.8,
     exportPriceRate: 0.74,

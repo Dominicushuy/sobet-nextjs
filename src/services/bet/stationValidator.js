@@ -1,4 +1,8 @@
-// src/services/bet/stationValidator.js
+// src/utils/stationValidator.js
+
+import { isStationLine } from './parser';
+
+// src/utils/stationValidator.js
 
 /**
  * Validates if a station is available for betting based on current time and day
@@ -10,8 +14,6 @@ export function validateStationAvailability(parsedStation, betConfig) {
   if (!parsedStation || !betConfig || !betConfig.stationSchedules) {
     return { valid: true }; // Skip validation if missing data
   }
-
-  //   console.log('validateStationAvailability', parsedStation, betConfig);
 
   // Get current time and target day
   const now = new Date();
@@ -153,4 +155,189 @@ function findMatchingStation(stationName, accessibleStations) {
   }
 
   return match;
+}
+
+/**
+ * Validates multiple bet lines with different stations
+ * @param {string} betCode - Raw bet code with multiple lines
+ * @param {object} betConfig - Configuration including schedules
+ * @returns {object} - Validation results for each station line
+ */
+export function validateMultiStationBetCode(betCode, betConfig) {
+  if (!betCode || !betConfig) {
+    return { valid: true };
+  }
+
+  // Split code into lines and identify station lines
+  const lines = betCode
+    .trim()
+    .split('\n')
+    .filter((line) => line.trim());
+  const results = [];
+  let currentStation = null;
+  let isValid = true;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Check if this is a station line
+    if (isStationLine(line, betConfig)) {
+      // Parse station info
+      const parsedStation = parseStationFromLine(line, betConfig);
+      if (parsedStation) {
+        currentStation = parsedStation;
+
+        // Validate this station
+        const validation = validateStationAvailability(
+          parsedStation,
+          betConfig
+        );
+        if (!validation.valid) {
+          results.push({
+            lineIndex: i,
+            stationLine: line,
+            valid: false,
+            message: validation.message,
+            station: parsedStation,
+          });
+          isValid = false;
+        } else {
+          results.push({
+            lineIndex: i,
+            stationLine: line,
+            valid: true,
+            station: parsedStation,
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    valid: isValid,
+    results: results,
+    message: isValid ? null : formatValidationMessages(results),
+  };
+}
+
+/**
+ * Parse station information from a line
+ * Helper function for validateMultiStationBetCode
+ */
+function parseStationFromLine(line, betConfig) {
+  try {
+    const stationText = line.trim().toLowerCase();
+
+    // First try direct match on station names
+    for (const station of betConfig.accessibleStations) {
+      if (station.name.toLowerCase() === stationText) {
+        return {
+          name: station.name,
+          region: station.region?.code || 'unknown',
+        };
+      }
+
+      // Check aliases
+      if (
+        station.aliases &&
+        station.aliases.some((alias) => alias === stationText)
+      ) {
+        return {
+          name: station.name,
+          region: station.region?.code || 'unknown',
+        };
+      }
+    }
+
+    // Improved multi-region pattern matching with priority for Vietnamese lottery abbreviations
+    // Better mapping for region abbreviations
+    if (/^\d+d/i.test(stationText)) {
+      const countMatch = stationText.match(/^(\d+)d/i);
+      const count = parseInt(countMatch[1], 10);
+      let regionCode = 'unknown';
+
+      // Handle common Vietnamese lottery abbreviations with correct precedence
+      if (stationText.match(/^(\d+)d(mn|nam|n$)/i)) {
+        // 2dmn, 2dnam, 2dn → South region (miền Nam)
+        regionCode = 'south';
+      } else if (stationText.match(/^(\d+)d(mt|trung|t$)/i)) {
+        // 2dmt, 2dtrung, 2dt → Central region (miền Trung)
+        regionCode = 'central';
+      } else if (stationText.match(/^(\d+)d(mb|bac|b$)/i)) {
+        // 2dmb, 2dbac, 2db → North region (miền Bắc)
+        regionCode = 'north';
+      }
+
+      // Get the display name for the region
+      const regionName =
+        {
+          south: 'Nam',
+          central: 'Trung',
+          north: 'Bắc',
+        }[regionCode] || '?';
+
+      return {
+        multiStation: true,
+        region: regionCode,
+        count: count,
+        name: `${count} đài miền ${regionName}`,
+      };
+    }
+
+    // Handle multi-station case (e.g., vl.ct)
+    if (line.includes('.')) {
+      const stationParts = line.split('.');
+      const stations = [];
+
+      for (const part of stationParts) {
+        const trimmedPart = part.trim().toLowerCase();
+        for (const station of betConfig.accessibleStations) {
+          if (
+            station.name.toLowerCase() === trimmedPart ||
+            (station.aliases &&
+              station.aliases.some((alias) => alias === trimmedPart))
+          ) {
+            stations.push({
+              name: station.name,
+              region: station.region?.code || 'unknown',
+            });
+            break;
+          }
+        }
+      }
+
+      if (stations.length > 0) {
+        return {
+          stations: stations,
+          region: stations[0].region,
+          name: stations.map((s) => s.name).join('.'),
+        };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error parsing station:', error);
+    return null;
+  }
+}
+
+/**
+ * Format validation messages for all station errors
+ */
+function formatValidationMessages(results) {
+  const invalidResults = results.filter((r) => !r.valid);
+
+  if (invalidResults.length === 0) {
+    return null;
+  }
+
+  if (invalidResults.length === 1) {
+    return invalidResults[0].message;
+  }
+
+  return (
+    'Lỗi lịch xổ số:\n' +
+    invalidResults.map((r) => `- ${r.stationLine}: ${r.message}`).join('\n')
+  );
 }

@@ -14,7 +14,10 @@ import { isStationLine, parseBetCode } from '@/services/bet/parser';
 import { calculateStake } from '@/services/bet/stakeCalculator';
 import { calculatePotentialPrize } from '@/services/bet/prizeCalculator';
 import { useBetConfig } from './BetConfigContext';
-import { validateStationAvailability } from '@/services/bet/stationValidator';
+import {
+  validateMultiStationBetCode,
+  validateStationAvailability,
+} from '@/services/bet/stationValidator';
 
 const ChatContext = createContext();
 
@@ -89,6 +92,17 @@ export function ChatProvider({ children }) {
       const formattedBetCode = formatBetCode(text, betConfig);
 
       // console.log('Formatted bet code:', formattedBetCode);
+
+      // Before standard analysis, check multi-station validation
+      const multiLineValidation = validateMultiStationBetCode(
+        formattedBetCode,
+        betConfig
+      );
+      if (!multiLineValidation.valid) {
+        addMessage(multiLineValidation.message, 'bot', { error: true });
+        setIsTyping(false);
+        return;
+      }
 
       // Analyze bet code
       const betCodeResult = betCodeService.analyzeBetCode(
