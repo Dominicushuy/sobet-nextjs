@@ -1,4 +1,3 @@
-// src/components/bet/BetCodeList.jsx
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useBetCode } from '@/contexts/BetCodeContext';
@@ -67,8 +66,8 @@ const BetCodeList = () => {
   // Show loading message
   if (!isInitialized) {
     return (
-      <div className="flex flex-col h-full bg-white rounded-md shadow-sm">
-        <div className="p-4 border-b">
+      <div className="flex flex-col h-full bg-background rounded-md shadow-sm">
+        <div className="p-4 border-b dark:border-gray-800">
           <h2 className="text-lg font-bold">Mã cược</h2>
         </div>
         <div className="flex-1 flex items-center justify-center">
@@ -82,12 +81,12 @@ const BetCodeList = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-md shadow-sm">
-      <div className="p-4 border-b flex justify-between items-center">
+    <div className="flex flex-col h-full bg-background rounded-md shadow-sm">
+      <div className="p-4 border-b dark:border-gray-800 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold">Mã cược</h2>
           <div className="flex space-x-1">
-            <span className="text-xs text-yellow-800 bg-yellow-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-full">
               {draftCodes.length} mã cược
             </span>
           </div>
@@ -135,7 +134,7 @@ const BetCodeList = () => {
               <Button
                 onClick={confirmDraftCodes}
                 disabled={draftCodes.length === 0}
-                className="flex items-center gap-1.5 h-8 bg-primary-600 hover:bg-primary-700"
+                className="flex items-center gap-1.5 h-8"
               >
                 {draftCodes.length > 0 && `Xử lý (${draftCodes.length})`}
                 {draftCodes.length === 0 && 'Xử lý'}
@@ -145,7 +144,7 @@ const BetCodeList = () => {
         </div>
       </div>
 
-      <div className="px-4 py-3 border-b bg-muted/20">
+      <div className="px-4 py-3 border-b dark:border-gray-800 bg-muted/20">
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-medium flex items-center gap-1.5">
             <Filter className="h-4 w-4 text-muted-foreground" />
@@ -166,8 +165,8 @@ const BetCodeList = () => {
 
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">Tổng tiền đóng:</span>
-              <span className="font-medium text-blue-600">
+              <span className="text-muted-foreground">Tổng tiền đóng:</span>{' '}
+              <span className="font-medium text-blue-600 dark:text-blue-400">
                 {formatMoney(
                   filteredDraftCodes.length > 0
                     ? filteredDraftStats.totalStake
@@ -177,8 +176,8 @@ const BetCodeList = () => {
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">Tiềm năng thắng:</span>
-              <span className="font-medium text-green-600">
+              <span className="text-muted-foreground">Tiềm năng thắng:</span>{' '}
+              <span className="font-medium text-green-600 dark:text-green-400">
                 {formatMoney(
                   filteredDraftCodes.length > 0
                     ? filteredDraftStats.totalPotential
@@ -272,7 +271,7 @@ const BetCodeList = () => {
                     Điều chỉnh tìm kiếm
                   </Button>
                 </div>
-                <div className="mt-4 bg-muted/40 p-3 rounded-md text-xs max-w-sm mx-auto">
+                <div className="mt-4 bg-muted p-3 rounded-md text-xs max-w-sm mx-auto">
                   <p className="text-muted-foreground font-medium mb-1">
                     Gợi ý tìm kiếm:
                   </p>

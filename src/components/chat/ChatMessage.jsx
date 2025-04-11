@@ -1,4 +1,3 @@
-// src/components/chat/ChatMessage.jsx
 import React from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,7 +40,7 @@ const ErrorDetails = ({ parseResult }) => {
   }
 
   return (
-    <div className="mt-2 border-t pt-2">
+    <div className="mt-2 border-t pt-2 dark:border-gray-700">
       <h4 className="text-sm font-semibold mb-1 flex items-center">
         <AlertTriangle className="h-3.5 w-3.5 mr-1.5 text-destructive" />
         Chi tiết lỗi:
@@ -77,16 +76,21 @@ const ErrorDetails = ({ parseResult }) => {
       )}
 
       {/* Thêm ví dụ để hướng dẫn người dùng */}
-      <div className="mt-3 text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+      <div className="mt-3 text-xs text-muted-foreground bg-muted p-2 rounded">
         <p className="mb-1 font-medium">Hướng dẫn:</p>
         <p>- Tất cả các số trong cùng một dòng phải có cùng độ dài</p>
         <p>
-          - Ví dụ đúng: <span className="text-green-600">11.22.33b1</span> hoặc{' '}
-          <span className="text-green-600">111.222.333b1</span>
+          - Ví dụ đúng:{' '}
+          <span className="text-green-600 dark:text-green-400">11.22.33b1</span>{' '}
+          hoặc{' '}
+          <span className="text-green-600 dark:text-green-400">
+            111.222.333b1
+          </span>
         </p>
         <p>
-          - Ví dụ sai: <span className="text-red-600">11.222.33b1</span> (kết
-          hợp số 2 và 3 chữ số)
+          - Ví dụ sai:{' '}
+          <span className="text-red-600 dark:text-red-400">11.222.33b1</span>{' '}
+          (kết hợp số 2 và 3 chữ số)
         </p>
       </div>
     </div>
@@ -118,7 +122,7 @@ const ChatMessage = ({ message }) => {
       <Card
         className={cn(
           'max-w-[85%]',
-          isUser ? 'bg-primary text-primary-foreground' : 'bg-card',
+          isUser ? 'bg-primary text-primary-foreground' : 'bg-background',
           error && !isUser ? 'border-destructive' : ''
         )}
       >
@@ -133,10 +137,10 @@ const ChatMessage = ({ message }) => {
 
             {/* Valid bet code info */}
             {betCodeInfo && !isUser && (
-              <div className="mt-2 border-t pt-2">
+              <div className="mt-2 border-t pt-2 dark:border-gray-700">
                 <Badge
                   variant="outline"
-                  className="bg-green-100 text-green-800 hover:bg-green-200"
+                  className="bg-green-50 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50 dark:border-green-800"
                 >
                   <Check className="h-3 w-3 mr-1" />
                   Mã cược hợp lệ

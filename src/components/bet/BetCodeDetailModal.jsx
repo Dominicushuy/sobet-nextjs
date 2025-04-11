@@ -1,4 +1,3 @@
-// src/components/bet/BetCodeDetailModal.jsx
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -95,7 +94,10 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
           <DialogTitle className="flex items-center gap-2">
             <Info className="h-5 w-5 text-primary" />
             Chi tiết mã cược
-            <Badge className="bg-yellow-100 text-yellow-800 ml-2">
+            <Badge
+              variant="outline"
+              className="ml-2 bg-primary/10 text-primary border-primary/20"
+            >
               Mã cược
             </Badge>
           </DialogTitle>
@@ -212,22 +214,22 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                     </div>
                   </div>
 
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="text-sm text-blue-700 mb-1 flex items-center gap-1.5">
+                  <div className="bg-primary/10 p-3 rounded-lg">
+                    <div className="text-sm text-primary mb-1 flex items-center gap-1.5">
                       <DollarSign className="h-3.5 w-3.5" />
                       Tiền đóng
                     </div>
-                    <div className="text-lg font-semibold text-blue-900">
+                    <div className="text-lg font-semibold text-primary">
                       {formatMoney(betCode.stakeAmount || 0)}đ
                     </div>
                   </div>
 
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="text-sm text-green-700 mb-1 flex items-center gap-1.5">
+                  <div className="bg-green-50 p-3 rounded-lg dark:bg-green-900/30">
+                    <div className="text-sm text-green-700 dark:text-green-400 mb-1 flex items-center gap-1.5">
                       <Award className="h-3.5 w-3.5" />
                       Tiềm năng thắng
                     </div>
-                    <div className="text-lg font-semibold text-green-900">
+                    <div className="text-lg font-semibold text-green-700 dark:text-green-400">
                       {formatMoney(betCode.potentialWinning || 0)}đ
                     </div>
                   </div>
@@ -245,7 +247,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                         <Badge
                           key={idx}
                           variant="secondary"
-                          className="font-medium bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          className="font-medium bg-primary/10 text-primary border-primary/20"
                         >
                           {number}
                         </Badge>
@@ -255,9 +257,9 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                     {/* Display permutations if available */}
                     {betCode.lines &&
                       betCode.lines.some((line) => line.isPermutation) && (
-                        <div className="mt-4 pt-3 border-t">
+                        <div className="mt-4 pt-3 border-t dark:border-gray-800">
                           <h3 className="text-sm font-medium flex items-center gap-1.5 mb-2">
-                            <Hash className="h-4 w-4 text-green-600" />
+                            <Hash className="h-4 w-4 text-green-600 dark:text-green-400" />
                             Các hoán vị đối với kiểu đảo
                           </h3>
                           <div className="space-y-3">
@@ -266,9 +268,9 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                               .map((line, lineIdx) => (
                                 <div
                                   key={lineIdx}
-                                  className="bg-green-50 p-3 rounded-md border border-green-100"
+                                  className="bg-green-50 p-3 rounded-md border border-green-100 dark:bg-green-900/30 dark:border-green-900"
                                 >
-                                  <div className="text-sm font-medium mb-2 text-green-800">
+                                  <div className="text-sm font-medium mb-2 text-green-800 dark:text-green-400">
                                     {line.betType?.alias || 'N/A'}
                                   </div>
                                   {line.numbers &&
@@ -289,7 +291,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                                             <span className="font-medium">
                                               Số gốc:
                                             </span>
-                                            <Badge className="bg-blue-100 text-blue-700">
+                                            <Badge className="bg-primary/10 text-primary border-primary/20">
                                               {number}
                                             </Badge>
                                             <span className="text-muted-foreground">
@@ -305,8 +307,8 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                                                   variant="outline"
                                                   className={`text-xs ${
                                                     perm === number
-                                                      ? 'bg-blue-100 text-blue-700'
-                                                      : 'bg-green-50 text-green-700'
+                                                      ? 'bg-primary/10 text-primary border-primary/20'
+                                                      : 'bg-green-50 text-green-700 dark:bg-green-900/50 dark:text-green-400 dark:border-green-800'
                                                   }`}
                                                 >
                                                   {perm}
@@ -374,7 +376,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                         <span className="text-muted-foreground">
                           Tiền đóng thực tế:
                         </span>{' '}
-                        <span className="font-medium text-blue-600">
+                        <span className="font-medium text-primary">
                           {formatMoney(betCode.stakeAmount || 0)}đ
                         </span>
                       </div>
@@ -388,7 +390,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                         <span className="text-muted-foreground">
                           Tiềm năng thắng:
                         </span>{' '}
-                        <span className="font-medium text-green-600">
+                        <span className="font-medium text-green-600 dark:text-green-400">
                           {formatMoney(betCode.potentialWinning || 0)}đ
                         </span>
                       </div>
@@ -396,7 +398,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                         <span className="text-muted-foreground">
                           Tỉ lệ thắng trên vốn:
                         </span>{' '}
-                        <span className="font-medium text-amber-600">
+                        <span className="font-medium text-amber-600 dark:text-amber-400">
                           {betCode.stakeAmount
                             ? (
                                 betCode.potentialWinning / betCode.stakeAmount
@@ -411,22 +413,22 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                 {betCode.stakeDetails && betCode.stakeDetails.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-sm font-medium flex items-center gap-1.5">
-                      <DollarSign className="h-4 w-4 text-blue-600" />
+                      <DollarSign className="h-4 w-4 text-primary" />
                       Chi tiết tính tiền đặt
                     </h3>
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                       {betCode.stakeDetails.map((detail, idx) => (
                         <div
                           key={idx}
-                          className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm"
+                          className="p-3 bg-primary/5 border border-primary/10 rounded-lg text-sm"
                         >
-                          <div className="font-medium pb-2 text-blue-800">
+                          <div className="font-medium pb-2 text-primary/90">
                             {detail.betTypeAlias || 'N/A'}
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <div>
-                              <span className="text-blue-700">Số đài:</span>{' '}
+                              <span className="text-primary/80">Số đài:</span>{' '}
                               <span className="font-medium">
                                 {detail.stationCount || 1}
                               </span>
@@ -434,7 +436,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
 
                             {detail.numberCount && (
                               <div>
-                                <span className="text-blue-700">
+                                <span className="text-primary/80">
                                   Số lượng số:
                                 </span>{' '}
                                 <span className="font-medium">
@@ -445,7 +447,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
 
                             {detail.combinationCount && (
                               <div>
-                                <span className="text-blue-700">Tổ hợp:</span>{' '}
+                                <span className="text-primary/80">Tổ hợp:</span>{' '}
                                 <span className="font-medium">
                                   {detail.combinationCount}
                                 </span>
@@ -453,28 +455,30 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                             )}
 
                             <div>
-                              <span className="text-blue-700">Tiền cược:</span>{' '}
+                              <span className="text-primary/80">
+                                Tiền cược:
+                              </span>{' '}
                               <span className="font-medium">
                                 {formatMoney(detail.betAmount || 0)}đ
                               </span>
                             </div>
 
                             <div>
-                              <span className="text-blue-700">Hệ số:</span>{' '}
+                              <span className="text-primary/80">Hệ số:</span>{' '}
                               <span className="font-medium">
                                 {detail.betMultiplier || 0.8}
                               </span>
                             </div>
                           </div>
 
-                          <div className="bg-blue-100 p-2 rounded text-xs">
-                            <span className="text-blue-700">Công thức:</span>{' '}
+                          <div className="bg-primary/10 p-2 rounded text-xs">
+                            <span className="text-primary/80">Công thức:</span>{' '}
                             <code className="font-mono">
                               {detail.formula || 'N/A'}
                             </code>
                           </div>
 
-                          <div className="mt-2 font-medium text-blue-800">
+                          <div className="mt-2 font-medium text-primary/90">
                             <span>Kết quả:</span>{' '}
                             {formatMoney(detail.stake || 0)}đ
                           </div>
@@ -487,22 +491,24 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                 {betCode.prizeDetails && betCode.prizeDetails.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-sm font-medium flex items-center gap-1.5">
-                      <Award className="h-4 w-4 text-green-600" />
+                      <Award className="h-4 w-4 text-green-600 dark:text-green-400" />
                       Chi tiết tiềm năng thắng
                     </h3>
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                       {betCode.prizeDetails.map((detail, idx) => (
                         <div
                           key={idx}
-                          className="p-3 bg-green-50 border border-green-100 rounded-lg text-sm"
+                          className="p-3 bg-green-50 border border-green-100 rounded-lg text-sm dark:bg-green-900/30 dark:border-green-900"
                         >
-                          <div className="font-medium pb-2 text-green-800">
+                          <div className="font-medium pb-2 text-green-800 dark:text-green-400">
                             {detail.betTypeAlias || 'N/A'}
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <div>
-                              <span className="text-green-700">Số đài:</span>{' '}
+                              <span className="text-green-700 dark:text-green-500">
+                                Số đài:
+                              </span>{' '}
                               <span className="font-medium">
                                 {detail.stationCount || 1}
                               </span>
@@ -510,7 +516,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
 
                             {detail.numberCount && (
                               <div>
-                                <span className="text-green-700">
+                                <span className="text-green-700 dark:text-green-500">
                                   Số lượng số:
                                 </span>{' '}
                                 <span className="font-medium">
@@ -520,14 +526,16 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                             )}
 
                             <div>
-                              <span className="text-green-700">Tiền cược:</span>{' '}
+                              <span className="text-green-700 dark:text-green-500">
+                                Tiền cược:
+                              </span>{' '}
                               <span className="font-medium">
                                 {formatMoney(detail.betAmount || 0)}đ
                               </span>
                             </div>
 
                             <div>
-                              <span className="text-green-700">
+                              <span className="text-green-700 dark:text-green-500">
                                 Tỉ lệ thắng:
                               </span>{' '}
                               <span className="font-medium">
@@ -536,14 +544,16 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                             </div>
                           </div>
 
-                          <div className="bg-green-100 p-2 rounded text-xs">
-                            <span className="text-green-700">Công thức:</span>{' '}
+                          <div className="bg-green-100 p-2 rounded text-xs dark:bg-green-900/50">
+                            <span className="text-green-700 dark:text-green-500">
+                              Công thức:
+                            </span>{' '}
                             <code className="font-mono">
                               {detail.formula || 'N/A'}
                             </code>
                           </div>
 
-                          <div className="mt-2 font-medium text-green-800">
+                          <div className="mt-2 font-medium text-green-800 dark:text-green-400">
                             <span>Tiềm năng thắng:</span>{' '}
                             {formatMoney(detail.potentialPrize || 0)}đ
                           </div>
@@ -561,7 +571,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
           <Button
             variant="outline"
             size="sm"
-            className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+            className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50 dark:border-green-800"
             onClick={handleConfirm}
           >
             <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
@@ -570,7 +580,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
           <Button
             variant="outline"
             size="sm"
-            className="text-destructive hover:bg-destructive/10"
+            className="text-destructive hover:bg-destructive/10 border-destructive/20"
             onClick={handleDelete}
           >
             <Trash2 className="h-3.5 w-3.5 mr-1.5" />

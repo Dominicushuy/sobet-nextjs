@@ -1,4 +1,3 @@
-// src/components/bet/BetCodeCard.jsx
 import React, { useState } from 'react';
 import {
   Card,
@@ -178,7 +177,7 @@ const BetCodeCard = ({
       <Card
         className={cn(
           'transition-all hover:shadow-md',
-          'border-dashed border-yellow-300',
+          'border-primary/20 dark:border-primary/30',
           selected ? 'ring-2 ring-primary' : ''
         )}
       >
@@ -196,7 +195,10 @@ const BetCodeCard = ({
               <div>
                 <CardTitle className="text-base flex items-center gap-2">
                   {getStationDisplayName()}
-                  <Badge className="bg-yellow-100 text-yellow-800 font-normal text-xs">
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-primary/10 text-primary border-primary/20"
+                  >
                     Mã cược
                   </Badge>
                 </CardTitle>
@@ -224,40 +226,35 @@ const BetCodeCard = ({
 
         <CardContent className="px-4 py-0 pb-2 space-y-2">
           {/* Simplified bet code - always visible */}
-          <div className="text-xs bg-muted/50 p-2 rounded">
-            <div className="text-xs bg-muted/50 p-2 rounded relative group">
-              <pre
-                className="whitespace-pre-wrap pr-8"
-                onClick={handleCopyText}
-              >
-                {betText}
-              </pre>
+          <div className="text-xs bg-muted p-2 rounded relative group">
+            <pre className="whitespace-pre-wrap pr-8" onClick={handleCopyText}>
+              {betText}
+            </pre>
 
-              {/* Copy button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={handleCopyText}
-              >
-                {isCopied ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            {betText.length > 60 && (
-              <Button
-                variant="link"
-                size="sm"
-                className="px-1 h-5 text-xs"
-                onClick={() => setShowFullCode(!showFullCode)}
-              >
-                {showFullCode ? 'Thu gọn' : 'Xem đầy đủ'}
-              </Button>
-            )}
+            {/* Copy button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={handleCopyText}
+            >
+              {isCopied ? (
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </Button>
           </div>
+          {betText.length > 60 && (
+            <Button
+              variant="link"
+              size="sm"
+              className="px-1 h-5 text-xs"
+              onClick={() => setShowFullCode(!showFullCode)}
+            >
+              {showFullCode ? 'Thu gọn' : 'Xem đầy đủ'}
+            </Button>
+          )}
 
           {/* Key information in a compact form */}
           <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-sm">
@@ -274,16 +271,16 @@ const BetCodeCard = ({
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <DollarSign className="h-3.5 w-3.5 text-blue-500" />
+              <DollarSign className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
               <span className="text-muted-foreground">Tiền đóng:</span>{' '}
-              <span className="font-medium text-blue-600">
+              <span className="font-medium text-blue-600 dark:text-blue-400">
                 {formatMoney(betCode.stakeAmount || 0)}đ
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Award className="h-3.5 w-3.5 text-green-500" />
+              <Award className="h-3.5 w-3.5 text-green-500 dark:text-green-400" />
               <span className="text-muted-foreground">Thắng:</span>{' '}
-              <span className="font-medium text-green-600">
+              <span className="font-medium text-green-600 dark:text-green-400">
                 {formatMoney(betCode.potentialWinning || 0)}đ
               </span>
             </div>
@@ -293,7 +290,7 @@ const BetCodeCard = ({
           {numbers.length > 0 && (
             <div className="mt-2 mb-1">
               <div className="flex items-center gap-1 mb-1">
-                <Tag className="h-3 w-3 text-blue-600" />
+                <Tag className="h-3 w-3 text-primary" />
                 <span className="text-xs text-muted-foreground">
                   Số cược ({numbers.length}):
                 </span>
@@ -303,7 +300,7 @@ const BetCodeCard = ({
                   <Badge
                     key={idx}
                     variant="outline"
-                    className="font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 text-xs"
+                    className="font-medium bg-primary/10 text-primary border-primary/20 text-xs"
                   >
                     {number}
                   </Badge>
@@ -314,7 +311,7 @@ const BetCodeCard = ({
 
           {/* Details - only visible when expanded */}
           {showDetails && (
-            <div className="mt-2 pt-2 border-t text-sm space-y-3">
+            <div className="mt-2 pt-2 border-t dark:border-gray-800 text-sm space-y-3">
               {betCode.lines && betCode.lines.length > 0 && (
                 <div className="space-y-2">
                   <div className="font-medium text-xs flex items-center gap-1">
@@ -325,7 +322,7 @@ const BetCodeCard = ({
                     {betCode.lines.map((line, idx) => (
                       <div
                         key={idx}
-                        className="bg-muted/50 p-2 rounded-md text-xs grid grid-cols-2 gap-x-2 gap-y-0.5"
+                        className="bg-muted p-2 rounded-md text-xs grid grid-cols-2 gap-x-2 gap-y-0.5"
                       >
                         <div className="col-span-2 font-medium text-muted-foreground pb-1">
                           Dòng {idx + 1}: {line.originalLine}
@@ -361,7 +358,7 @@ const BetCodeCard = ({
                       <FileText className="h-3.5 w-3.5" />
                       Mã cược đã định dạng:
                     </div>
-                    <pre className="bg-muted/50 p-2 rounded-md text-xs overflow-x-auto whitespace-pre-wrap">
+                    <pre className="bg-muted p-2 rounded-md text-xs overflow-x-auto whitespace-pre-wrap">
                       {betCode.formattedText}
                     </pre>
                   </div>
@@ -370,11 +367,11 @@ const BetCodeCard = ({
           )}
         </CardContent>
 
-        <CardFooter className="px-4 py-2 gap-2 flex-wrap border-t">
+        <CardFooter className="px-4 py-2 gap-2 flex-wrap border-t dark:border-gray-800">
           <Button
             variant="outline"
             size="sm"
-            className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+            className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50 dark:border-green-800"
             onClick={handleConfirm}
           >
             <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -387,7 +384,7 @@ const BetCodeCard = ({
           <Button
             variant="outline"
             size="sm"
-            className="ml-auto text-rose-600 hover:bg-rose-50"
+            className="ml-auto text-destructive hover:bg-destructive/10 border-destructive/20"
             onClick={handleRemove}
           >
             <Trash2 className="h-3 w-3 mr-1" />

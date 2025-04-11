@@ -81,7 +81,7 @@ const ChatInput = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-2 border-t">
+    <form onSubmit={handleSubmit} className="p-2 border-t dark:border-gray-800">
       <div className="flex items-start space-x-2">
         <div className="flex-1 relative">
           <Textarea
@@ -93,7 +93,7 @@ const ChatInput = () => {
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={() => setIsComposing(false)}
             placeholder="Nhập mã cược..."
-            className="min-h-[40px] max-h-[200px] resize-none pr-10"
+            className="min-h-[40px] max-h-[200px] resize-none pr-10 focus-visible:ring-primary"
             disabled={isTyping}
           />
           <div className="absolute right-2 bottom-2 flex space-x-1">
@@ -101,7 +101,7 @@ const ChatInput = () => {
               type="button"
               size="icon"
               variant="ghost"
-              className="h-6 w-6"
+              className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-primary/10"
               onClick={handleLoadExample}
               title="Tải mẫu mã cược"
             >

@@ -1,4 +1,3 @@
-// src/components/bet/MultipleActionsButton.jsx
 import { Button } from '@/components/ui/button';
 import {
   MoreHorizontal,
@@ -140,11 +139,11 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
           <div className="px-2 py-1.5 text-xs">
             <div className="grid grid-cols-2 gap-1 text-muted-foreground">
               <div>Tiền đóng:</div>
-              <div className="text-right font-medium text-blue-600">
+              <div className="text-right font-medium text-blue-600 dark:text-blue-400">
                 {formatMoney(summary.totalStake)}đ
               </div>
               <div>Tiềm năng thắng:</div>
-              <div className="text-right font-medium text-green-600">
+              <div className="text-right font-medium text-green-600 dark:text-green-400">
                 {formatMoney(summary.totalPotential)}đ
               </div>
             </div>

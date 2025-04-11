@@ -12,15 +12,15 @@ export default function BetPage() {
     <BetConfigProvider>
       <BetCodeProvider>
         <ChatProvider>
-          <div className="h-screen flex flex-col">
-            <div className="flex-1 flex overflow-hidden">
+          <div className="h-[calc(100vh-4rem)] flex flex-col">
+            <div className="flex-1 flex overflow-hidden rounded-lg shadow-sm">
               {/* Left Panel - Bet Codes */}
-              <div className="w-1/2 border-r">
+              <div className="w-1/2 border-r dark:border-gray-800">
                 <BetCodeList />
               </div>
 
               {/* Right Panel - Chat */}
-              <div className="w-1/2">
+              <div className="w-1/2 bg-card">
                 <ChatContainer />
               </div>
             </div>

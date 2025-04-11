@@ -1,4 +1,3 @@
-// src/components/bet/BetCodeFilter.jsx
 import React, { useState, useEffect } from 'react';
 import { useBetCode } from '@/contexts/BetCodeContext';
 import { Input } from '@/components/ui/input';

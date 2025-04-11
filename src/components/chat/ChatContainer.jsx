@@ -24,7 +24,7 @@ const ChatContainer = () => {
 
       {messages.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <Card className="p-6 max-w-md mx-auto">
+          <Card className="p-6 max-w-md mx-auto bg-background/60 shadow-sm">
             <h3 className="text-xl font-semibold mb-2">
               Chào mừng đến với hệ thống
             </h3>
@@ -32,8 +32,9 @@ const ChatContainer = () => {
               Nhập mã cược vào ô bên dưới để bắt đầu. Hệ thống sẽ phân tích và
               thêm vào danh sách mã cược.
             </p>
-            <p className="text-sm">
-              Nhấn vào nút <HelpCircle className="h-3 w-3 inline" /> ở góc phải
+            <p className="text-sm flex items-center gap-1.5">
+              Nhấn vào nút{' '}
+              <HelpCircle className="h-3 w-3 inline text-primary" /> ở góc phải
               để xem các ví dụ mã cược.
             </p>
           </Card>

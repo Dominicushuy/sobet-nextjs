@@ -19,7 +19,7 @@ const ChatHeader = () => {
   };
 
   return (
-    <div className="p-4 border-b flex justify-between items-center">
+    <div className="p-4 border-b dark:border-gray-800 flex justify-between items-center">
       <h2 className="text-lg font-bold">Nhập mã cược</h2>
 
       <div className="flex items-center space-x-2">
@@ -28,6 +28,7 @@ const ChatHeader = () => {
           size="icon"
           onClick={handleShowHelp}
           title="Hướng dẫn"
+          className="text-primary hover:text-primary/80 hover:bg-primary/10"
         >
           <HelpCircle className="h-4 w-4" />
         </Button>
@@ -37,6 +38,7 @@ const ChatHeader = () => {
           size="icon"
           onClick={handleClearChat}
           title="Xóa tất cả tin nhắn"
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
