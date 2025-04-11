@@ -1,4 +1,4 @@
-// src/services/betCodeService.js
+// src/services/bet/index.js
 import { parseBetCode } from './parser';
 import { formatBetCode } from './formatter';
 import { calculateStake } from './stakeCalculator';

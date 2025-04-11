@@ -1,5 +1,5 @@
 /* eslint-disable no-useless-escape */
-// src/services/betCodeParser/parser.js
+// src/services/bet/parser.js
 import { BET_CONFIG } from '@/config/data';
 
 /**

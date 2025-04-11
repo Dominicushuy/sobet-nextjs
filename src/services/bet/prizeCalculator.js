@@ -1,4 +1,4 @@
-// src/services/calculator/prizeCalculator.js
+// src/services/bet/prizeCalculator.js
 import { calculatePermutationCount } from '@/utils/bet';
 import { BET_CONFIG } from '@/config/data';
 

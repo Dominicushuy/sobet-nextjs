@@ -1,4 +1,4 @@
-// src/services/calculator/stakeCalculator.js
+// src/services/bet/stakeCalculator.js
 import { generatePermutations } from '@/utils/bet';
 import { BET_CONFIG } from '@/config/data';
 
