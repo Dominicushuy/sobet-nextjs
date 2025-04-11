@@ -28,6 +28,18 @@ export const betCodeService = {
       // Phân tích mã cược
       const parseResult = parseBetCode(formattedText, betConfig);
 
+      // Calculate the draw date based on current time
+      const now = new Date();
+      const drawDate = new Date(now);
+
+      // If it's after 18:00 (6 PM), drawing is tomorrow
+      if (now.getHours() >= 18) {
+        drawDate.setDate(drawDate.getDate() + 1);
+      }
+
+      // Format date as ISO string (YYYY-MM-DD)
+      const formattedDrawDate = drawDate.toISOString().split('T')[0];
+
       // Nếu mã cược hợp lệ, tính toán số tiền và tiềm năng thắng
       let calculationResults = { stakeResult: null, prizeResult: null };
 
@@ -48,6 +60,9 @@ export const betCodeService = {
       }
 
       if (parseResult.success) {
+        // Add draw date to parse result
+        parseResult.drawDate = formattedDrawDate;
+
         // Check for permutation types and ensure the permutations are generated
         for (const line of parseResult.lines) {
           // Check if this line has a permutation bet type from BET_CONFIG
@@ -103,6 +118,7 @@ export const betCodeService = {
         isFormatted,
         parseResult,
         calculationResults,
+        drawDate: formattedDrawDate,
       };
     } catch (error) {
       console.error('Error analyzing bet code:', error);

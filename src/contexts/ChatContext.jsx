@@ -14,6 +14,7 @@ import { isStationLine, parseBetCode } from '@/services/bet/parser';
 import { calculateStake } from '@/services/bet/stakeCalculator';
 import { calculatePotentialPrize } from '@/services/bet/prizeCalculator';
 import { useBetConfig } from './BetConfigContext';
+import { validateStationAvailability } from '@/services/bet/stationValidator';
 
 const ChatContext = createContext();
 
@@ -88,6 +89,31 @@ export function ChatProvider({ children }) {
       const formattedBetCode = formatBetCode(text, betConfig);
 
       // console.log('Formatted bet code:', formattedBetCode);
+
+      // Analyze bet code
+      const betCodeResult = betCodeService.analyzeBetCode(
+        formattedBetCode,
+        betConfig
+      );
+
+      console.log('Bet code result:', betCodeResult);
+
+      // Validate station availability if bet code was parsed successfully
+      if (
+        betCodeResult.success &&
+        betCodeResult.parseResult &&
+        betCodeResult.parseResult.station
+      ) {
+        const validation = validateStationAvailability(
+          betCodeResult.parseResult.station,
+          betConfig
+        );
+        if (!validation.valid) {
+          addMessage(validation.message, 'bot', { error: true });
+          setIsTyping(false);
+          return;
+        }
+      }
 
       // Kiểm tra nếu có nhiều đài trong một mã cược
       const multiStationBetCodes = processMultiStationBetCode(

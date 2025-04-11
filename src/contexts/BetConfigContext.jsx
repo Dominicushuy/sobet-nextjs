@@ -11,6 +11,7 @@ const DEFAULT_CONFIG = {
   accessibleStations: [],
   regions: [],
   numberCombinations: [],
+  stationSchedules: [], // Added default empty station schedules
   commissionSettings: {
     priceRate: 0.8,
     exportPriceRate: 0.74,
@@ -26,8 +27,6 @@ export function BetConfigProvider({ children }) {
   const [betConfig, setBetConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // console.log(betConfig);
 
   // Fetch dữ liệu khi user thay đổi
   useEffect(() => {
@@ -53,6 +52,8 @@ export function BetConfigProvider({ children }) {
             regions: data.regions || DEFAULT_CONFIG.regions,
             numberCombinations:
               data.numberCombinations || DEFAULT_CONFIG.numberCombinations,
+            stationSchedules:
+              data.stationSchedules || DEFAULT_CONFIG.stationSchedules,
             commissionSettings:
               data.commissionSettings || DEFAULT_CONFIG.commissionSettings,
           };

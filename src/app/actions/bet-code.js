@@ -1,9 +1,8 @@
+// src/app/actions/bet-code.js
 'use server';
 
 import { supabaseAdmin } from '@/utils/supabase/admin';
-// import { revalidatePath } from 'next/cache';
 
-// Fetch data needed for bet code validation
 export async function fetchBetData(userId) {
   try {
     if (!userId) {
@@ -18,6 +17,7 @@ export async function fetchBetData(userId) {
       { data: commissionSettings, error: commissionError },
       { data: numberCombinations, error: numberCombinationsError },
       { data: regions, error: regionsError },
+      { data: stationSchedulesData, error: stationSchedulesError }, // Added station schedules
     ] = await Promise.all([
       supabaseAdmin.from('users').select('*').eq('id', userId).single(),
       supabaseAdmin
@@ -43,7 +43,20 @@ export async function fetchBetData(userId) {
         .from('number_combinations')
         .select('*')
         .eq('is_active', true),
-      supabaseAdmin.from('regions').select('*'), // Lấy tất cả regions
+      supabaseAdmin.from('regions').select('*'),
+      supabaseAdmin.from('station_schedules').select(`
+          id, 
+          station_id,
+          day_of_week, 
+          order_number,
+          station:stations(
+            id, 
+            name, 
+            region_id, 
+            aliases, 
+            is_active
+          )
+        `),
     ]);
 
     if (userError || !userData) {
@@ -66,15 +79,26 @@ export async function fetchBetData(userId) {
       return { data: null, error: 'Lỗi khi lấy thông tin miền' };
     }
 
+    if (stationSchedulesError) {
+      return { data: null, error: 'Lỗi khi lấy lịch xổ số' };
+    }
+
+    // Process station schedules
+    const stationSchedules = stationSchedulesData.map((schedule) => ({
+      id: schedule.id,
+      stationId: schedule.station_id,
+      dayOfWeek: schedule.day_of_week,
+      orderNumber: schedule.order_number,
+      station: schedule.station,
+    }));
+
     // Set default commission settings if not found
     const priceRate = commissionSettings?.price_rate || 0.8;
     const exportPriceRate = commissionSettings?.export_price_rate || 0.74;
     const returnPriceRate = commissionSettings?.return_price_rate || 0.95;
 
     // Create a list of accessible stations
-    const accessibleStations = stationAccess
-      .filter((access) => access.is_enabled && access.stations)
-      .map((access) => access.stations);
+    const accessibleStations = stationAccess.map((access) => access.stations);
 
     // Sau đó, ghi đè với cài đặt của người dùng nếu có
     const betTypes = betTypeSettings.map((betType) => {
@@ -94,14 +118,13 @@ export async function fetchBetData(userId) {
       regions,
       betTypes,
       numberCombinations,
+      stationSchedules, // Add station schedules to returned data
       commissionSettings: {
         priceRate,
         exportPriceRate,
         returnPriceRate,
       },
     };
-
-    // console.log('Bet type:', betTypeSettings);
 
     return {
       data,
