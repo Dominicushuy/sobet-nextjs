@@ -149,13 +149,6 @@ CREATE TABLE bet_codes (
   potential_winning NUMERIC(12, 2) NOT NULL, -- Tiềm năng thắng
   actual_winning NUMERIC(12, 2), -- Tiền thắng thực tế
   
-  -- Thông tin hoa hồng
-  commission_rate NUMERIC(5, 4), -- Tỉ lệ hoa hồng
-  export_rate NUMERIC(5, 4), -- Tỉ lệ thu
-  return_rate NUMERIC(5, 4), -- Tỉ lệ hồi
-  user_commission NUMERIC(12, 2), -- Hoa hồng user
-  admin_commission NUMERIC(12, 2), -- Hoa hồng admin
-  
   -- Chi tiết mã cược
   bet_lines JSONB NOT NULL, -- Chi tiết từng dòng cược
   bet_types JSONB, -- Các loại cược sử dụng
@@ -169,10 +162,6 @@ CREATE TABLE bet_codes (
   verification_notes TEXT,
   discrepancies JSONB, -- Các khác biệt khi đối soát
   adjusted_amount NUMERIC(12, 2), -- Số tiền sau điều chỉnh
-  
-  -- Thông tin theo dõi
-  source VARCHAR(50) DEFAULT 'chat', -- Nguồn: chat, direct, import
-  client_info JSONB -- Thông tin client
 );
 
 -- Tạo bảng chi tiết dòng cược
