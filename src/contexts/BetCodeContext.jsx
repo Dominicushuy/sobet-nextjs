@@ -18,7 +18,6 @@ const ACTION_TYPES = {
   SELECT_CODE: 'SELECT_CODE',
   CLEAR_SELECTION: 'CLEAR_SELECTION',
   BATCH_DELETE: 'BATCH_DELETE',
-  SORT_CODES: 'SORT_CODES',
   FILTER_CODES: 'FILTER_CODES',
 };
 
@@ -133,43 +132,6 @@ const betCodeReducer = (state, action) => {
         },
       };
 
-    case ACTION_TYPES.SORT_CODES: {
-      const { field, direction } = action.payload;
-      const sortedDraftCodes = [...state.draftCodes].sort((a, b) => {
-        let valA = a[field];
-        let valB = b[field];
-
-        // Handle special cases for date fields
-        if (
-          field.toLowerCase().includes('date') ||
-          field.toLowerCase().includes('at')
-        ) {
-          valA = new Date(valA || 0).getTime();
-          valB = new Date(valB || 0).getTime();
-        }
-
-        // Handle numeric values
-        if (typeof valA === 'number' && typeof valB === 'number') {
-          return direction === 'asc' ? valA - valB : valB - valA;
-        }
-
-        // Handle string values
-        if (String(valA).localeCompare) {
-          return direction === 'asc'
-            ? String(valA).localeCompare(String(valB))
-            : String(valB).localeCompare(String(valA));
-        }
-
-        return 0;
-      });
-
-      return {
-        ...state,
-        draftCodes: sortedDraftCodes,
-        sortConfig: { field, direction },
-      };
-    }
-
     case ACTION_TYPES.FILTER_CODES:
       return {
         ...state,
@@ -187,11 +149,6 @@ const initialState = {
   selectedCodeId: null, // ID of selected bet code
   isInitialized: false, // Whether initialized from storage
   lastOperation: null, // Info about last operation
-  sortConfig: {
-    // Sort configuration
-    field: 'createdAt',
-    direction: 'desc',
-  },
   filterCriteria: null, // Filter criteria
 };
 
@@ -295,14 +252,6 @@ export function BetCodeProvider({ children }) {
     dispatch({
       type: ACTION_TYPES.BATCH_DELETE,
       payload: { ids },
-    });
-  }, []);
-
-  // Sort codes
-  const sortCodes = useCallback((field, direction = 'desc') => {
-    dispatch({
-      type: ACTION_TYPES.SORT_CODES,
-      payload: { field, direction },
     });
   }, []);
 
@@ -689,7 +638,6 @@ export function BetCodeProvider({ children }) {
     clearSelection,
     getSelectedBetCode,
     batchDeleteCodes,
-    sortCodes,
     filterCodes,
     getStatistics,
     getFilteredCodes,
