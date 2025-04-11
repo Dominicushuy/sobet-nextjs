@@ -110,7 +110,7 @@ export function ChatProvider({ children }) {
         betConfig
       );
 
-      console.log('Bet code result:', betCodeResult);
+      // console.log('Bet code result:', betCodeResult);
 
       // Validate station availability if bet code was parsed successfully
       if (

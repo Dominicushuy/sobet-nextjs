@@ -1,4 +1,5 @@
 // src/contexts/BetCodeContext.jsx
+
 import React, {
   createContext,
   useContext,
@@ -8,6 +9,7 @@ import React, {
 } from 'react';
 import betCodeService from '@/services/bet';
 import { useBetConfig } from './BetConfigContext';
+import { getDrawDate } from '@/utils/bet';
 
 // Define action types
 const ACTION_TYPES = {
@@ -41,6 +43,7 @@ const betCodeReducer = (state, action) => {
       const newCode = {
         ...action.payload,
         id: action.payload.id || uniqueId,
+        drawDate: getDrawDate(),
         createdAt: action.payload.createdAt || new Date().toISOString(),
         isDraft: true,
         status: 'pending',
