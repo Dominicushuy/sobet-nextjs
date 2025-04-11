@@ -9,11 +9,11 @@ import React, {
 import { useBetCode } from './BetCodeContext';
 import betCodeService from '@/services/bet';
 import { uid } from 'uid';
-import { BET_CONFIG } from '@/config/data';
 import { formatBetCode } from '@/services/bet/formatter';
 import { parseBetCode } from '@/services/bet/parser';
 import { calculateStake } from '@/services/bet/stakeCalculator';
 import { calculatePotentialPrize } from '@/services/bet/prizeCalculator';
+import { BET_CONFIG } from '@/config/data';
 
 const ChatContext = createContext();
 
