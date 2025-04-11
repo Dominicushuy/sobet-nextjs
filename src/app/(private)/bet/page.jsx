@@ -3,9 +3,9 @@
 import React from 'react';
 import BetCodeList from '@/components/bet/BetCodeList';
 import ChatContainer from '@/components/chat/ChatContainer';
-import { BetCodeProvider } from '@/context/BetCodeContext';
-import { ChatProvider } from '@/context/ChatContext';
-import { BetConfigProvider } from '@/context/BetConfigContext';
+import { BetCodeProvider } from '@/contexts/BetCodeContext';
+import { ChatProvider } from '@/contexts/ChatContext';
+import { BetConfigProvider } from '@/contexts/BetConfigContext';
 
 export default function BetPage() {
   return (

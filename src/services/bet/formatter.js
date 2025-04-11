@@ -1,13 +1,15 @@
 /* eslint-disable no-useless-escape */
 // src/services/bet/formatter.js
-import { BET_CONFIG } from '@/config/data';
+
+import { extractStationPart, isStationOnlyLine } from './parser';
 
 /**
  * Chuẩn hóa mã cược đầu vào
  * @param {string} betCode - Mã cược đầu vào
+ * @param {object} betConfig - Cấu hình cược
  * @returns {string} Mã cược đã chuẩn hóa
  */
-export function formatBetCode(betCode) {
+export function formatBetCode(betCode, betConfig) {
   if (!betCode || typeof betCode !== 'string') {
     return betCode;
   }
@@ -37,7 +39,7 @@ export function formatBetCode(betCode) {
       const potentialStation = spaceParts[0].toLowerCase();
 
       // Kiểm tra nếu phần đầu tiên là đài hợp lệ
-      if (isStationOnlyLine(potentialStation)) {
+      if (isStationOnlyLine(potentialStation, betConfig)) {
         // Lấy phần còn lại (không dùng split để đảm bảo lấy chính xác)
         const restOfText = lineText.substring(potentialStation.length).trim();
 
@@ -47,7 +49,7 @@ export function formatBetCode(betCode) {
           formattedLines.push(potentialStation);
 
           // Format the bet line, which might result in multiple lines
-          const formattedBetLines = formatBetLine(restOfText);
+          const formattedBetLines = formatBetLine(restOfText, betConfig);
           if (formattedBetLines.includes('\n')) {
             formattedBetLines.split('\n').forEach((line) => {
               formattedLines.push(line);
@@ -61,12 +63,12 @@ export function formatBetCode(betCode) {
     }
 
     // Xử lý logic hiện tại nếu không phải trường hợp đặc biệt
-    if (isStationOnlyLine(lineText)) {
-      const formattedStation = formatStation(lineText);
+    if (isStationOnlyLine(lineText, betConfig)) {
+      const formattedStation = formatStation(lineText, betConfig);
       formattedLines.push(formattedStation);
     } else {
       // Nếu không phải là dòng đài, xử lý như dòng cược
-      const formattedLine = formatBetLine(lineText);
+      const formattedLine = formatBetLine(lineText, betConfig);
       if (formattedLine.includes('\n')) {
         formattedLine.split('\n').forEach((line) => {
           formattedLines.push(line);
@@ -81,62 +83,18 @@ export function formatBetCode(betCode) {
 }
 
 /**
- * Kiểm tra xem dòng có phải là dòng chỉ chứa tên đài không
- */
-function isStationOnlyLine(line) {
-  // Loại bỏ dấu chấm cuối
-  const cleanLine = line.replace(/\.+$/, '').trim().toLowerCase();
-
-  // Kiểm tra xem là tên đài đơn thuần không
-  // 1. Kiểm tra các mẫu đài nhiều miền (vd: 2dmn, 3dmt)
-  if (/^\d+d(mn|mt|n|t|nam|trung)$/i.test(cleanLine)) {
-    return true;
-  }
-
-  // 2. Kiểm tra tên đài đơn lẻ từ BET_CONFIG
-  for (const station of BET_CONFIG.accessibleStations) {
-    if (
-      station.name.toLowerCase() === cleanLine ||
-      station.aliases.some((alias) => alias === cleanLine)
-    ) {
-      return true;
-    }
-  }
-
-  // 3. Kiểm tra mẫu region codes và aliases từ BET_CONFIG
-  for (const region of BET_CONFIG.regions) {
-    if (region.aliases.includes(cleanLine)) {
-      return true;
-    }
-  }
-
-  // 4. Kiểm tra nếu là tổ hợp các đài (vd: vl.ct, dn.hue)
-  if (cleanLine.includes('.')) {
-    const parts = cleanLine.split('.');
-    return parts.every((part) =>
-      BET_CONFIG.accessibleStations.some(
-        (station) =>
-          station.name.toLowerCase() === part ||
-          station.aliases.some((alias) => alias === part)
-      )
-    );
-  }
-
-  return false;
-}
-
-/**
  * Chuẩn hóa phần đài
  * @param {string} stationLine - Dòng chứa thông tin đài
+ * @param {object} betConfig - Cấu hình cược
  * @returns {string} Dòng đài đã chuẩn hóa
  */
-function formatStation(stationLine) {
+function formatStation(stationLine, betConfig) {
   // Loại bỏ dấu chấm cuối
   let formattedLine = stationLine.trim().replace(/\.+$/, '');
 
   // Nếu đã có số cược, tách phần đài ra
   if (/\d/.test(formattedLine) && !formattedLine.match(/^\d+d/)) {
-    const stationPart = extractStationPart(formattedLine);
+    const stationPart = extractStationPart(formattedLine, betConfig);
     return stationPart;
   }
 
@@ -144,14 +102,14 @@ function formatStation(stationLine) {
   const stationText = formattedLine.trim().toLowerCase();
 
   // Tìm các mẫu đài ghép liền nhau không dùng dấu phân cách
-  const mergedStations = findMergedStations(stationText);
+  const mergedStations = findMergedStations(stationText, betConfig);
   if (mergedStations.found) {
     return mergedStations.formatted;
   }
 
   // Xử lý các viết tắt gây nhầm lẫn
   if (stationText === 'dn') {
-    const currentDay = getCurrentDayOfWeek();
+    const currentDay = new Date().getDay();
     // Thứ 4 (ngày 3) có cả Đồng Nai và Đà Nẵng
     if (currentDay === 3) {
       return 'dnai'; // Mặc định chọn Đồng Nai
@@ -165,16 +123,16 @@ function formatStation(stationLine) {
 /**
  * Tìm và sửa đài ghép liền nhau không dùng dấu phân cách
  */
-function findMergedStations(stationText) {
-  // Sử dụng BET_CONFIG.accessibleStations để tìm tất cả các đài và aliases
-  for (const station1 of BET_CONFIG.accessibleStations) {
+function findMergedStations(stationText, betConfig) {
+  // Sử dụng betConfig.accessibleStations để tìm tất cả các đài và aliases
+  for (const station1 of betConfig.accessibleStations) {
     // Thử tất cả các alias của đài 1
     for (const alias1 of [station1.name.toLowerCase(), ...station1.aliases]) {
       if (stationText.startsWith(alias1)) {
         const remainingText = stationText.substring(alias1.length);
 
         // Tìm đài thứ 2 trong phần còn lại
-        for (const station2 of BET_CONFIG.accessibleStations) {
+        for (const station2 of betConfig.accessibleStations) {
           // Không xét ghép giữa đài với chính nó
           if (station1.name === station2.name) continue;
 
@@ -195,9 +153,9 @@ function findMergedStations(stationText) {
   }
 
   // Kiểm tra lại với ghép chính xác
-  for (const station1 of BET_CONFIG.accessibleStations) {
+  for (const station1 of betConfig.accessibleStations) {
     for (const alias1 of [station1.name.toLowerCase(), ...station1.aliases]) {
-      for (const station2 of BET_CONFIG.accessibleStations) {
+      for (const station2 of betConfig.accessibleStations) {
         // Không xét ghép giữa đài với chính nó
         if (station1.name === station2.name) continue;
 
@@ -221,43 +179,12 @@ function findMergedStations(stationText) {
 }
 
 /**
- * Lấy ngày hiện tại trong tuần (0: Chủ nhật, 1-6: Thứ 2 - Thứ 7)
- */
-function getCurrentDayOfWeek() {
-  return new Date().getDay();
-}
-
-/**
- * Trích xuất phần đài từ một dòng
- */
-function extractStationPart(line) {
-  // Tìm vị trí của số đầu tiên hoặc kiểu cược
-  let index = line.length;
-
-  // Tìm vị trí số đầu tiên (trừ trường hợp bắt đầu bằng 2d, 3d)
-  const numberMatch = /(?<!\d[a-z])\d/.exec(line);
-  if (numberMatch) {
-    index = Math.min(index, numberMatch.index);
-  }
-
-  // Tìm vị trí kiểu cược đầu tiên
-  const betTypeAliases = BET_CONFIG.betTypes.flatMap((bt) => bt.aliases);
-  for (const alias of betTypeAliases) {
-    const aliasPos = line.indexOf(alias);
-    if (aliasPos !== -1) {
-      index = Math.min(index, aliasPos);
-    }
-  }
-
-  return line.substring(0, index).trim();
-}
-
-/**
  * Format bet line with improved handling of special keywords and sequences
  * @param {string} line - Bet line to format
+ * @param {object} betConfig - Cấu hình cược
  * @returns {string} Formatted bet line
  */
-function formatBetLine(line) {
+function formatBetLine(line, betConfig) {
   // Bước 1: Chuẩn hóa khoảng trắng và dấu phân cách giữa các số
   let normalizedLine = line.trim();
 
@@ -316,7 +243,7 @@ function formatBetLine(line) {
   // Loại bỏ dấu chấm ở đầu dòng
   normalizedLine = normalizedLine.replace(/^\./, '');
 
-  // Sửa lỗi tên kiểu cược - sử dụng BET_CONFIG.betTypes
+  // Sửa lỗi tên kiểu cược - sử dụng betConfig.betTypes
   const betTypeCorrections = {
     xcdui: 'duoi',
     xcduoi: 'duoi',
@@ -345,7 +272,7 @@ function formatBetLine(line) {
     const formattedNumbers = numbersPart.trim().replace(/\s+/g, '.');
 
     // Lấy danh sách tất cả aliases sắp xếp theo độ dài - dài nhất trước
-    const sortedAliases = BET_CONFIG.betTypes
+    const sortedAliases = betConfig.betTypes
       .flatMap((bt) => bt.aliases)
       .sort((a, b) => b.length - a.length);
 
@@ -445,7 +372,7 @@ function formatBetLine(line) {
   normalizedLine = normalizedLine.replace(/^\.|\.$/g, '');
 
   // QUAN TRỌNG: Đảm bảo không có dấu chấm trước các kiểu cược
-  const betTypeAliases = BET_CONFIG.betTypes.flatMap((bt) => bt.aliases);
+  const betTypeAliases = betConfig.betTypes.flatMap((bt) => bt.aliases);
   for (const alias of betTypeAliases) {
     // Tìm và loại bỏ dấu chấm trước kiểu cược
     const betTypeRegex = new RegExp(`\\.(${alias}\\d*(?:[,.n]\\d+)?)`, 'gi');
@@ -505,51 +432,3 @@ function formatBetLine(line) {
 
   return normalizedLine;
 }
-
-/**
- * Tách mã cược thành các thành phần để dễ dàng xử lý
- * @param {string} betCode - Mã cược đầu vào
- * @returns {object} Các thành phần của mã cược
- */
-export function decomposeBetCode(betCode) {
-  if (!betCode || typeof betCode !== 'string') {
-    return { station: '', lines: [] };
-  }
-
-  // Phân tách các dòng
-  const lines = betCode
-    .trim()
-    .split(/\r?\n/)
-    .filter((line) => line.trim() !== '');
-
-  if (lines.length === 0) {
-    return { station: '', lines: [] };
-  }
-
-  // Lấy phần đài
-  const station = extractStationPart(lines[0]);
-
-  // Lấy phần số cược từ dòng đầu tiên nếu có
-  let betLines = [];
-  const firstLineBetPart = lines[0].substring(station.length).trim();
-  if (firstLineBetPart) {
-    betLines.push(firstLineBetPart);
-  }
-
-  // Thêm các dòng còn lại, bỏ qua các dòng chỉ chứa tên đài
-  for (let i = 1; i < lines.length; i++) {
-    if (!isStationOnlyLine(lines[i])) {
-      betLines.push(lines[i]);
-    }
-  }
-
-  return {
-    station,
-    lines: betLines,
-  };
-}
-
-export default {
-  formatBetCode,
-  decomposeBetCode,
-};

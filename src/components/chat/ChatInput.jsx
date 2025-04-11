@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, FileText, Paperclip } from 'lucide-react';
 import { toast } from 'sonner';
-import { useChat } from '@/context/ChatContext';
+import { useChat } from '@/contexts/ChatContext';
 
 const ChatInput = () => {
   const [input, setInput] = useState('');

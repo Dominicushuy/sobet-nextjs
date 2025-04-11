@@ -5,7 +5,7 @@ import ChatInput from './ChatInput';
 import ChatTypingIndicator from './ChatTypingIndicator';
 import { Card } from '@/components/ui/card';
 import { HelpCircle } from 'lucide-react';
-import { useChat } from '@/context/ChatContext';
+import { useChat } from '@/contexts/ChatContext';
 
 const ChatContainer = () => {
   const { messages, isTyping, messagesEndRef } = useChat();

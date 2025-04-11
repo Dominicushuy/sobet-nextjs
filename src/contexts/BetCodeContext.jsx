@@ -670,7 +670,7 @@ export function BetCodeProvider({ children }) {
 
   // Analyze a new bet code without adding it
   const analyzeBetCode = useCallback((text) => {
-    return betCodeService.analyzeBetCode(text);
+    return betCodeService.analyzeBetCode(text, betConfig);
   }, []);
 
   const value = {

@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 import BetCodeDetailModal from './BetCodeDetailModal';
 import { formatMoney } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
-import { defaultBetTypes } from '@/config/defaults';
+import { useBetConfig } from '@/contexts/BetConfigContext';
 
 const BetCodeCard = ({
   betCode,
@@ -43,6 +43,7 @@ const BetCodeCard = ({
   const [showFullCode, setShowFullCode] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const betConfig = useBetConfig();
 
   const handleRemove = () => {
     removeDraftCode(betCode.id);
@@ -158,7 +159,7 @@ const BetCodeCard = ({
     const betTypeAlias = line.betType.alias?.toLowerCase() || '';
 
     // Find full info from defaultBetTypes
-    const betType = defaultBetTypes.find((type) =>
+    const betType = betConfig.betTypes.find((type) =>
       type.aliases.some((a) => a.toLowerCase() === betTypeAlias)
     );
 

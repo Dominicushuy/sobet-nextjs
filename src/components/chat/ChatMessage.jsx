@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 // Định dạng mã cược để hiển thị đẹp hơn
-const formatBetCode = (text) => {
+const formatCode = (text) => {
   if (!text) return text;
 
   // Tách dòng đầu tiên (tên đài) và các dòng còn lại
@@ -124,7 +124,7 @@ const ChatMessage = ({ message }) => {
       >
         <CardContent className="p-3">
           <div className="text-sm whitespace-pre-wrap">
-            {isUser ? formatBetCode(text) : text}
+            {isUser ? formatCode(text) : text}
 
             {/* Display error details if exists */}
             {error && !isUser && parseResult && (

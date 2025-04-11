@@ -1,6 +1,5 @@
 // src/services/bet/prizeCalculator.js
 import { calculatePermutationCount } from '@/utils/bet';
-import { BET_CONFIG } from '@/config/data';
 
 /**
  * Lấy thông tin về đài
@@ -47,7 +46,7 @@ function getDigitCount(line) {
  * @param {object} station - Thông tin đài từ parsedResult
  * @returns {object} Thông tin về số và tổ hợp
  */
-function getNumberInfo(line, betTypeInfo, station) {
+function getNumberInfo(line, betTypeInfo, station, betConfig) {
   const numbers = line.numbers || [];
   const betTypeAlias = betTypeInfo.alias?.toLowerCase();
   const digitCount = getDigitCount(line);
@@ -65,15 +64,15 @@ function getNumberInfo(line, betTypeInfo, station) {
     };
   }
 
-  // Kiểm tra loại cược từ BET_CONFIG
-  const daAliases = BET_CONFIG.betTypes.find(
+  // Kiểm tra loại cược từ betConfig
+  const daAliases = betConfig.betTypes.find(
     (bt) => bt.special_calc === 'bridge'
   )?.aliases || ['da', 'dv'];
   const isBridge =
     betTypeInfo.specialCalc === 'bridge' || daAliases.includes(betTypeAlias);
 
   // Find the exact bet type from BET_CONFIG
-  const betType = BET_CONFIG.betTypes.find(
+  const betType = betConfig.betTypes.find(
     (bt) =>
       bt.name === betTypeInfo.id ||
       bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
@@ -123,14 +122,15 @@ function getNumberInfo(line, betTypeInfo, station) {
  * Lấy thông tin về kiểu cược
  * @param {object} line - Dòng mã cược
  * @param {object} stationInfo - Thông tin về đài
+ * @param {object} betConfig - Cấu hình cược từ BET_CONFIG
  * @returns {object} Thông tin về kiểu cược
  */
-function getBetTypeInfo(line, stationInfo) {
+function getBetTypeInfo(line, stationInfo, betConfig) {
   const betTypeId = line.betType?.id;
   const betTypeAlias = line.betType?.alias?.toLowerCase();
 
   // Tìm bet type dựa trên ID hoặc alias từ BET_CONFIG
-  const betType = BET_CONFIG.betTypes.find(
+  const betType = betConfig.betTypes.find(
     (bt) =>
       bt.name === betTypeId ||
       bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
@@ -175,7 +175,7 @@ function getBetTypeInfo(line, stationInfo) {
   let payoutRate = betType.custom_payout_rate || betType.payout_rate || 0;
 
   // Apply commission rate from BET_CONFIG
-  const priceRate = BET_CONFIG.commissionSettings.priceRate || 0.8;
+  const priceRate = betConfig.commissionSettings.priceRate || 0.8;
 
   // Handle complex payout rate structures
   if (typeof payoutRate === 'object') {
@@ -323,9 +323,10 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
 /**
  * Tính toán tiềm năng thắng cược dựa trên mã cược đã phân tích
  * @param {object} parsedResult - Kết quả phân tích mã cược
+ * @param {object} betConfig - Cấu hình cược từ betConfig
  * @returns {object} Kết quả tính toán tiềm năng thắng cược
  */
-export function calculatePotentialPrize(parsedResult) {
+export function calculatePotentialPrize(parsedResult, betConfig) {
   if (!parsedResult || !parsedResult.success || !parsedResult.lines) {
     return {
       success: false,
@@ -359,8 +360,8 @@ export function calculatePotentialPrize(parsedResult) {
 
       // Get station info, bet type info, and number info
       const stationInfo = getStationInfo(station);
-      const betTypeInfo = getBetTypeInfo(line, stationInfo);
-      const numberInfo = getNumberInfo(line, betTypeInfo, station);
+      const betTypeInfo = getBetTypeInfo(line, stationInfo, betConfig);
+      const numberInfo = getNumberInfo(line, betTypeInfo, station, betConfig);
 
       // Calculate potential prize for this line
       const linePotential = calculateLinePotential(
@@ -411,7 +412,3 @@ export function calculatePotentialPrize(parsedResult) {
     };
   }
 }
-
-export default {
-  calculatePotentialPrize,
-};

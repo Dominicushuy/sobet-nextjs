@@ -1,6 +1,5 @@
 // src/services/bet/stakeCalculator.js
 import { generatePermutations } from '@/utils/bet';
-import { BET_CONFIG } from '@/config/data';
 
 /**
  * Lấy thông tin về đài
@@ -45,9 +44,10 @@ function getDigitCount(line) {
  * @param {object} line - Dòng mã cược
  * @param {object} betTypeInfo - Thông tin về kiểu cược
  * @param {object} station - Thông tin đài từ parsedResult
+ * @param {object} betConfig - Thông tin cấu hình cược
  * @returns {object} Thông tin về số và tổ hợp
  */
-function getNumberInfo(line, betTypeInfo, station) {
+function getNumberInfo(line, betTypeInfo, station, betConfig) {
   const numbers = line.numbers || [];
   const betTypeAlias = betTypeInfo.alias?.toLowerCase();
   const digitCount = getDigitCount(line);
@@ -77,7 +77,7 @@ function getNumberInfo(line, betTypeInfo, station) {
     betTypeInfo.specialCalc === 'bridge';
 
   // Find the exact bet type from BET_CONFIG
-  const betType = BET_CONFIG.betTypes.find(
+  const betType = betConfig.betTypes.find(
     (bt) =>
       bt.name === betTypeInfo.id ||
       bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
@@ -124,84 +124,17 @@ function getNumberInfo(line, betTypeInfo, station) {
 }
 
 /**
- * Hàm tối ưu để tính tiền cược nhanh
- * @param {object} parsedResult - Kết quả phân tích mã cược
- * @returns {number} Tổng tiền cược
- */
-export function quickCalculateStake(parsedResult) {
-  if (!parsedResult || !parsedResult.success || !parsedResult.lines) return 0;
-
-  const priceRate = BET_CONFIG.commissionSettings.priceRate || 0.81;
-  let totalStake = 0;
-
-  // Duyệt qua từng dòng
-  parsedResult.lines.forEach((line) => {
-    if (line.valid && line.amount > 0) {
-      // Lấy thông tin
-      const stationInfo = getStationInfo(parsedResult.station);
-      const betTypeInfo = getBetTypeInfo(line, stationInfo);
-      const numberInfo = getNumberInfo(line, betTypeInfo, parsedResult.station);
-
-      // Tính stake cho dòng
-      const lineStake = calculateLineStake(
-        line,
-        stationInfo,
-        betTypeInfo,
-        numberInfo
-      );
-
-      // Áp dụng hệ số nhân từ BET_CONFIG
-      totalStake += lineStake.stake * priceRate;
-
-      // Tính tiền cược cho các kiểu cược bổ sung nếu có
-      if (line.additionalBetTypes && line.additionalBetTypes.length > 0) {
-        for (const additionalBet of line.additionalBetTypes) {
-          // Tạo phiên bản sao lưu của dòng để tính riêng
-          const tempLine = {
-            ...line,
-            betType: additionalBet.betType,
-            amount: additionalBet.amount,
-            numbers: additionalBet.numbers || line.numbers,
-          };
-
-          // Lấy thông tin kiểu cược bổ sung
-          const additionalBetTypeInfo = getBetTypeInfo(tempLine, stationInfo);
-          const additionalNumberInfo = getNumberInfo(
-            tempLine,
-            additionalBetTypeInfo,
-            parsedResult.station
-          );
-
-          // Tính tiền đặt cược cho kiểu cược bổ sung
-          const additionalLineStake = calculateLineStake(
-            tempLine,
-            stationInfo,
-            additionalBetTypeInfo,
-            additionalNumberInfo
-          );
-
-          // Áp dụng hệ số nhân
-          totalStake += additionalLineStake.stake * priceRate;
-        }
-      }
-    }
-  });
-
-  return totalStake;
-}
-
-/**
  * Lấy thông tin về kiểu cược
  * @param {object} line - Dòng mã cược
  * @param {object} stationInfo - Thông tin về đài
  * @returns {object} Thông tin về kiểu cược
  */
-function getBetTypeInfo(line, stationInfo) {
+function getBetTypeInfo(line, stationInfo, betConfig) {
   const betTypeId = line.betType?.id;
   const betTypeAlias = line.betType?.alias?.toLowerCase();
 
-  // Tìm bet type dựa trên ID hoặc alias từ BET_CONFIG
-  const betType = BET_CONFIG.betTypes.find(
+  // Tìm bet type dựa trên ID hoặc alias từ betConfig
+  const betType = betConfig.betTypes.find(
     (bt) =>
       bt.name === betTypeId ||
       bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
@@ -424,7 +357,7 @@ function calculateLineStake(line, stationInfo, betTypeInfo, numberInfo) {
  * @param {object} parsedResult - Kết quả phân tích mã cược
  * @returns {object} Kết quả tính toán tiền cược
  */
-export function calculateStake(parsedResult) {
+export function calculateStake(parsedResult, betConfig) {
   if (!parsedResult || !parsedResult.success || !parsedResult.lines) {
     return {
       success: false,
@@ -440,7 +373,7 @@ export function calculateStake(parsedResult) {
     let totalStake = 0;
     const details = [];
     // Lấy hệ số nhân từ BET_CONFIG
-    const priceRate = BET_CONFIG.commissionSettings.priceRate || 0.81;
+    const priceRate = betConfig.commissionSettings.priceRate || 0.81;
     let hasValidLine = false;
 
     // Xử lý từng dòng trong mã cược
@@ -462,10 +395,10 @@ export function calculateStake(parsedResult) {
       const stationInfo = getStationInfo(station);
 
       // Lấy thông tin về kiểu cược chính
-      const betTypeInfo = getBetTypeInfo(line, stationInfo);
+      const betTypeInfo = getBetTypeInfo(line, stationInfo, betConfig);
 
       // Lấy số lượng số và tổ hợp
-      const numberInfo = getNumberInfo(line, betTypeInfo, station);
+      const numberInfo = getNumberInfo(line, betTypeInfo, station, betConfig);
 
       // Tính tiền đặt cược cho dòng này với kiểu cược chính
       const lineStake = calculateLineStake(
@@ -511,11 +444,16 @@ export function calculateStake(parsedResult) {
           };
 
           // Lấy thông tin kiểu cược bổ sung
-          const additionalBetTypeInfo = getBetTypeInfo(tempLine, stationInfo);
+          const additionalBetTypeInfo = getBetTypeInfo(
+            tempLine,
+            stationInfo,
+            betConfig
+          );
           const additionalNumberInfo = getNumberInfo(
             tempLine,
             additionalBetTypeInfo,
-            station
+            station,
+            betConfig
           );
 
           // Tính tiền đặt cược cho kiểu cược bổ sung
@@ -576,8 +514,3 @@ export function calculateStake(parsedResult) {
     };
   }
 }
-
-export default {
-  calculateStake,
-  quickCalculateStake,
-};

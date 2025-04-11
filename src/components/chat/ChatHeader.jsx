@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useChat } from '@/context/ChatContext';
+import { useChat } from '@/contexts/ChatContext';
 
 const ChatHeader = () => {
   const { clearMessages, addSystemExample } = useChat();

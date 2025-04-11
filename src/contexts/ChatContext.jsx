@@ -7,13 +7,13 @@ import React, {
   useEffect,
 } from 'react';
 import { useBetCode } from './BetCodeContext';
-import { useBetConfig } from '@/hooks/useBetConfig';
 import betCodeService from '@/services/bet';
 import { uid } from 'uid';
 import { formatBetCode } from '@/services/bet/formatter';
-import { parseBetCode } from '@/services/bet/parser';
+import { isStationLine, parseBetCode } from '@/services/bet/parser';
 import { calculateStake } from '@/services/bet/stakeCalculator';
 import { calculatePotentialPrize } from '@/services/bet/prizeCalculator';
+import { useBetConfig } from './BetConfigContext';
 
 const ChatContext = createContext();
 
@@ -85,14 +85,17 @@ export function ChatProvider({ children }) {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Format the bet code first for better parsing
-      const formattedBetCode = formatBetCode(text);
+      const formattedBetCode = formatBetCode(text, betConfig);
 
-      console.log('Formatted bet code:', formattedBetCode);
+      // console.log('Formatted bet code:', formattedBetCode);
 
       // Kiểm tra nếu có nhiều đài trong một mã cược
-      const multiStationBetCodes = processMultiStationBetCode(formattedBetCode);
+      const multiStationBetCodes = processMultiStationBetCode(
+        formattedBetCode,
+        betConfig
+      );
 
-      console.log('multiStationBetCodes:', multiStationBetCodes);
+      // console.log('multiStationBetCodes:', multiStationBetCodes);
 
       if (multiStationBetCodes) {
         // Thay đổi logic: phân tích tất cả mã cược trước, chỉ lưu khi không có lỗi
@@ -104,7 +107,10 @@ export function ChatProvider({ children }) {
 
         // THAY ĐỔI: Phân tích tất cả mã cược trước
         for (const item of multiStationBetCodes) {
-          const betCodeResult = betCodeService.analyzeBetCode(item.betCode);
+          const betCodeResult = betCodeService.analyzeBetCode(
+            item.betCode,
+            betConfig
+          );
 
           if (betCodeResult.success) {
             const stakeAmount =
@@ -217,7 +223,10 @@ export function ChatProvider({ children }) {
             const completeBetCode = `${stationLine}\n${betLine}`;
 
             // Phân tích mã cược
-            const lineResult = betCodeService.analyzeBetCode(completeBetCode);
+            const lineResult = betCodeService.analyzeBetCode(
+              completeBetCode,
+              betConfig
+            );
 
             if (lineResult.success) {
               const codeId = uid();
@@ -285,7 +294,7 @@ export function ChatProvider({ children }) {
       // console.log("'Formatted bet code:", formattedBetCode)
 
       // Parse the bet code
-      const parseResult = parseBetCode(formattedBetCode);
+      const parseResult = parseBetCode(formattedBetCode, betConfig);
 
       // console.log('Parsed result:', parseResult)
 
@@ -359,8 +368,8 @@ export function ChatProvider({ children }) {
 
       if (parseResult.success) {
         // Calculate stake and potential prize
-        const stakeResult = calculateStake(parseResult);
-        const prizeResult = calculatePotentialPrize(parseResult);
+        const stakeResult = calculateStake(parseResult, betConfig);
+        const prizeResult = calculatePotentialPrize(parseResult, betConfig);
 
         const totalStake = stakeResult.success ? stakeResult.totalStake : 0;
         const totalPotential = prizeResult.success
@@ -404,7 +413,10 @@ export function ChatProvider({ children }) {
               const completeBetCode = `${stationLine}\n${betLine}`;
 
               // Phân tích mã cược
-              const lineResult = betCodeService.analyzeBetCode(completeBetCode);
+              const lineResult = betCodeService.analyzeBetCode(
+                completeBetCode,
+                betConfig
+              );
 
               if (lineResult.success) {
                 const codeId = uid();
@@ -503,7 +515,10 @@ export function ChatProvider({ children }) {
             // Kiểm tra nếu line đã chứa đài hay chưa
             if (line.includes('\n')) {
               // Line đã có đài
-              const separateResult = betCodeService.analyzeBetCode(line);
+              const separateResult = betCodeService.analyzeBetCode(
+                line,
+                betConfig
+              );
 
               if (separateResult.success) {
                 const codeId = uid();
@@ -550,8 +565,10 @@ export function ChatProvider({ children }) {
             } else {
               // Line chưa có đài, thêm đài vào
               const separateCode = `${originalStationText}\n${line}`;
-              const separateResult =
-                betCodeService.analyzeBetCode(separateCode);
+              const separateResult = betCodeService.analyzeBetCode(
+                separateCode,
+                betConfig
+              );
 
               if (separateResult.success) {
                 const codeId = uid();
@@ -667,8 +684,10 @@ export function ChatProvider({ children }) {
               const singleLineBetCode = `${originalStationText}\n${line.originalLine}`;
 
               // Analyze this new bet code
-              const singleLineResult =
-                betCodeService.analyzeBetCode(singleLineBetCode);
+              const singleLineResult = betCodeService.analyzeBetCode(
+                singleLineBetCode,
+                betConfig
+              );
 
               if (singleLineResult.success) {
                 // Add the individual bet code to drafts with a unique ID
@@ -978,60 +997,7 @@ function extractSpecialCases(betCode, parseResult) {
   return specialCases;
 }
 
-/**
- * Kiểm tra xem dòng có phải là dòng chỉ chứa tên đài không
- */
-function isStationLine(line) {
-  // Cải tiến: Kiểm tra kỹ lưỡng hơn để xác định dòng đài
-  if (!line) return false;
-
-  // 1. Loại bỏ dấu chấm cuối
-  const cleanLine = line.replace(/\.+$/, '').trim().toLowerCase();
-
-  // 2. Các mẫu đài nhiều miền đặc biệt
-  if (/^\d+d(mn|mt|n|t|nam|trung)$/i.test(cleanLine)) {
-    return true;
-  }
-
-  // 3. Các tên miền đặc biệt
-  if (/^(mb|mt|mn|mienbac|mientrung|miennam|hanoi|hn)$/i.test(cleanLine)) {
-    return true;
-  }
-
-  // 4. Kiểm tra tên đài đơn lẻ theo aliases - using dynamic betConfig
-  const betConfig = useBetConfig();
-
-  for (const station of betConfig.accessibleStations) {
-    if (station.name.toLowerCase() === cleanLine) {
-      return true;
-    }
-
-    // Kiểm tra chính xác các aliases
-    if (station.aliases.some((alias) => alias === cleanLine)) {
-      return true;
-    }
-  }
-
-  // 5. Kiểm tra đài ghép (vl.ct)
-  if (cleanLine.includes('.')) {
-    const parts = cleanLine.split('.');
-    const allPartsAreStations = parts.every((part) => {
-      return betConfig.accessibleStations.some(
-        (station) =>
-          station.name.toLowerCase() === part ||
-          station.aliases.some((alias) => alias === part)
-      );
-    });
-
-    if (allPartsAreStations) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-const processMultiStationBetCode = (text) => {
+const processMultiStationBetCode = (text, betConfig) => {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return null;
 
@@ -1044,7 +1010,7 @@ const processMultiStationBetCode = (text) => {
     if (!line) continue;
 
     // Detect if this line is a station line
-    if (isStationLine(line)) {
+    if (isStationLine(line, betConfig)) {
       currentStation = line;
       uniqueStations.add(line); // Add to unique stations set
       continue;
@@ -1075,7 +1041,7 @@ const ensureCorrectBetCodeFormat = (betCode, betConfig) => {
   const lines = betCode.split('\n');
   if (lines.length <= 1) return betCode;
 
-  // Lấy danh sách alias từ defaultBetTypes
+  // Lấy danh sách alias từ betConfig
   const betTypeAliases = betConfig.betTypes.flatMap((bt) => bt.aliases);
 
   // Chỉ xử lý các dòng từ dòng thứ 2 trở đi (sau dòng đài)
