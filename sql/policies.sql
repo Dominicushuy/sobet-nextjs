@@ -254,6 +254,86 @@ CREATE POLICY "users_create_own_bet_codes" ON bet_codes
     WITH CHECK (user_id = auth.uid() AND created_by = auth.uid());
 
 --------------------------
+-- Policies cho Bet Code Lines
+--------------------------
+-- Super admin có toàn quyền
+CREATE POLICY "super_admin_all_bet_code_lines" ON bet_code_lines
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+-- Admin có thể quản lý dòng cược của người dùng họ quản lý
+CREATE POLICY "admin_manage_user_bet_code_lines" ON bet_code_lines
+    USING (
+        public.is_admin() AND EXISTS (
+            SELECT 1 FROM bet_codes
+            WHERE bet_codes.id = bet_code_lines.bet_code_id
+            AND public.is_user_manager(bet_codes.user_id)
+        )
+    )
+    WITH CHECK (
+        public.is_admin() AND EXISTS (
+            SELECT 1 FROM bet_codes
+            WHERE bet_codes.id = bet_code_lines.bet_code_id
+            AND public.is_user_manager(bet_codes.user_id)
+        )
+    );
+
+-- User có thể xem dòng cược của chính mình
+CREATE POLICY "users_view_own_bet_code_lines" ON bet_code_lines
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM bet_codes
+            WHERE bet_codes.id = bet_code_lines.bet_code_id
+            AND bet_codes.user_id = auth.uid()
+        )
+    );
+
+-- User có thể thêm dòng cược cho mã cược của họ khi ở trạng thái draft hoặc confirmed
+CREATE POLICY "users_insert_own_bet_code_lines" ON bet_code_lines
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM bet_codes
+            WHERE bet_codes.id = bet_code_lines.bet_code_id
+            AND bet_codes.user_id = auth.uid()
+            AND (bet_codes.status = 'draft' OR bet_codes.status = 'confirmed')
+        )
+    );
+
+-- User có thể cập nhật dòng cược của họ khi mã cược ở trạng thái draft
+CREATE POLICY "users_update_own_bet_code_lines" ON bet_code_lines
+    FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM bet_codes
+            WHERE bet_codes.id = bet_code_lines.bet_code_id
+            AND bet_codes.user_id = auth.uid()
+            AND bet_codes.status = 'draft'
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM bet_codes
+            WHERE bet_codes.id = bet_code_lines.bet_code_id
+            AND bet_codes.user_id = auth.uid()
+            AND bet_codes.status = 'draft'
+        )
+    );
+
+-- User có thể xóa dòng cược của họ khi mã cược ở trạng thái draft
+CREATE POLICY "users_delete_own_bet_code_lines" ON bet_code_lines
+    FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM bet_codes
+            WHERE bet_codes.id = bet_code_lines.bet_code_id
+            AND bet_codes.user_id = auth.uid()
+            AND bet_codes.status = 'draft'
+        )
+    );
+
+--------------------------
 -- Policies cho Lottery Results
 --------------------------
 -- Super admin có toàn quyền

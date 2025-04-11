@@ -272,7 +272,7 @@ export function BetCodeProvider({ children }) {
     // In a real app, you might trigger navigation or API call here
     // But we don't actually modify the state anymore
 
-    console.log(state);
+    console.log('Draft codes to be saved:', state.draftCodes);
   }, [state]);
 
   // Select a code
