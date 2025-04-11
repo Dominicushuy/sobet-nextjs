@@ -7,13 +7,13 @@ import React, {
   useEffect,
 } from 'react';
 import { useBetCode } from './BetCodeContext';
+import { useBetConfig } from '@/hooks/useBetConfig';
 import betCodeService from '@/services/bet';
 import { uid } from 'uid';
 import { formatBetCode } from '@/services/bet/formatter';
 import { parseBetCode } from '@/services/bet/parser';
 import { calculateStake } from '@/services/bet/stakeCalculator';
 import { calculatePotentialPrize } from '@/services/bet/prizeCalculator';
-import { BET_CONFIG } from '@/config/data';
 
 const ChatContext = createContext();
 
@@ -22,6 +22,9 @@ export function ChatProvider({ children }) {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const { addDraftCode } = useBetCode();
+
+  // Use dynamic bet config
+  const betConfig = useBetConfig();
 
   // Load from session storage on mount
   useEffect(() => {
@@ -76,8 +79,6 @@ export function ChatProvider({ children }) {
 
   const processUserMessage = async (text) => {
     setIsTyping(true);
-
-    // console.log('Processing user message:', text)
 
     try {
       // Short delay to simulate processing
@@ -367,7 +368,11 @@ export function ChatProvider({ children }) {
           : 0;
 
         // Phát hiện các trường hợp đặc biệt
-        const specialCases = extractSpecialCases(formattedBetCode, parseResult);
+        const specialCases = extractSpecialCases(
+          formattedBetCode,
+          parseResult,
+          betConfig
+        );
 
         // THAY ĐỔI: Kiểm tra xem có trường hợp đặc biệt cần tách không
         if (
@@ -604,8 +609,10 @@ export function ChatProvider({ children }) {
 
             if (formattedBetCode !== text) {
               // Đảm bảo định dạng hiển thị cho người dùng là đúng
-              const correctedFormat =
-                ensureCorrectBetCodeFormat(formattedBetCode);
+              const correctedFormat = ensureCorrectBetCodeFormat(
+                formattedBetCode,
+                betConfig
+              );
               message +=
                 '\n\nMã cược đã được tối ưu định dạng:\n```\n' +
                 correctedFormat +
@@ -621,7 +628,7 @@ export function ChatProvider({ children }) {
                 potentialWin: totalPotentialWinAmount,
                 formattedCode:
                   formattedBetCode !== text
-                    ? ensureCorrectBetCodeFormat(formattedBetCode)
+                    ? ensureCorrectBetCodeFormat(formattedBetCode, betConfig)
                     : null,
                 isAutoExpanded: true,
                 specialCasesType: specialCases.type,
@@ -691,12 +698,14 @@ export function ChatProvider({ children }) {
             }
           } else {
             // Single line - keep existing logic
-            let message = `Mã cược hợp lệ! Đã thêm vào danh sách mã cược.`;
+            let message = 'Mã cược hợp lệ! Đã thêm vào danh sách mã cược.';
 
             if (formattedBetCode !== text) {
               // Đảm bảo định dạng hiển thị cho người dùng là đúng
-              const correctedFormat =
-                ensureCorrectBetCodeFormat(formattedBetCode);
+              const correctedFormat = ensureCorrectBetCodeFormat(
+                formattedBetCode,
+                betConfig
+              );
               message +=
                 '\n\nMã cược đã được tối ưu định dạng:\n```\n' +
                 correctedFormat +
@@ -711,7 +720,7 @@ export function ChatProvider({ children }) {
                 potentialWin: totalPotential,
                 formattedCode:
                   formattedBetCode !== text
-                    ? ensureCorrectBetCodeFormat(formattedBetCode)
+                    ? ensureCorrectBetCodeFormat(formattedBetCode, betConfig)
                     : null,
               },
               detailedCalculations: {
@@ -761,6 +770,7 @@ export function ChatProvider({ children }) {
 
     setMessages((prev) => [...prev, exampleMessage]);
   };
+
   const value = {
     messages,
     isTyping,
@@ -768,6 +778,7 @@ export function ChatProvider({ children }) {
     clearMessages,
     addSystemExample,
     messagesEndRef,
+    betConfig, // Expose bet config for other components if needed
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
@@ -785,6 +796,7 @@ export function useChat() {
  * Phát hiện các trường hợp đặc biệt trong mã cược
  * @param {string} betCode - Mã cược đầu vào
  * @param {object} parseResult - Kết quả phân tích mã cược
+ * @param {object} betConfig - Cấu hình cược từ hook
  * @returns {object} Thông tin về các trường hợp đặc biệt
  */
 function extractSpecialCases(betCode, parseResult) {
@@ -799,7 +811,7 @@ function extractSpecialCases(betCode, parseResult) {
     return specialCases;
   }
 
-  parseResult.lines.forEach((line, index) => {
+  parseResult.lines.forEach((line) => {
     // 1. Kiểm tra số gộp thành nhóm (vd: 1234.5678da1)
     const groupedNumbers = line.originalLine.match(/\d{4,}/g);
     if (groupedNumbers && groupedNumbers.some((num) => num.length % 2 === 0)) {
@@ -944,7 +956,7 @@ function extractSpecialCases(betCode, parseResult) {
       if (separateLines.length > 0) {
         specialCases.multipleBetTypes.push({
           originalLine: line.originalLine,
-          explanation: `Nhiều kiểu cược sẽ được tách thành dòng riêng biệt`,
+          explanation: 'Nhiều kiểu cược sẽ được tách thành dòng riêng biệt',
           separateLines,
         });
 
@@ -986,8 +998,10 @@ function isStationLine(line) {
     return true;
   }
 
-  // 4. Kiểm tra tên đài đơn lẻ theo aliases
-  for (const station of BET_CONFIG.accessibleStations) {
+  // 4. Kiểm tra tên đài đơn lẻ theo aliases - using dynamic betConfig
+  const betConfig = useBetConfig();
+
+  for (const station of betConfig.accessibleStations) {
     if (station.name.toLowerCase() === cleanLine) {
       return true;
     }
@@ -1002,7 +1016,7 @@ function isStationLine(line) {
   if (cleanLine.includes('.')) {
     const parts = cleanLine.split('.');
     const allPartsAreStations = parts.every((part) => {
-      return BET_CONFIG.accessibleStations.some(
+      return betConfig.accessibleStations.some(
         (station) =>
           station.name.toLowerCase() === part ||
           station.aliases.some((alias) => alias === part)
@@ -1053,7 +1067,7 @@ const processMultiStationBetCode = (text) => {
     : null;
 };
 
-const ensureCorrectBetCodeFormat = (betCode) => {
+const ensureCorrectBetCodeFormat = (betCode, betConfig) => {
   if (!betCode || typeof betCode !== 'string') {
     return betCode;
   }
@@ -1062,7 +1076,7 @@ const ensureCorrectBetCodeFormat = (betCode) => {
   if (lines.length <= 1) return betCode;
 
   // Lấy danh sách alias từ defaultBetTypes
-  const betTypeAliases = BET_CONFIG.betTypes.flatMap((bt) => bt.aliases);
+  const betTypeAliases = betConfig.betTypes.flatMap((bt) => bt.aliases);
 
   // Chỉ xử lý các dòng từ dòng thứ 2 trở đi (sau dòng đài)
   for (let i = 1; i < lines.length; i++) {

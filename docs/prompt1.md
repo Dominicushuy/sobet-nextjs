@@ -28,3 +28,12 @@ Hãy giúp tôi xây dựng một trang đặt cược dành cho role User.
   các bảng `regions`, `user_station_access`, `user_bet_type_settings`,
   `user_commission_settings`).
 - Dưới đây là quy tắc đặt cược và các ví dụ:
+
+Hãy thay thế toàn bộ `import { BET_CONFIG } from '@/config/data'` bằng dữ liệu
+trả về dynamic theo user dựa trên function
+`fetchBetData (src/app/actions/bet-code.js)` (Hãy xây dựng 1 hook mới để quản lí
+dữ liệu này) ở trong các files
+`formatter.js, parser.js, BetCodeContext.jsx, ChatContext.jsx, services/bet/index.js, prizeCalculator.js, stakeCalculator.js, src/utils`
+
+Lưu ý: Vì các file rất dài nên làm từng bước, tôi sẽ hỏi bạn ngay sau đó. Hãy
+bắt đầu với file context trước `BetCodeContext.jsx, ChatContext.jsx`
