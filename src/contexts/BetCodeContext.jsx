@@ -271,6 +271,8 @@ export function BetCodeProvider({ children }) {
     console.log('Save all action triggered');
     // In a real app, you might trigger navigation or API call here
     // But we don't actually modify the state anymore
+
+    console.log(state);
   }, []);
 
   // Select a code
