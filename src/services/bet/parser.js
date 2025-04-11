@@ -880,7 +880,7 @@ function parseBetLine(line, station, betConfig) {
         const numbers = numbersPart.split('.').filter((n) => n.trim() !== '');
         const processedNumbers = [];
         for (const num of numbers) {
-          const processed = processNumber(num, station);
+          const processed = processNumber(num, betConfig);
           processedNumbers.push(...processed);
         }
 
@@ -948,7 +948,7 @@ function parseBetLine(line, station, betConfig) {
       const numbers = numbersPart.split('.').filter((n) => n.trim() !== '');
       const processedNumbers = [];
       for (const num of numbers) {
-        const processed = processNumber(num, station);
+        const processed = processNumber(num, betConfig);
         processedNumbers.push(...processed);
       }
 

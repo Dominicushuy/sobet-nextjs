@@ -29,6 +29,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
+  console.log('BetCodeDetailModal', betCode);
+
   const { confirmDraftCode, removeDraftCode } = useBetCode();
 
   const [activeTab, setActiveTab] = useState('general');
@@ -384,7 +386,9 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                         <span className="text-muted-foreground">
                           Hệ số nhân:
                         </span>{' '}
-                        <span className="font-medium">0.8</span>
+                        <span className="font-medium">
+                          {betCode?.stakeDetails[0]?.priceRate || 1}x
+                        </span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">

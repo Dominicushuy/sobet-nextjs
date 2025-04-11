@@ -273,7 +273,7 @@ export function BetCodeProvider({ children }) {
     // But we don't actually modify the state anymore
 
     console.log(state);
-  }, []);
+  }, [state]);
 
   // Select a code
   const selectBetCode = useCallback((id) => {
