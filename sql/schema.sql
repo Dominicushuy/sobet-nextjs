@@ -117,11 +117,11 @@ CREATE TYPE bet_reconciliation_status AS ENUM ('pending', 'matched', 'discrepanc
 CREATE TABLE bet_codes (
   -- Thông tin cơ bản
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id),
-  created_by UUID NOT NULL REFERENCES users(id),
-  admin_id UUID REFERENCES users(id), -- Admin xử lý
-  parent_id UUID REFERENCES bet_codes(id), -- Cho mã cược tự động tách
-  group_id UUID, -- Nhóm các mã cược liên quan (tự động tách)
+  user_id UUID NOT NULL REFERENCES auth.users(id), -- Lưu ý: Supabase sử dụng auth.users
+  created_by UUID NOT NULL REFERENCES auth.users(id),
+  admin_id UUID REFERENCES auth.users(id),
+  parent_id UUID REFERENCES bet_codes(id),
+  group_id UUID,
   status bet_code_status NOT NULL DEFAULT 'draft',
   
   -- Timestamp
@@ -135,33 +135,49 @@ CREATE TABLE bet_codes (
   original_text TEXT NOT NULL,
   formatted_text TEXT,
   station_id INTEGER REFERENCES stations(id),
-  station_data JSONB NOT NULL, -- Thông tin đài chi tiết
-  draw_date DATE, -- Ngày xổ
+  station_data JSONB NOT NULL,
+  draw_date DATE,
   
   -- Xử lý đặc biệt
-  is_auto_expanded BOOLEAN DEFAULT FALSE, -- Đánh dấu cược tự động tách
-  special_case_type VARCHAR(50), -- Loại tách: 'multiple_bet_types', 'number_grouped', 'da_grouped'
+  is_auto_expanded BOOLEAN DEFAULT FALSE,
+  special_case_type VARCHAR(50),
   
   -- Thông tin tài chính
-  stake_amount NUMERIC(12, 2) NOT NULL, -- Tổng tiền cược
-  price_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.8, -- Tỉ lệ giá cho user
-  actual_rate NUMERIC(5, 4), -- Tỉ lệ thực tế áp dụng
-  potential_winning NUMERIC(12, 2) NOT NULL, -- Tiềm năng thắng
-  actual_winning NUMERIC(12, 2), -- Tiền thắng thực tế
+  stake_amount NUMERIC(12, 2) NOT NULL,
+  price_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.8,
+  actual_rate NUMERIC(5, 4),
+  potential_winning NUMERIC(12, 2) NOT NULL,
+  actual_winning NUMERIC(12, 2),
   
-  -- Chi tiết mã cược
-  bet_lines JSONB NOT NULL, -- Chi tiết từng dòng cược
-  bet_types JSONB, -- Các loại cược sử dụng
-  numbers JSONB, -- Các số đã đặt
-  winning_numbers JSONB, -- Các số trúng
+  -- Thông tin hoa hồng
+  commission_rate NUMERIC(5, 4),
+  export_rate NUMERIC(5, 4),
+  return_rate NUMERIC(5, 4),
+  user_commission NUMERIC(12, 2),
+  admin_commission NUMERIC(12, 2),
+  
+  -- Tối ưu truy vấn
+  bet_lines JSONB,
+  bet_types JSONB,
+  numbers JSONB,
+  winning_numbers JSONB,
   
   -- Đối soát và xác minh
-  reconciliation_id INTEGER REFERENCES verifications(id),
+  reconciliation_id INTEGER REFERENCES verifications(id) ON DELETE SET NULL,
   reconciliation_status bet_reconciliation_status DEFAULT 'pending',
-  verified_by UUID REFERENCES users(id),
+  verified_by UUID REFERENCES auth.users(id),
   verification_notes TEXT,
-  discrepancies JSONB, -- Các khác biệt khi đối soát
-  adjusted_amount NUMERIC(12, 2), -- Số tiền sau điều chỉnh
+  discrepancies JSONB,
+  adjusted_amount NUMERIC(12, 2),
+  
+  -- Thông tin theo dõi
+  source VARCHAR(50) DEFAULT 'chat',
+  client_info JSONB,
+  
+  -- Trạng thái cache và thanh toán
+  cache_updated_at TIMESTAMPTZ,
+  is_settled BOOLEAN DEFAULT FALSE,
+  settlement_date TIMESTAMPTZ
 );
 
 -- Tạo bảng chi tiết dòng cược
@@ -170,19 +186,23 @@ CREATE TABLE bet_code_lines (
   bet_code_id UUID NOT NULL REFERENCES bet_codes(id) ON DELETE CASCADE,
   line_number INTEGER NOT NULL,
   original_line TEXT NOT NULL,
+  parsed_data JSONB,
   bet_type_id INTEGER REFERENCES bet_types(id),
   bet_type_alias VARCHAR(100) NOT NULL,
   numbers TEXT[] NOT NULL,
-  amount NUMERIC(12, 2) NOT NULL, -- Số tiền cược
-  stake NUMERIC(12, 2) NOT NULL, -- Tiền đặt có tỉ lệ
-  payout_rate NUMERIC(12, 2) NOT NULL, -- Tỉ lệ trả thưởng
-  potential_prize NUMERIC(12, 2) NOT NULL, -- Tiềm năng thắng
-  winning_status BOOLEAN, -- Trạng thái trúng
-  actual_prize NUMERIC(12, 2), -- Tiền thắng thực tế
-  is_permutation BOOLEAN DEFAULT FALSE, -- Có phải kiểu đảo không
-  permutations JSONB, -- Lưu các hoán vị
-  calculation_formula TEXT, -- Công thức tính toán
+  amount NUMERIC(12, 2) NOT NULL,
+  stake NUMERIC(12, 2) NOT NULL,
+  payout_rate NUMERIC(12, 2) NOT NULL,
+  potential_prize NUMERIC(12, 2) NOT NULL,
+  winning_status BOOLEAN,
+  actual_prize NUMERIC(12, 2),
+  is_permutation BOOLEAN DEFAULT FALSE,
+  permutations JSONB,
+  calculation_formula TEXT,
+  is_valid BOOLEAN NOT NULL DEFAULT TRUE,
+  error_message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (bet_code_id, line_number)
 );
 
