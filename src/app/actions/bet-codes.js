@@ -142,22 +142,6 @@ export async function saveDraftCode(draftCode, userId) {
       return { data: null, error: 'Missing required information' };
     }
 
-    // Get the user's commission settings
-    const { data: commissionSettings, error: commissionError } =
-      await supabaseAdmin
-        .from('user_commission_settings')
-        .select('price_rate, export_price_rate, return_price_rate')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-    if (commissionError && commissionError.code !== 'PGRST116') {
-      console.error('Error fetching commission settings:', commissionError);
-      return { data: null, error: commissionError.message };
-    }
-
-    // Default commission rates
-    const priceRate = commissionSettings?.price_rate || 0.8;
-
     // Try to find the station ID if available
     let stationId = null;
     if (draftCode.station && draftCode.station.id) {
@@ -218,19 +202,16 @@ export async function saveDraftCode(draftCode, userId) {
           draw_date: draftCode.drawDate,
 
           // Line specific data
-          original_line: line.originalLine,
           bet_type_id: betTypeId,
           bet_type_alias: line.betType?.alias || '',
+          bet_type_name: line.betType?.name || '',
           numbers: line.numbers || [],
 
           // Financial data
           amount: line.amount || 0,
           stake: stakeDetail.stake || 0,
-          price_rate: priceRate,
+          original_stake: stakeDetail.originalStake || 0,
           potential_winning: prizeDetail.potentialPrize || 0,
-
-          // Special handling
-          calculation_formula: stakeDetail.formula || '',
         };
 
         betEntries.push(betEntryData);

@@ -1,112 +1,118 @@
 // src/components/lottery/LotteryResultCard.jsx
-'use client';
-
-import { format } from 'date-fns';
+import React from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 export function LotteryResultCard({ result }) {
-  if (!result) return null;
+  if (!result || !result.station) return null;
 
-  const renderPrize = (prize, isSpecial = false) => {
-    if (!prize || !Array.isArray(prize) || prize.length === 0) return '-';
-    return prize.map((number, idx) => (
-      <span
-        key={idx}
-        className={`inline-block mx-1 font-mono font-semibold ${isSpecial ? 'text-primary text-lg' : ''}`}
-      >
-        {number}
-      </span>
-    ));
+  const regionCode = result.station.region?.code || '';
+  const isNorth = regionCode === 'north';
+
+  // Hàm render một giải
+  const renderPrize = (
+    label,
+    numbers,
+    largeFont = false,
+    customClasses = ''
+  ) => {
+    if (!numbers || numbers.length === 0) return null;
+
+    return (
+      <div className="border-b py-2">
+        <div className="grid grid-cols-12">
+          <div className="col-span-3 flex items-center font-medium">
+            {label}
+          </div>
+          <div
+            className={`col-span-9 grid gap-2 ${numbers.length > 3 ? 'grid-cols-3' : numbers.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
+          >
+            {numbers.map((num, index) => (
+              <div
+                key={index}
+                className={`text-center ${largeFont ? 'text-2xl md:text-3xl font-bold' : 'text-base md:text-lg'} ${customClasses}`}
+              >
+                {num}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
-  const mapDayOfWeek = (day) => {
-    const dayMap = {
-      monday: 'Thứ hai',
-      tuesday: 'Thứ ba',
-      wednesday: 'Thứ tư',
-      thursday: 'Thứ năm',
-      friday: 'Thứ sáu',
-      saturday: 'Thứ bảy',
-      sunday: 'Chủ nhật',
-      daily: 'Hàng ngày',
-    };
-    return dayMap[day.toLowerCase()] || day;
+  // Hàm render giải đặc biệt
+  const renderSpecialPrize = () => {
+    return renderPrize(
+      'Giải Đặc Biệt',
+      result.special_prize,
+      true,
+      'text-red-800 dark:text-red-500'
+    );
   };
+
+  // Xác định thứ tự render các giải dựa trên miền
+  const renderPrizes = () => {
+    if (isNorth) {
+      return (
+        <>
+          {renderSpecialPrize()}
+          {renderPrize('Giải nhất', result.first_prize)}
+          {renderPrize('Giải nhì', result.second_prize)}
+          {renderPrize('Giải ba', result.third_prize)}
+          {renderPrize('Giải tư', result.fourth_prize)}
+          {renderPrize('Giải năm', result.fifth_prize)}
+          {renderPrize('Giải sáu', result.sixth_prize)}
+          {renderPrize('Giải bảy', result.seventh_prize)}
+        </>
+      );
+    } else {
+      return (
+        <>
+          {renderPrize('Giải tám', result.eighth_prize)}
+          {renderPrize('Giải bảy', result.seventh_prize)}
+          {renderPrize('Giải sáu', result.sixth_prize)}
+          {renderPrize('Giải năm', result.fifth_prize)}
+          {renderPrize('Giải tư', result.fourth_prize)}
+          {renderPrize('Giải ba', result.third_prize)}
+          {renderPrize('Giải nhì', result.second_prize)}
+          {renderPrize('Giải nhất', result.first_prize)}
+          {renderSpecialPrize()}
+        </>
+      );
+    }
+  };
+
+  // Format ngày
+  const formattedDate = result.draw_date
+    ? format(new Date(result.draw_date), 'dd/MM/yyyy', { locale: vi })
+    : '';
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2 flex flex-row justify-between items-center">
-        <div>
-          <h3 className="text-lg font-bold">
-            {result.station?.name || 'Đài xổ số'}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {result.draw_date
-              ? format(new Date(result.draw_date), 'dd/MM/yyyy')
-              : ''}
-            {' - '}
-            {mapDayOfWeek(result.day_of_week)}
-          </p>
+    <Card className="h-full overflow-hidden">
+      <CardHeader className="bg-primary/10 pb-2 pt-3">
+        <div className="flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-primary">
+              {result.station.name}
+            </h3>
+            <Badge variant="outline">{result.day_of_week}</Badge>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm">{formattedDate}</div>
+            <div className="text-xs text-muted-foreground">
+              {result.station.region?.code === 'north'
+                ? 'XSMB'
+                : result.station.region?.code === 'central'
+                  ? 'XSMT'
+                  : 'XSMN'}
+            </div>
+          </div>
         </div>
-        <Badge variant={getBadgeVariant(result.station?.region?.code)}>
-          {result.station?.region?.name || 'Miền'}
-        </Badge>
       </CardHeader>
-
-      <CardContent className="pt-0">
-        <div className="space-y-2">
-          <PrizeRow
-            label="Đặc biệt"
-            value={renderPrize(result.special_prize, true)}
-            special
-          />
-          <PrizeRow label="Giải nhất" value={renderPrize(result.first_prize)} />
-          <PrizeRow label="Giải nhì" value={renderPrize(result.second_prize)} />
-          <PrizeRow label="Giải ba" value={renderPrize(result.third_prize)} />
-          <PrizeRow label="Giải tư" value={renderPrize(result.fourth_prize)} />
-          <PrizeRow label="Giải năm" value={renderPrize(result.fifth_prize)} />
-          <PrizeRow label="Giải sáu" value={renderPrize(result.sixth_prize)} />
-          <PrizeRow
-            label="Giải bảy"
-            value={renderPrize(result.seventh_prize)}
-          />
-          {result.eighth_prize && result.eighth_prize.length > 0 && (
-            <PrizeRow
-              label="Giải tám"
-              value={renderPrize(result.eighth_prize)}
-            />
-          )}
-        </div>
-      </CardContent>
+      <CardContent className="p-3">{renderPrizes()}</CardContent>
     </Card>
   );
-}
-
-function PrizeRow({ label, value, special = false }) {
-  return (
-    <div
-      className={`flex justify-between items-center py-1 ${special ? 'bg-primary/5 rounded-md px-2' : ''}`}
-    >
-      <div className="font-medium w-20">{label}</div>
-      <div
-        className={`flex flex-wrap justify-end ${special ? 'text-primary font-bold' : ''}`}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function getBadgeVariant(regionCode) {
-  switch (regionCode) {
-    case 'north':
-      return 'secondary';
-    case 'central':
-      return 'outline';
-    case 'south':
-      return 'default';
-    default:
-      return 'default';
-  }
 }

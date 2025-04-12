@@ -417,6 +417,7 @@ export function ChatProvider({ children }) {
         const prizeResult = calculatePotentialPrize(parseResult, betConfig);
 
         const totalStake = stakeResult.success ? stakeResult.totalStake : 0;
+
         const totalPotential = prizeResult.success
           ? prizeResult.totalPotential
           : 0;
@@ -735,7 +736,6 @@ export function ChatProvider({ children }) {
               );
 
               if (singleLineResult.success) {
-                // Add the individual bet code to drafts with a unique ID
                 addDraftCode({
                   id: uid(),
                   station: singleLineResult.parseResult.station,

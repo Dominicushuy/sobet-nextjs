@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { RefreshCw, CalendarCheck, Filter, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, subDays, isBefore, isAfter } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
@@ -27,6 +27,10 @@ export default function LotteryResultsPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [selectedDate, setSelectedDate] = useState(null);
   const [isAfterDrawTime, setIsAfterDrawTime] = useState(false);
+
+  // 7 ngày gần nhất
+  const today = new Date();
+  const sevenDaysAgo = subDays(today, 7); // 7 ngày bao gồm ngày hiện tại
 
   // Check if current time is after draw time (16:30)
   useEffect(() => {
@@ -94,8 +98,13 @@ export default function LotteryResultsPage() {
     }
   );
 
-  // Handle date change
+  // Handle date change với validation
   const handleDateChange = (date) => {
+    // Kiểm tra nếu ngày được chọn nằm trong phạm vi cho phép
+    if (date && (isBefore(date, sevenDaysAgo) || isAfter(date, today))) {
+      toast.error('Chỉ được chọn ngày trong phạm vi 7 ngày gần nhất');
+      return;
+    }
     setSelectedDate(date);
   };
 
@@ -175,7 +184,7 @@ export default function LotteryResultsPage() {
       <div className="bg-card rounded-lg p-4 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* DatePicker */}
+            {/* DatePicker với giới hạn 7 ngày */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -196,6 +205,11 @@ export default function LotteryResultsPage() {
                   selected={selectedDate}
                   onSelect={handleDateChange}
                   initialFocus
+                  fromDate={sevenDaysAgo}
+                  toDate={today}
+                  disabled={(date) =>
+                    isBefore(date, sevenDaysAgo) || isAfter(date, today)
+                  }
                 />
               </PopoverContent>
             </Popover>

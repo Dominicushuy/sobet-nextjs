@@ -205,7 +205,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                 </div>
 
                 {/* Money summary */}
-                <div className="grid grid-cols-3 gap-4 py-2">
+                <div className="grid grid-cols-4 gap-3 py-2">
                   <div className="bg-muted p-3 rounded-lg">
                     <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1.5">
                       <DollarSign className="h-3.5 w-3.5" />
@@ -219,9 +219,20 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                   <div className="bg-primary/10 p-3 rounded-lg">
                     <div className="text-sm text-primary mb-1 flex items-center gap-1.5">
                       <DollarSign className="h-3.5 w-3.5" />
-                      Tiền đóng
+                      Phí đóng
                     </div>
                     <div className="text-lg font-semibold text-primary">
+                      {formatMoney(betCode.stakeDetails[0]?.originalStake || 0)}
+                      đ
+                    </div>
+                  </div>
+
+                  <div className="bg-orange-400 p-3 rounded-lg">
+                    <div className="text-sm text-white mb-1 flex items-center gap-1.5">
+                      <DollarSign className="h-3.5 w-3.5" />
+                      Tiền thu
+                    </div>
+                    <div className="text-lg font-semibold text-white">
                       {formatMoney(betCode.stakeAmount || 0)}đ
                     </div>
                   </div>
@@ -496,7 +507,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
                   <div className="space-y-4">
                     <h3 className="text-sm font-medium flex items-center gap-1.5">
                       <Award className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      Chi tiết tiềm năng thắng
+                      Chi tiết tiềm năng thắng cơ bản (ít nhất 1 số)
                     </h3>
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                       {betCode.prizeDetails.map((detail, idx) => (
@@ -540,7 +551,7 @@ const BetCodeDetailModal = ({ betCode, isOpen, onClose }) => {
 
                             <div>
                               <span className="text-green-700 dark:text-green-500">
-                                Tỉ lệ thắng:
+                                Tỉ lệ trả thưởng:
                               </span>{' '}
                               <span className="font-medium">
                                 {detail.payoutRate || 0}

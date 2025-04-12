@@ -1,4 +1,3 @@
-// Trong hàm BetCodeCard, thay đổi phần handleConfirm
 import React, { useState } from 'react';
 import {
   Card,
@@ -11,11 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Edit,
   Trash2,
   FileText,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Tag,
   DollarSign,
@@ -46,10 +42,10 @@ const BetCodeCard = ({
   selected = false,
   onSelectChange = null,
 }) => {
+  // console.log('BetCodeCard', betCode);
+
   const { removeDraftCode, confirmDraftCode, isSavingDraftCode } = useBetCode();
 
-  const [showDetails, setShowDetails] = useState(false);
-  const [showFullCode, setShowFullCode] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -224,19 +220,6 @@ const BetCodeCard = ({
                 </div>
               </div>
             </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setShowDetails(!showDetails)}
-            >
-              {showDetails ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
           </div>
         </CardHeader>
 
@@ -261,16 +244,6 @@ const BetCodeCard = ({
               )}
             </Button>
           </div>
-          {betText.length > 60 && (
-            <Button
-              variant="link"
-              size="sm"
-              className="px-1 h-5 text-xs"
-              onClick={() => setShowFullCode(!showFullCode)}
-            >
-              {showFullCode ? 'Thu gọn' : 'Xem đầy đủ'}
-            </Button>
-          )}
 
           {/* Key information in a compact form */}
           <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-sm">
@@ -288,14 +261,21 @@ const BetCodeCard = ({
             </div>
             <div className="flex items-center gap-1">
               <DollarSign className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
-              <span className="text-muted-foreground">Tiền đóng:</span>{' '}
+              <span className="text-muted-foreground">Phí đóng:</span>{' '}
               <span className="font-medium text-blue-600 dark:text-blue-400">
+                {formatMoney(betCode.stakeDetails[0]?.originalStake || 0)}đ
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <DollarSign className="h-3.5 w-3.5 text-orange-500 dark:text-orange-400" />
+              <span className="text-muted-foreground">Tiền thu:</span>{' '}
+              <span className="font-medium text-orange-600 dark:text-orange-400">
                 {formatMoney(betCode.stakeAmount || 0)}đ
               </span>
             </div>
             <div className="flex items-center gap-1">
               <Award className="h-3.5 w-3.5 text-green-500 dark:text-green-400" />
-              <span className="text-muted-foreground">Thắng:</span>{' '}
+              <span className="text-muted-foreground">Tiềm năng thắng:</span>{' '}
               <span className="font-medium text-green-600 dark:text-green-400">
                 {formatMoney(betCode.potentialWinning || 0)}đ
               </span>
@@ -322,63 +302,6 @@ const BetCodeCard = ({
                   </Badge>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Details - only visible when expanded */}
-          {showDetails && (
-            <div className="mt-2 pt-2 border-t dark:border-gray-800 text-sm space-y-3">
-              {betCode.lines && betCode.lines.length > 0 && (
-                <div className="space-y-2">
-                  <div className="font-medium text-xs flex items-center gap-1">
-                    <FileText className="h-3.5 w-3.5" />
-                    Chi tiết dòng:
-                  </div>
-                  <div className="grid gap-1.5 max-h-60 overflow-y-auto pr-1">
-                    {betCode.lines.map((line, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-muted p-2 rounded-md text-xs grid grid-cols-2 gap-x-2 gap-y-0.5"
-                      >
-                        <div className="col-span-2 font-medium text-muted-foreground pb-1">
-                          Dòng {idx + 1}: {line.originalLine}
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Kiểu:</span>{' '}
-                          <span className="font-medium">
-                            {line.betType?.alias || 'N/A'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Tiền:</span>{' '}
-                          <span className="font-medium">
-                            {formatMoney(line.amount || 0)}đ
-                          </span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground">Số:</span>{' '}
-                          <span className="font-medium">
-                            {line.numbers?.join(', ') || 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {betCode.formattedText &&
-                betCode.formattedText !== betCode.originalText && (
-                  <div>
-                    <div className="font-medium text-xs flex items-center gap-1 mb-1">
-                      <FileText className="h-3.5 w-3.5" />
-                      Mã cược đã định dạng:
-                    </div>
-                    <pre className="bg-muted p-2 rounded-md text-xs overflow-x-auto whitespace-pre-wrap">
-                      {betCode.formattedText}
-                    </pre>
-                  </div>
-                )}
             </div>
           )}
         </CardContent>

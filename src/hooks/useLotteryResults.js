@@ -17,8 +17,10 @@ export function useLotteryResults() {
   // Fetch latest result date
   const { data: latestDateData, isLoading: isLoadingLatestDate } =
     useServerQuery('latestResultDate', () => getLatestResultDate(), {
-      onError: (error) => {
-        toast.error(`Error fetching latest result date: ${error.message}`);
+      onError: () => {
+        toast.error(
+          'Lỗi khi lấy ngày kết quả xổ số mới nhất. Vui lòng thử lại hoặc kiểm tra lại quyền truy cập.'
+        );
       },
     });
 
@@ -38,8 +40,10 @@ export function useLotteryResults() {
     ['lotteryResults', fetchParams()],
     () => fetchLotteryResults(fetchParams()),
     {
-      onError: (error) => {
-        toast.error(`Error fetching lottery results: ${error.message}`);
+      onError: () => {
+        toast.error(
+          'Lỗi khi lấy kết quả xổ số. Vui lòng thử lại hoặc kiểm tra lại quyền truy cập.'
+        );
       },
     }
   );
@@ -56,13 +60,15 @@ export function useLotteryResults() {
       onSuccess: (result) => {
         if (result.data) {
           toast.success(
-            `Successfully crawled ${result.data.total} results, saved ${result.data.saved} new results`
+            `Đã lấy ${result.data.total} kết quả, lưu ${result.data.saved} kết quả mới`
           );
           refetchResults();
         }
       },
-      onError: (error) => {
-        toast.error(`Error crawling results: ${error.message}`);
+      onError: () => {
+        toast.error(
+          'Lỗi khi lấy kết quả. Vui lòng thử lại hoặc kiểm tra lại quyền truy cập.'
+        );
       },
     }
   );

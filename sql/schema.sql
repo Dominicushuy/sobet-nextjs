@@ -136,21 +136,18 @@ CREATE TABLE bet_entries (
   draw_date DATE, -- Ngày quay thưởng dự kiến
   
   -- Thông tin dòng cược
-  original_line TEXT NOT NULL, -- Nội dung gốc của dòng cược
   bet_type_id INTEGER REFERENCES bet_types(id), -- ID của loại cược (đầu, đuôi, lô, v.v.)
   bet_type_alias VARCHAR(100) NOT NULL, -- Tên viết tắt của loại cược
+  bet_type_name VARCHAR(100), -- Tên đầy đủ của loại cược
   numbers TEXT[] NOT NULL, -- Các số được đặt cược
   
   -- Thông tin tài chính
   amount NUMERIC(12, 2) NOT NULL, -- Số tiền đặt cược từ người dùng
   stake NUMERIC(12, 2) NOT NULL, -- Số tiền đóng thực tế sau khi tính toán
-  price_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.8, -- Tỷ lệ giá áp dụng
+  original_stake NUMERIC(12, 2) NOT NULL, -- Số tiền đóng gốc (trước khi tính toán)
   potential_winning NUMERIC(12, 2) NOT NULL, -- Tổng số tiền thưởng tiềm năng
   winning_status BOOLEAN, -- Trạng thái trúng thưởng (true/false/null = chưa xác định)
   actual_winning NUMERIC(12, 2), -- Số tiền thưởng thực tế nhận được
-  
-  -- Xử lý đặc biệt
-  calculation_formula TEXT, -- Công thức tính toán đã sử dụng
   
   -- Đối soát và xác minh
   reconciliation_id INTEGER REFERENCES verifications(id) ON DELETE SET NULL, -- ID của bản ghi đối soát
@@ -160,13 +157,8 @@ CREATE TABLE bet_entries (
   -- Thêm các cột liên kết với bảng lottery_results
   lottery_result_id INTEGER REFERENCES lottery_results(id), -- ID tham chiếu đến kết quả xổ số
   matched_prize_levels TEXT[], -- Các loại giải thưởng đã trúng, ví dụ: ['special_prize', 'first_prize']
-  matched_number TEXT, -- Số trúng thưởng chính
   matched_numbers TEXT[], -- Tất cả các số trúng (cho trường hợp đá, đảo,...)
-  prize_category VARCHAR(50), -- Loại giải thưởng (đầu, đuôi, lô, 3 càng,...)
-  prize_position INTEGER, -- Vị trí trúng giải (nếu có nhiều vị trí)
   result_verified_at TIMESTAMPTZ, -- Thời điểm xác minh kết quả
-  result_verified_by UUID REFERENCES users(id), -- Người xác minh kết quả - tham chiếu đến users
-  result_details JSONB, -- Chi tiết bổ sung về kết quả khớp
 );
 
 -- Bảng LotteryResults (Kết quả xổ số)
@@ -174,7 +166,7 @@ CREATE TABLE lottery_results (
   id SERIAL PRIMARY KEY,
   station_id INTEGER NOT NULL REFERENCES stations(id),
   draw_date DATE NOT NULL,                    -- Ngày quay số
-  day_of_week VARCHAR(20) NOT NULL,           -- Thứ trong tuần
+  day_of_week INTEGER NOT NULL,               -- Thứ trong tuần (1-7)
   special_prize TEXT[] NOT NULL,              -- Giải đặc biệt
   first_prize TEXT[] NOT NULL,                -- Giải nhất
   second_prize TEXT[] NOT NULL,               -- Giải nhì

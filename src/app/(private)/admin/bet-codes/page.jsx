@@ -217,6 +217,8 @@ export default function AdminBetCodesPage() {
     );
   };
 
+  console.log('Filtered Entries:', filteredEntries);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">

@@ -334,6 +334,10 @@ export function BetCodeProvider({ children }) {
 
   // Save all draft codes
   const confirmDraftCodes = useCallback(() => {
+    // console.log(draftCodes);
+
+    // return;
+
     if (!user?.id) {
       toast.error('Bạn cần đăng nhập để lưu mã cược');
       return;

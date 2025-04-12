@@ -1,10 +1,20 @@
-// src/app/actions/lottery-results.js
 'use server';
 
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import axios from 'axios';
 import { JSDOM } from 'jsdom';
+
+// Mảng mapping giữa định dạng slug và index
+const DAYS_MAPPING = [
+  'chu-nhat', // 0
+  'thu-hai', // 1
+  'thu-ba', // 2
+  'thu-tu', // 3
+  'thu-nam', // 4
+  'thu-sau', // 5
+  'thu-bay', // 6
+];
 
 // Cập nhật hàm fetchLotteryResults để hỗ trợ tham số date
 export async function fetchLotteryResults({ date } = {}) {
@@ -39,18 +49,18 @@ export async function fetchLotteryResults({ date } = {}) {
     const { data, error } = await supabaseAdmin
       .from('lottery_results')
       .select(
-        `
-        *,
-        station:stations(
-          id,
-          name,
-          region_id,
-          region:regions(
-            id,
-            name,
-            code
-          )
-        )
+        `  
+        *,  
+        station:stations(  
+          id,  
+          name,  
+          region_id,  
+          region:regions(  
+            id,  
+            name,  
+            code  
+          )  
+        )  
       `
       )
       .eq('draw_date', targetDate)
@@ -184,42 +194,27 @@ export async function crawlLatestResults(userId, specificDate = null) {
 
     // Xử lý ngày cụ thể nếu được cung cấp
     let targetDate;
-    let dayOfWeek;
+    let dayOfWeekSlug;
+    let dayOfWeekIndex;
 
     if (specificDate) {
       // Sử dụng ngày cụ thể được cung cấp
       targetDate = new Date(specificDate);
 
       // Xác định thứ trong tuần từ ngày cụ thể
-      const daysMapping = [
-        'chu-nhat',
-        'thu-hai',
-        'thu-ba',
-        'thu-tu',
-        'thu-nam',
-        'thu-sau',
-        'thu-bay',
-      ];
-      dayOfWeek = daysMapping[targetDate.getDay()];
+      dayOfWeekIndex = targetDate.getDay(); // 0 = Chủ nhật, 1 = Thứ hai, ...
+      dayOfWeekSlug = DAYS_MAPPING[dayOfWeekIndex];
     } else {
       // Sử dụng ngày hiện tại
       targetDate = new Date();
-      const daysMapping = [
-        'chu-nhat',
-        'thu-hai',
-        'thu-ba',
-        'thu-tu',
-        'thu-nam',
-        'thu-sau',
-        'thu-bay',
-      ];
-      dayOfWeek = daysMapping[targetDate.getDay()];
+      dayOfWeekIndex = targetDate.getDay();
+      dayOfWeekSlug = DAYS_MAPPING[dayOfWeekIndex];
     }
 
     const results = [];
 
     for (const mien of mienList) {
-      const url = `${baseUrl}/${mien}/${dayOfWeek}.html`;
+      const url = `${baseUrl}/${mien}/${dayOfWeekSlug}.html`;
 
       try {
         const response = await axios.get(url);
@@ -228,7 +223,7 @@ export async function crawlLatestResults(userId, specificDate = null) {
         const document = dom.window.document;
 
         if (mien === 'mien-bac') {
-          // [Mã xử lý cho miền Bắc giữ nguyên]
+          // [Mã xử lý cho miền Bắc]
           const boxKqxs = document.querySelector('.box_kqxs');
           if (boxKqxs) {
             // Lấy thông tin tỉnh
@@ -251,16 +246,6 @@ export async function crawlLatestResults(userId, specificDate = null) {
               const ngayElement = boxKqxs.querySelector('.ngay a');
               const rawDate = ngayElement ? ngayElement.textContent.trim() : '';
               ngay = formatDate(rawDate);
-            }
-
-            // Lấy thứ
-            let thu;
-            if (specificDate) {
-              // Thứ đã được xác định ở trên
-              thu = dayOfWeek;
-            } else {
-              const thuElement = boxKqxs.querySelector('.thu a');
-              thu = thuElement ? thuElement.textContent.trim() : '';
             }
 
             // Tìm station phù hợp
@@ -303,7 +288,7 @@ export async function crawlLatestResults(userId, specificDate = null) {
                   results.push({
                     station_id: matchedStation.id,
                     draw_date: ngay,
-                    day_of_week: thu,
+                    day_of_week: dayOfWeekIndex, // Lưu dưới dạng số
                     ...formattedData,
                     source: url,
                     created_by: userId,
@@ -313,19 +298,10 @@ export async function crawlLatestResults(userId, specificDate = null) {
             }
           }
         } else {
-          // [Mã xử lý cho miền Nam và miền Trung giữ nguyên]
+          // [Mã xử lý cho miền Nam và miền Trung]
           const targetTable = document.querySelector('table.bkqmiennam');
           if (targetTable) {
-            // Lấy thông tin ngày và thứ
-            let thu;
-            if (specificDate) {
-              // Thứ đã được xác định ở trên
-              thu = dayOfWeek;
-            } else {
-              const thuElement = targetTable.querySelector('.thu a');
-              thu = thuElement ? thuElement.textContent.trim() : '';
-            }
-
+            // Lấy thông tin ngày
             let ngay;
             if (specificDate) {
               ngay = specificDate;
@@ -386,7 +362,7 @@ export async function crawlLatestResults(userId, specificDate = null) {
                     results.push({
                       station_id: matchedStation.id,
                       draw_date: ngay,
-                      day_of_week: thu,
+                      day_of_week: dayOfWeekIndex, // Lưu dưới dạng số
                       ...formattedData,
                       source: url,
                       created_by: userId,

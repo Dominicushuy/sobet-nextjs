@@ -174,9 +174,6 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
   // Get payout rate, preferring custom rate if available
   let payoutRate = betType.custom_payout_rate || betType.payout_rate || 0;
 
-  // Apply commission rate from BET_CONFIG
-  const priceRate = betConfig.commissionSettings.priceRate || 0.8;
-
   // Handle complex payout rate structures
   if (typeof payoutRate === 'object') {
     if (
@@ -206,9 +203,6 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
       }
     }
   }
-
-  // Apply commission price rate if available
-  payoutRate = payoutRate * priceRate;
 
   return {
     id: betType.name,
@@ -265,9 +259,8 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
     const n = numberInfo.count;
     const maxPairs = (n * (n - 1)) / 2; // C(n,2) = số cặp tối đa
 
-    // Tính tiềm năng thắng (không nhân với combinationCount)
-    const potentialPrize =
-      stationInfo.count * maxPairs * betAmount * payoutRate;
+    // const potentialPrize = maxPairs * betAmount * payoutRate;
+    const potentialPrize = betAmount * payoutRate;
 
     return {
       potentialPrize,
@@ -276,7 +269,8 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
       betPairs: maxPairs,
       betAmount,
       payoutRate,
-      formula: `${stationInfo.count} × ${maxPairs} × ${betAmount} × ${payoutRate}`,
+      // formula: `${maxPairs} × ${betAmount} × ${payoutRate}`,
+      formula: `${betAmount} × ${payoutRate}`,
     };
   }
   // Kiểm tra nếu là kiểu đảo (permutation) từ BET_CONFIG
@@ -290,8 +284,8 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
     }
 
     // Tính tiềm năng thắng (nhân với combinationCount)
-    const potentialPrize =
-      stationInfo.count * totalPermutations * betAmount * payoutRate;
+    // const potentialPrize = totalPermutations * betAmount * payoutRate;
+    const potentialPrize = betAmount * payoutRate;
 
     return {
       potentialPrize,
@@ -301,12 +295,13 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
       numberCount: numbers.length,
       betAmount,
       payoutRate,
-      formula: `${stationInfo.count} × ${totalPermutations} × ${betAmount} × ${payoutRate}`,
+      // formula: `${totalPermutations} × ${betAmount} × ${payoutRate}`,
+      formula: `${betAmount} × ${payoutRate}`,
     };
   } else {
     // Tính tiềm năng thắng
-    const potentialPrize =
-      stationInfo.count * numberInfo.count * betAmount * payoutRate;
+    // const potentialPrize = numberInfo.count * betAmount * payoutRate;
+    const potentialPrize = betAmount * payoutRate;
 
     return {
       potentialPrize,
@@ -315,7 +310,8 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
       numberCount: numberInfo.count,
       betAmount,
       payoutRate,
-      formula: `${stationInfo.count} × ${numberInfo.count} × ${betAmount} × ${payoutRate}`,
+      // formula: `${numberInfo.count} × ${betAmount} × ${payoutRate}`,
+      formula: `${betAmount} × ${payoutRate}`,
     };
   }
 }

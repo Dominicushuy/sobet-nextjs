@@ -1,18 +1,12 @@
 'use client';
 
 import { useState, Fragment } from 'react';
-import { ChevronDown, ChevronRight, Info } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
 import { BetStatusBadge } from './BetStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { TableCell, TableRow } from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 export function StationEntriesGroup({
   entriesByStation,
@@ -81,30 +75,28 @@ export function StationEntriesGroup({
                         : entry.station_data?.name) ||
                       '-'}
                   </TableCell>
-                  <TableCell>{entry.bet_type_alias || '-'}</TableCell>
                   <TableCell>
+                    {entry.bet_type_name} ({entry.bet_type_alias})
+                  </TableCell>
+                  <TableCell className="flex items-center gap-2">
                     {Array.isArray(entry.numbers)
-                      ? entry.numbers.join(', ')
+                      ? entry.numbers.map((number, idx) => (
+                          <Badge
+                            key={idx}
+                            variant="outline"
+                            className="font-medium bg-primary/10 text-primary border-primary/20 text-xs"
+                          >
+                            {number}
+                          </Badge>
+                        ))
                       : entry.numbers || '-'}
                   </TableCell>
                   <TableCell>{formatCurrency(entry.amount)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      {formatCurrency(entry.stake)}
-                      {entry.calculation_formula && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 text-muted-foreground hover:text-primary cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm">
-                              <p className="font-mono text-xs">
-                                {entry.calculation_formula}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
+                      <span className="text-orange-500 font-semibold">
+                        {formatCurrency(entry.original_stake)}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
