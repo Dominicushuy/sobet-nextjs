@@ -3,7 +3,7 @@
 'use client';
 
 import React from 'react';
-import BetCodeList from '@/components/bet/BetCodeList';
+import BetCodeList from '@/components/betting/BetCodeList';
 import ChatContainer from '@/components/chat/ChatContainer';
 import { BetCodeProvider } from '@/contexts/BetCodeContext';
 import { ChatProvider } from '@/contexts/ChatContext';

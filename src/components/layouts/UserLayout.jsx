@@ -46,7 +46,7 @@ const navItems = [
   },
   {
     title: 'Đặt cược',
-    href: '/bet',
+    href: '/betting',
     icon: MessageCircle,
   },
   {
