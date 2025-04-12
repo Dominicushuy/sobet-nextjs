@@ -1,18 +1,7 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
-import { format } from 'date-fns';
-import {
-  CalendarIcon,
-  Search,
-  X,
-  RefreshCw,
-  ChevronDown,
-  ChevronUp,
-  Filter,
-  Info,
-  ChevronRight,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, X, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useServerQuery } from '@/hooks/useServerAction';
 import {
@@ -29,24 +18,10 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -56,6 +31,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
+import { DateSearchFilter } from '@/components/bet-codes/DateSearchFilter';
+import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup';
 
 export default function AdminBetCodesPage() {
   const { user } = useAuth();
@@ -64,8 +41,8 @@ export default function AdminBetCodesPage() {
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
+  const [isUserSelectorExpanded, setIsUserSelectorExpanded] = useState(true);
   const [expandedUsers, setExpandedUsers] = useState({});
-  const [expandedStations, setExpandedStations] = useState({});
 
   // Query for users created by this admin
   const { data: usersData, isLoading: isLoadingUsers } = useServerQuery(
@@ -96,15 +73,6 @@ export default function AdminBetCodesPage() {
       setExpandedUsers(initialExpandedState);
     }
   }, [usersData?.data, selectedUserIds.length]);
-
-  // Toggle station group expansion
-  const toggleStationExpansion = (userId, stationKey) => {
-    const key = `${userId}-${stationKey}`;
-    setExpandedStations((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
 
   // Query for bet entries
   const {
@@ -267,28 +235,25 @@ export default function AdminBetCodesPage() {
         </Button>
       </div>
 
-      {/* Filter Card */}
+      {/* User Filter Card */}
       <Card>
         <CardHeader
           className="pb-3 flex flex-row items-center justify-between cursor-pointer"
-          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          onClick={() => setIsUserSelectorExpanded(!isUserSelectorExpanded)}
         >
           <div>
             <CardTitle className="flex items-center">
-              <Filter className="h-5 w-5 mr-2" />
-              Bộ lọc
-              {selectedDate || selectedUserIds.length > 0 ? (
+              Người dùng
+              {selectedUserIds.length > 0 ? (
                 <Badge variant="secondary" className="ml-2">
-                  {selectedUserIds.length} users {selectedDate ? '+ date' : ''}
+                  {selectedUserIds.length} người dùng
                 </Badge>
               ) : null}
             </CardTitle>
-            <CardDescription>
-              Lọc danh sách mã cược theo người dùng và ngày
-            </CardDescription>
+            <CardDescription>Chọn người dùng để xem mã cược</CardDescription>
           </div>
           <Button variant="ghost" size="icon">
-            {isFilterExpanded ? (
+            {isUserSelectorExpanded ? (
               <ChevronUp className="h-4 w-4" />
             ) : (
               <ChevronDown className="h-4 w-4" />
@@ -296,142 +261,96 @@ export default function AdminBetCodesPage() {
           </Button>
         </CardHeader>
 
-        {isFilterExpanded && (
+        {isUserSelectorExpanded && (
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {/* User filter */}
-              <div className="space-y-2 md:col-span-2">
-                <Label>Người dùng</Label>
-                <div className="border rounded-md p-2">
-                  <div className="flex items-center space-x-2 p-2 mb-2">
-                    <Checkbox
-                      id="select-all"
-                      checked={
-                        filteredUsers.length > 0 &&
-                        selectedUserIds.length === filteredUsers.length
-                      }
-                      onCheckedChange={handleSelectAllUsers}
-                    />
-                    <label
-                      htmlFor="select-all"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Chọn tất cả ({filteredUsers.length}/
-                      {usersData?.data?.length || 0})
-                    </label>
-
-                    <div className="relative flex-1 ml-4">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Tìm người dùng..."
-                        value={userSearchTerm}
-                        onChange={(e) => setUserSearchTerm(e.target.value)}
-                        className="pl-8"
-                      />
-                      {userSearchTerm && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full"
-                          onClick={() => setUserSearchTerm('')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <ScrollArea className="h-32">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
-                      {isLoadingUsers ? (
-                        <div className="flex justify-center py-2 col-span-3">
-                          <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-                        </div>
-                      ) : (
-                        filteredUsers.map((user) => (
-                          <div
-                            key={user.id}
-                            className="flex items-center space-x-2 p-2"
-                          >
-                            <Checkbox
-                              id={`user-${user.id}`}
-                              checked={selectedUserIds.includes(user.id)}
-                              onCheckedChange={() => handleUserToggle(user.id)}
-                            />
-                            <label
-                              htmlFor={`user-${user.id}`}
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 truncate"
-                              title={
-                                user.full_name || user.username || user.email
-                              }
-                            >
-                              {user.full_name || user.username || user.email}
-                            </label>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
-                </div>
-              </div>
-
-              {/* Date filter */}
-              <div className="space-y-2">
-                <Label>Ngày</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, 'PPP') : 'Chọn ngày'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Search filter */}
-              <div className="space-y-2">
-                <Label>Tìm kiếm mã cược</Label>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Tìm kiếm mã cược..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8"
+            <div className="space-y-2">
+              <div className="border rounded-md p-2">
+                <div className="flex items-center space-x-2 p-2 mb-2">
+                  <Checkbox
+                    id="select-all"
+                    checked={
+                      filteredUsers.length > 0 &&
+                      selectedUserIds.length === filteredUsers.length
+                    }
+                    onCheckedChange={handleSelectAllUsers}
                   />
-                  {searchTerm && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full"
-                      onClick={() => setSearchTerm('')}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
+                  <label
+                    htmlFor="select-all"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Chọn tất cả ({filteredUsers.length}/
+                    {usersData?.data?.length || 0})
+                  </label>
 
-            <div className="mt-4 flex justify-end">
-              <Button variant="outline" onClick={resetFilters}>
-                Xóa bộ lọc
-              </Button>
+                  <div className="relative flex-1 ml-4">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Tìm người dùng..."
+                      value={userSearchTerm}
+                      onChange={(e) => setUserSearchTerm(e.target.value)}
+                      className="pl-8"
+                    />
+                    {userSearchTerm && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full"
+                        onClick={() => setUserSearchTerm('')}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <ScrollArea className="h-32">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
+                    {isLoadingUsers ? (
+                      <div className="flex justify-center py-2 col-span-3">
+                        <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center space-x-2 p-2"
+                        >
+                          <Checkbox
+                            id={`user-${user.id}`}
+                            checked={selectedUserIds.includes(user.id)}
+                            onCheckedChange={() => handleUserToggle(user.id)}
+                          />
+                          <label
+                            htmlFor={`user-${user.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 truncate"
+                            title={
+                              user.full_name || user.username || user.email
+                            }
+                          >
+                            {user.full_name || user.username || user.email}
+                          </label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
           </CardContent>
         )}
       </Card>
+
+      {/* Date and Search Filter */}
+      <DateSearchFilter
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        resetFilters={resetFilters}
+        onRefresh={refetchEntries}
+        isExpanded={isFilterExpanded}
+        setIsExpanded={setIsFilterExpanded}
+      />
 
       {/* Status info */}
       <div className="flex items-center justify-between">
@@ -468,6 +387,38 @@ export default function AdminBetCodesPage() {
           const userEntries = entriesByUser[userId];
           const userTotal = userTotals[userId];
           const isExpanded = expandedUsers[userId];
+
+          // Group entries by station
+          const entriesByStation = {};
+          const stationTotals = {};
+
+          userEntries.forEach((entry) => {
+            const stationName =
+              entry.station?.name ||
+              (entry.station_data?.multiStation
+                ? `${entry.station_data.count} Đài ${entry.station_data.name}`
+                : entry.station_data?.name) ||
+              'Không xác định';
+
+            const stationKey = stationName.replace(/\s+/g, '-').toLowerCase();
+
+            if (!entriesByStation[stationKey]) {
+              entriesByStation[stationKey] = {
+                name: stationName,
+                entries: [],
+              };
+              stationTotals[stationKey] = {
+                totalAmount: 0,
+                totalStake: 0,
+                count: 0,
+              };
+            }
+
+            entriesByStation[stationKey].entries.push(entry);
+            stationTotals[stationKey].totalAmount += Number(entry.amount) || 0;
+            stationTotals[stationKey].totalStake += Number(entry.stake) || 0;
+            stationTotals[stationKey].count += 1;
+          });
 
           return (
             <Card key={userId} className="mb-4">
@@ -528,157 +479,11 @@ export default function AdminBetCodesPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(() => {
-                          // Group entries by station
-                          const entriesByStation = {};
-                          const stationTotals = {};
-
-                          userEntries.forEach((entry) => {
-                            const stationName =
-                              entry.station?.name ||
-                              (entry.station_data?.multiStation
-                                ? `${entry.station_data.count} Đài ${entry.station_data.name}`
-                                : entry.station_data?.name) ||
-                              'Không xác định';
-
-                            const stationKey = stationName
-                              .replace(/\s+/g, '-')
-                              .toLowerCase();
-
-                            if (!entriesByStation[stationKey]) {
-                              entriesByStation[stationKey] = {
-                                name: stationName,
-                                entries: [],
-                              };
-                              stationTotals[stationKey] = {
-                                totalAmount: 0,
-                                totalStake: 0,
-                                count: 0,
-                              };
-                            }
-
-                            entriesByStation[stationKey].entries.push(entry);
-                            stationTotals[stationKey].totalAmount +=
-                              Number(entry.amount) || 0;
-                            stationTotals[stationKey].totalStake +=
-                              Number(entry.stake) || 0;
-                            stationTotals[stationKey].count += 1;
-                          });
-
-                          // Render grouped entries
-                          return Object.keys(entriesByStation).map(
-                            (stationKey) => {
-                              const stationData = entriesByStation[stationKey];
-                              const stationTotal = stationTotals[stationKey];
-                              const expandedKey = `${userId}-${stationKey}`;
-                              const isStationExpanded =
-                                expandedStations[expandedKey] === undefined
-                                  ? true
-                                  : expandedStations[expandedKey];
-
-                              return (
-                                <Fragment key={stationKey}>
-                                  {/* Station group header */}
-                                  <TableRow
-                                    className="bg-muted/40 hover:bg-muted cursor-pointer"
-                                    onClick={() =>
-                                      toggleStationExpansion(userId, stationKey)
-                                    }
-                                  >
-                                    <TableCell colSpan={7} className="py-2">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          {isStationExpanded ? (
-                                            <ChevronDown className="h-4 w-4" />
-                                          ) : (
-                                            <ChevronRight className="h-4 w-4" />
-                                          )}
-                                          <span className="font-medium">
-                                            {stationData.name}
-                                          </span>
-                                          <Badge
-                                            variant="outline"
-                                            className="ml-2"
-                                          >
-                                            {stationTotal.count} mã
-                                          </Badge>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-sm">
-                                          <span>
-                                            {formatCurrency(
-                                              stationTotal.totalAmount
-                                            )}
-                                          </span>
-                                          <span>→</span>
-                                          <span className="font-medium">
-                                            {formatCurrency(
-                                              stationTotal.totalStake
-                                            )}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-
-                                  {/* Entries for this station */}
-                                  {isStationExpanded &&
-                                    stationData.entries.map((entry) => (
-                                      <TableRow key={entry.id}>
-                                        <TableCell className="pl-8">
-                                          {entry.station?.name ||
-                                            (entry.station_data?.multiStation
-                                              ? `${entry.station_data.count} Đài ${entry.station_data.name}`
-                                              : entry.station_data?.name) ||
-                                            '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                          {entry.bet_type_alias || '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                          {Array.isArray(entry.numbers)
-                                            ? entry.numbers.join(', ')
-                                            : entry.numbers || '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                          {formatCurrency(entry.amount)}
-                                        </TableCell>
-                                        <TableCell>
-                                          <div className="flex items-center gap-1">
-                                            {formatCurrency(entry.stake)}
-                                            {entry.calculation_formula && (
-                                              <TooltipProvider>
-                                                <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-primary cursor-help" />
-                                                  </TooltipTrigger>
-                                                  <TooltipContent className="max-w-sm">
-                                                    <p className="font-mono text-xs">
-                                                      {
-                                                        entry.calculation_formula
-                                                      }
-                                                    </p>
-                                                  </TooltipContent>
-                                                </Tooltip>
-                                              </TooltipProvider>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                        <TableCell>
-                                          <BetStatusBadge
-                                            status={entry.status}
-                                            winningStatus={entry.winning_status}
-                                          />
-                                        </TableCell>
-                                        <TableCell>
-                                          {formatDate(entry.draw_date)}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                </Fragment>
-                              );
-                            }
-                          );
-                        })()}
+                        <StationEntriesGroup
+                          entriesByStation={entriesByStation}
+                          stationTotals={stationTotals}
+                          userId={userId}
+                        />
                       </TableBody>
                     </Table>
                   </div>
@@ -707,43 +512,4 @@ export default function AdminBetCodesPage() {
       )}
     </div>
   );
-}
-
-// Helper component for bet status badges
-function BetStatusBadge({ status, winningStatus }) {
-  let variant = 'default';
-  let label = '';
-
-  // Determine badge style based on status and winning status
-  switch (status) {
-    case 'draft':
-      variant = 'secondary';
-      label = 'Nháp';
-      break;
-    case 'confirmed':
-      variant = 'default';
-      label = 'Đã xác nhận';
-      break;
-    case 'processed':
-      if (winningStatus === true) {
-        variant = 'success';
-        label = 'Trúng thưởng';
-      } else if (winningStatus === false) {
-        variant = 'destructive';
-        label = 'Không trúng';
-      } else {
-        variant = 'outline';
-        label = 'Đã xử lý';
-      }
-      break;
-    case 'deleted':
-      variant = 'destructive';
-      label = 'Đã xóa';
-      break;
-    default:
-      variant = 'secondary';
-      label = status || 'Unknown';
-  }
-
-  return <Badge variant={variant}>{label}</Badge>;
 }

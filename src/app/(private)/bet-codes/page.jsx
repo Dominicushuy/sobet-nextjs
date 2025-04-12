@@ -1,0 +1,263 @@
+// src/app/(private)/bet-codes/page.jsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useAuth } from '@/providers/AuthProvider';
+import { useServerQuery } from '@/hooks/useServerAction';
+import { fetchUserBetEntries } from '@/app/actions/bet-entries';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from '@/components/ui/card';
+import { DateSearchFilter } from '@/components/bet-codes/DateSearchFilter';
+import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup';
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils';
+import { formatDate } from '@/utils/formatters';
+
+export default function UserBetCodesPage() {
+  const { user } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(true);
+  const [filteredEntries, setFilteredEntries] = useState([]);
+
+  // Query for bet entries
+  const {
+    data: betEntriesData,
+    isLoading: isLoadingEntries,
+    refetch: refetchEntries,
+  } = useServerQuery(
+    ['userBetEntries', selectedDate],
+    () =>
+      fetchUserBetEntries({
+        date: selectedDate,
+        searchTerm: null, // We'll do client-side filtering for responsiveness
+      }),
+    {
+      enabled: !!user?.id,
+      onError: (error) => {
+        toast.error('Lỗi khi tải mã cược: ' + error.message);
+      },
+    }
+  );
+
+  // Filter bet entries by search term (client-side)
+  useEffect(() => {
+    if (betEntriesData?.data) {
+      if (!searchTerm) {
+        setFilteredEntries(betEntriesData.data);
+        return;
+      }
+
+      const filtered = betEntriesData.data.filter((entry) => {
+        // Search in bet entry properties
+        return (
+          entry.original_text
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          entry.formatted_text
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          entry.bet_type_alias
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          entry.station?.name
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          (Array.isArray(entry.numbers) &&
+            entry.numbers.some((num) =>
+              num.toLowerCase().includes(searchTerm.toLowerCase())
+            ))
+        );
+      });
+
+      setFilteredEntries(filtered);
+    }
+  }, [betEntriesData, searchTerm]);
+
+  // Reset filters
+  const resetFilters = () => {
+    setSelectedDate(null);
+    setSearchTerm('');
+  };
+
+  // Group entries by station
+  const entriesByStation = {};
+  const stationTotals = {};
+
+  if (filteredEntries?.length > 0) {
+    filteredEntries.forEach((entry) => {
+      const stationName =
+        entry.station?.name ||
+        (entry.station_data?.multiStation
+          ? `${entry.station_data.count} Đài ${entry.station_data.name}`
+          : entry.station_data?.name) ||
+        'Không xác định';
+
+      const stationKey = stationName.replace(/\s+/g, '-').toLowerCase();
+
+      if (!entriesByStation[stationKey]) {
+        entriesByStation[stationKey] = {
+          name: stationName,
+          entries: [],
+        };
+        stationTotals[stationKey] = {
+          totalAmount: 0,
+          totalStake: 0,
+          count: 0,
+        };
+      }
+
+      entriesByStation[stationKey].entries.push(entry);
+      stationTotals[stationKey].totalAmount += Number(entry.amount) || 0;
+      stationTotals[stationKey].totalStake += Number(entry.stake) || 0;
+      stationTotals[stationKey].count += 1;
+    });
+  }
+
+  // Calculate grand totals
+  const grandTotals = Object.values(stationTotals).reduce(
+    (acc, station) => {
+      acc.totalAmount += station.totalAmount;
+      acc.totalStake += station.totalStake;
+      acc.count += station.count;
+      return acc;
+    },
+    { totalAmount: 0, totalStake: 0, count: 0 }
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Mã Cược Của Tôi</h1>
+          <p className="text-muted-foreground">
+            Danh sách mã cược đã đặt trong hệ thống
+          </p>
+        </div>
+      </div>
+
+      {/* Filter Card */}
+      <DateSearchFilter
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        resetFilters={resetFilters}
+        onRefresh={refetchEntries}
+        isExpanded={isFilterExpanded}
+        setIsExpanded={setIsFilterExpanded}
+      />
+
+      {/* Status info */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">
+          {isLoadingEntries
+            ? 'Đang tải dữ liệu...'
+            : `Có ${filteredEntries.length} mã cược`}
+        </h2>
+        {isLoadingEntries && (
+          <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+        )}
+      </div>
+
+      {/* Display bet entries */}
+      {isLoadingEntries ? (
+        <Card>
+          <CardContent className="flex justify-center py-8">
+            <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+      ) : filteredEntries.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-0">
+            <CardTitle className="text-xl">Tổng Hợp Mã Cược</CardTitle>
+            <CardDescription>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 py-2 px-3 bg-muted/50 rounded-md border">
+                <div className="flex items-center">
+                  <span className="text-sm font-semibold mr-2">
+                    Tổng số mã cược:
+                  </span>
+                  <span className="text-sm font-bold text-primary">
+                    {grandTotals.count} mã
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-sm font-semibold mr-2">
+                    Tổng số tiền cược:
+                  </span>
+                  <span className="text-sm font-bold text-primary">
+                    {formatCurrency(grandTotals.totalAmount)}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-sm font-semibold mr-2">
+                    Tổng số tiền đóng:
+                  </span>
+                  <span className="text-sm font-bold text-primary">
+                    {formatCurrency(grandTotals.totalStake)}
+                  </span>
+                </div>
+              </div>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Đài</TableHead>
+                    <TableHead>Loại cược</TableHead>
+                    <TableHead>Số cược</TableHead>
+                    <TableHead>Tiền cược</TableHead>
+                    <TableHead>Tiền đóng</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Ngày cược</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <StationEntriesGroup
+                    entriesByStation={entriesByStation}
+                    stationTotals={stationTotals}
+                    userId={user?.id}
+                  />
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+          <CardFooter className="bg-muted/30 py-2 px-6 flex justify-end">
+            <div className="text-sm text-muted-foreground">
+              Cập nhật lần cuối: {formatDate(new Date())}
+            </div>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-center text-muted-foreground">
+              Không tìm thấy mã cược nào
+            </p>
+            <Button variant="outline" className="mt-4" onClick={resetFilters}>
+              Xóa bộ lọc
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
