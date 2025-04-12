@@ -118,16 +118,26 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
       });
 
       // Save each bet code sequentially to avoid potential issues
-      for (let i = 0; i < selectedIds.length; i++) {
-        const id = selectedIds[i];
-        await confirmDraftCode(id);
+      // for (let i = 0; i < selectedIds.length; i++) {
+      //   const id = selectedIds[i];
+      //   await confirmDraftCode(id);
 
-        // Update progress
-        setSaveProgress({
-          current: i + 1,
-          total: selectedIds.length,
-        });
-      }
+      //   // Update progress
+      //   setSaveProgress({
+      //     current: i + 1,
+      //     total: selectedIds.length,
+      //   });
+      // }
+
+      await Promise.all(
+        selectedIds.map(async (id) => {
+          await confirmDraftCode(id);
+          setSaveProgress((prev) => ({
+            ...prev,
+            current: prev.current + 1,
+          }));
+        })
+      );
 
       toast.success(`Đã lưu ${selectedIds.length} mã cược thành công`);
       onClearSelection();

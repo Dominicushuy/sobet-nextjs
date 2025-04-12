@@ -119,14 +119,11 @@ CREATE TABLE bet_entries (
   -- Thông tin cơ bản
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- ID duy nhất để nhận diện mỗi lần đặt cược
   user_id UUID NOT NULL REFERENCES auth.users(id), -- Người dùng thực hiện đặt cược
-  created_by UUID NOT NULL REFERENCES auth.users(id), -- Người tạo bản ghi (có thể là user hoặc admin)
   admin_id UUID REFERENCES auth.users(id), -- Admin xử lý/duyệt cược nếu có
   status bet_code_status NOT NULL DEFAULT 'draft', -- Trạng thái hiện tại của lần đặt cược
   
   -- Timestamp
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- Thời điểm tạo bản ghi
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- Thời điểm cập nhật bản ghi gần nhất
-  confirmed_at TIMESTAMPTZ, -- Thời điểm mã cược được xác nhận
   processed_at TIMESTAMPTZ, -- Thời điểm mã cược được xử lý
   verified_at TIMESTAMPTZ, -- Thời điểm mã cược được xác minh
   
@@ -152,17 +149,9 @@ CREATE TABLE bet_entries (
   actual_winning NUMERIC(12, 2), -- Số tiền thưởng thực tế nhận được
   
   -- Xử lý đặc biệt
-  is_auto_expanded BOOLEAN DEFAULT FALSE, -- Có phải được tự động mở rộng từ mã gốc
-  special_case_type VARCHAR(50), -- Loại trường hợp đặc biệt (nếu có)
-  is_permutation BOOLEAN DEFAULT FALSE, -- Có phải kiểu cược hoán vị (đảo)
-  permutations JSONB, -- Danh sách các hoán vị được tạo ra
   calculation_formula TEXT, -- Công thức tính toán đã sử dụng
   
   -- Tối ưu truy vấn
-  parsed_data JSONB, -- Dữ liệu đã phân tích từ dòng cược
-  bet_lines JSONB, -- Thông tin tổng hợp về các dòng cược
-  bet_types JSONB, -- Thông tin tổng hợp về các loại cược
-  numbers_data JSONB, -- Dữ liệu tổng hợp về các số đặt cược
   winning_numbers JSONB, -- Số trúng thưởng
   
   -- Đối soát và xác minh

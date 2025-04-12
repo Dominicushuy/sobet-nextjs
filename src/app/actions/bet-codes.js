@@ -210,7 +210,6 @@ export async function saveDraftCode(draftCode, userId) {
         // Prepare the bet entry data
         const betEntryData = {
           user_id: userId,
-          created_by: userId,
           status: 'confirmed',
           original_text: draftCode.originalText,
           formatted_text: draftCode.formattedText,
@@ -231,15 +230,7 @@ export async function saveDraftCode(draftCode, userId) {
           potential_winning: prizeDetail.potentialPrize || 0,
 
           // Special handling
-          is_permutation: line.isPermutation || false,
-          permutations: line.permutations || {},
           calculation_formula: stakeDetail.formula || '',
-
-          // Metadata
-          parsed_data: line,
-          bet_lines: draftCode.lines[0],
-          bet_types: line.betType,
-          confirmed_at: new Date().toISOString(),
         };
 
         betEntries.push(betEntryData);
