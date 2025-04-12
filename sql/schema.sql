@@ -115,11 +115,12 @@ CREATE TABLE number_combinations (
 CREATE TYPE bet_code_status AS ENUM ('draft', 'confirmed', 'processed', 'deleted');
 CREATE TYPE bet_reconciliation_status AS ENUM ('pending', 'matched', 'discrepancy', 'adjusted', 'finalized');
 
+-- Tạo bảng bet_entries
 CREATE TABLE bet_entries (
   -- Thông tin cơ bản
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- ID duy nhất để nhận diện mỗi lần đặt cược
-  user_id UUID NOT NULL REFERENCES auth.users(id), -- Người dùng thực hiện đặt cược
-  admin_id UUID REFERENCES auth.users(id), -- Admin xử lý/duyệt cược nếu có
+  user_id UUID NOT NULL REFERENCES users(id), -- Tham chiếu đến bảng users thay vì auth.users
+  admin_id UUID REFERENCES users(id), -- Admin xử lý/duyệt cược
   status bet_code_status NOT NULL DEFAULT 'draft', -- Trạng thái hiện tại của lần đặt cược
   
   -- Timestamp
@@ -154,7 +155,7 @@ CREATE TABLE bet_entries (
   -- Đối soát và xác minh
   reconciliation_id INTEGER REFERENCES verifications(id) ON DELETE SET NULL, -- ID của bản ghi đối soát
   reconciliation_status bet_reconciliation_status DEFAULT 'pending', -- Trạng thái đối soát
-  verified_by UUID REFERENCES auth.users(id), -- Người xác minh
+  verified_by UUID REFERENCES users(id), -- Người xác minh - tham chiếu đến users
 
   -- Thêm các cột liên kết với bảng lottery_results
   lottery_result_id INTEGER REFERENCES lottery_results(id), -- ID tham chiếu đến kết quả xổ số
@@ -164,11 +165,8 @@ CREATE TABLE bet_entries (
   prize_category VARCHAR(50), -- Loại giải thưởng (đầu, đuôi, lô, 3 càng,...)
   prize_position INTEGER, -- Vị trí trúng giải (nếu có nhiều vị trí)
   result_verified_at TIMESTAMPTZ, -- Thời điểm xác minh kết quả
-  result_verified_by UUID REFERENCES auth.users(id), -- Người xác minh kết quả
+  result_verified_by UUID REFERENCES users(id), -- Người xác minh kết quả - tham chiếu đến users
   result_details JSONB, -- Chi tiết bổ sung về kết quả khớp
-  
-  -- Ràng buộc duy nhất
-  UNIQUE (bet_type_id, line_number)
 );
 
 -- Bảng LotteryResults (Kết quả xổ số)

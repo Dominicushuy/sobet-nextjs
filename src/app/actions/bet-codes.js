@@ -285,16 +285,18 @@ export async function saveDraftCodes(draftCodes, userId) {
     let totalErrors = 0;
     const results = [];
 
-    for (const draftCode of draftCodes) {
-      const result = await saveDraftCode(draftCode, userId);
-      results.push(result);
+    await Promise.all(
+      draftCodes.map(async (draftCode) => {
+        const result = await saveDraftCode(draftCode, userId);
+        results.push(result);
 
-      if (!result.error) {
-        totalSaved += result.data.successCount;
-      } else {
-        totalErrors += 1;
-      }
-    }
+        if (!result.error) {
+          totalSaved += result.data.successCount;
+        } else {
+          totalErrors += 1;
+        }
+      })
+    );
 
     // Revalidate path to refresh the data
     revalidatePath('/bet');

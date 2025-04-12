@@ -263,7 +263,6 @@ CREATE POLICY "users_create_bet_entries" ON bet_entries
     FOR INSERT
     WITH CHECK (
         user_id = auth.uid() AND 
-        created_by = auth.uid() AND 
         status = 'draft'
     );
 
@@ -286,7 +285,6 @@ CREATE POLICY "users_delete_own_draft_bet_entries" ON bet_entries
         user_id = auth.uid() AND 
         status = 'draft'
     );
-
 --------------------------
 -- Policies cho Lottery Results
 --------------------------
