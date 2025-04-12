@@ -3,6 +3,139 @@
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
+export async function fetchBetConfig(userId) {
+  try {
+    if (!userId) {
+      return { data: null, error: 'Người dùng chưa đăng nhập' };
+    }
+
+    // Get user's settings and permissions
+    const [
+      { data: userData, error: userError },
+      { data: stationAccess, error: stationError },
+      { data: betTypeSettings, error: betTypeError },
+      { data: commissionSettings, error: commissionError },
+      { data: numberCombinations, error: numberCombinationsError },
+      { data: regions, error: regionsError },
+      { data: stationSchedulesData, error: stationSchedulesError }, // Added station schedules
+    ] = await Promise.all([
+      supabaseAdmin.from('users').select('*').eq('id', userId).single(),
+      supabaseAdmin
+        .from('user_station_access')
+        .select(
+          'station_id, is_enabled, stations(id, name, region_id, aliases, is_active, region:regions(id, name, code, aliases))'
+        )
+        .eq('user_id', userId)
+        .eq('is_enabled', true),
+      supabaseAdmin
+        .from('user_bet_type_settings')
+        .select(
+          'bet_type_id, payout_rate, multiplier, bet_types(id, name, aliases, applicable_regions, bet_rule, matching_method, payout_rate, combinations, is_permutation, special_calc)'
+        )
+        .eq('user_id', userId)
+        .eq('is_active', true),
+      supabaseAdmin
+        .from('user_commission_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('number_combinations')
+        .select('*')
+        .eq('is_active', true),
+      supabaseAdmin.from('regions').select('*'),
+      supabaseAdmin.from('station_schedules').select(`
+          id, 
+          station_id,
+          day_of_week, 
+          order_number,
+          station:stations(
+            id, 
+            name, 
+            region_id, 
+            aliases, 
+            is_active
+          )
+        `),
+    ]);
+
+    if (userError || !userData) {
+      return { data: null, error: 'Không tìm thấy thông tin người dùng' };
+    }
+
+    if (stationError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin quyền truy cập đài' };
+    }
+
+    if (betTypeError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin cài đặt loại cược' };
+    }
+
+    if (numberCombinationsError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin kiểu kết hợp số' };
+    }
+
+    if (regionsError) {
+      return { data: null, error: 'Lỗi khi lấy thông tin miền' };
+    }
+
+    if (stationSchedulesError) {
+      return { data: null, error: 'Lỗi khi lấy lịch xổ số' };
+    }
+
+    // Process station schedules
+    const stationSchedules = stationSchedulesData.map((schedule) => ({
+      id: schedule.id,
+      stationId: schedule.station_id,
+      dayOfWeek: schedule.day_of_week,
+      orderNumber: schedule.order_number,
+      station: schedule.station,
+    }));
+
+    // Set default commission settings if not found
+    const priceRate = commissionSettings?.price_rate || 0.8;
+    const exportPriceRate = commissionSettings?.export_price_rate || 0.74;
+    const returnPriceRate = commissionSettings?.return_price_rate || 0.95;
+
+    // Create a list of accessible stations
+    const accessibleStations = stationAccess.map((access) => access.stations);
+
+    // Sau đó, ghi đè với cài đặt của người dùng nếu có
+    const betTypes = betTypeSettings.map((betType) => {
+      const { bet_types: betTypeDetails, payout_rate, multiplier } = betType;
+
+      return {
+        ...betTypeDetails,
+        is_active_for_user: true,
+        custom_payout_rate: payout_rate || null,
+        multiplier: multiplier || 1,
+      };
+    });
+
+    const data = {
+      user: userData,
+      accessibleStations,
+      regions,
+      betTypes,
+      numberCombinations,
+      stationSchedules, // Add station schedules to returned data
+      commissionSettings: {
+        priceRate,
+        exportPriceRate,
+        returnPriceRate,
+      },
+    };
+
+    return {
+      data,
+      error: null,
+    };
+  } catch (error) {
+    console.error('Error fetching bet data:', error);
+    return { data: null, error: 'Lỗi lấy dữ liệu cược: ' + error.message };
+  }
+}
+
 export async function saveDraftCode(draftCode, userId) {
   try {
     if (!draftCode || !userId) {
@@ -86,7 +219,6 @@ export async function saveDraftCode(draftCode, userId) {
           draw_date: draftCode.drawDate,
 
           // Line specific data
-          line_number: index + 1,
           original_line: line.originalLine,
           bet_type_id: betTypeId,
           bet_type_alias: line.betType?.alias || '',
@@ -95,23 +227,18 @@ export async function saveDraftCode(draftCode, userId) {
           // Financial data
           amount: line.amount || 0,
           stake: stakeDetail.stake || 0,
-          multiplier: line.multiplier || 1,
           price_rate: priceRate,
-          payout_rate: line.betType?.payoutRate || stakeDetail.payoutRate || 0,
-          potential_prize: prizeDetail.potentialPrize || 0,
           potential_winning: prizeDetail.potentialPrize || 0,
 
           // Special handling
-          is_auto_expanded: draftCode.autoExpanded || false,
-          special_case_type: draftCode.specialCase || null,
           is_permutation: line.isPermutation || false,
           permutations: line.permutations || {},
           calculation_formula: stakeDetail.formula || '',
 
           // Metadata
           parsed_data: line,
-          bet_lines: draftCode.lines,
-          bet_types: line.betType ? [line.betType] : [],
+          bet_lines: draftCode.lines[0],
+          bet_types: line.betType,
           confirmed_at: new Date().toISOString(),
         };
 
@@ -194,112 +321,6 @@ export async function saveDraftCodes(draftCodes, userId) {
     };
   } catch (error) {
     console.error('Unexpected error in saveDraftCodes:', error);
-    return { data: null, error: 'Internal server error' };
-  }
-}
-
-export async function updateBetEntryStatus(betEntryId, status) {
-  try {
-    if (!betEntryId || !status) {
-      return { data: null, error: 'Missing required information' };
-    }
-
-    const statusUpdate = {
-      status,
-      updated_at: new Date().toISOString(),
-    };
-
-    // Add timestamp based on status
-    if (status === 'confirmed') {
-      statusUpdate.confirmed_at = new Date().toISOString();
-    } else if (status === 'processed') {
-      statusUpdate.processed_at = new Date().toISOString();
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('bet_entries')
-      .update(statusUpdate)
-      .eq('id', betEntryId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating bet entry status:', error);
-      return { data: null, error: error.message };
-    }
-
-    // Revalidate path to refresh the data
-    revalidatePath('/bet');
-
-    return { data, error: null };
-  } catch (error) {
-    console.error('Unexpected error in updateBetEntryStatus:', error);
-    return { data: null, error: 'Internal server error' };
-  }
-}
-
-// New function to get bet entries for a user
-export async function fetchUserBetEntries(userId, filters = {}) {
-  try {
-    if (!userId) {
-      return { data: null, error: 'Missing user ID' };
-    }
-
-    // Start building the query
-    let query = supabaseAdmin
-      .from('bet_entries')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    // Apply filters if provided
-    if (filters.status) {
-      query = query.eq('status', filters.status);
-    }
-
-    if (filters.dateFrom) {
-      query = query.gte('created_at', filters.dateFrom);
-    }
-
-    if (filters.dateTo) {
-      query = query.lte('created_at', filters.dateTo);
-    }
-
-    if (filters.stationId) {
-      query = query.eq('station_id', filters.stationId);
-    }
-
-    if (filters.betTypeId) {
-      query = query.eq('bet_type_id', filters.betTypeId);
-    }
-
-    // Handle pagination
-    if (filters.limit) {
-      query = query.limit(filters.limit);
-    }
-
-    if (filters.offset) {
-      query = query.range(
-        filters.offset,
-        filters.offset + (filters.limit || 10) - 1
-      );
-    }
-
-    // Execute the query
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error('Error fetching bet entries:', error);
-      return { data: null, error: error.message };
-    }
-
-    return {
-      data,
-      count,
-      error: null,
-    };
-  } catch (error) {
-    console.error('Unexpected error in fetchUserBetEntries:', error);
     return { data: null, error: 'Internal server error' };
   }
 }

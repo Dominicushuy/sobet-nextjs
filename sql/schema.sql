@@ -138,7 +138,6 @@ CREATE TABLE bet_entries (
   draw_date DATE, -- Ngày quay thưởng dự kiến
   
   -- Thông tin dòng cược
-  line_number INTEGER NOT NULL, -- Số thứ tự của dòng cược trong mã cược
   original_line TEXT NOT NULL, -- Nội dung gốc của dòng cược
   bet_type_id INTEGER REFERENCES bet_types(id), -- ID của loại cược (đầu, đuôi, lô, v.v.)
   bet_type_alias VARCHAR(100) NOT NULL, -- Tên viết tắt của loại cược
@@ -147,15 +146,10 @@ CREATE TABLE bet_entries (
   -- Thông tin tài chính
   amount NUMERIC(12, 2) NOT NULL, -- Số tiền đặt cược từ người dùng
   stake NUMERIC(12, 2) NOT NULL, -- Số tiền đóng thực tế sau khi tính toán
-  multiplier NUMERIC(5, 2) NOT NULL DEFAULT 1, -- Hệ số nhân áp dụng cho cược
   price_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.8, -- Tỷ lệ giá áp dụng
-  actual_rate NUMERIC(5, 4), -- Tỷ lệ thực tế áp dụng (có thể khác với price_rate)
-  payout_rate NUMERIC(12, 2) NOT NULL, -- Tỷ lệ trả thưởng cho loại cược
-  potential_prize NUMERIC(12, 2) NOT NULL, -- Số tiền thưởng tiềm năng cho dòng cược
   potential_winning NUMERIC(12, 2) NOT NULL, -- Tổng số tiền thưởng tiềm năng
   winning_status BOOLEAN, -- Trạng thái trúng thưởng (true/false/null = chưa xác định)
   actual_winning NUMERIC(12, 2), -- Số tiền thưởng thực tế nhận được
-  actual_prize NUMERIC(12, 2), -- Số tiền thưởng cho dòng cược cụ thể
   
   -- Xử lý đặc biệt
   is_auto_expanded BOOLEAN DEFAULT FALSE, -- Có phải được tự động mở rộng từ mã gốc
@@ -175,9 +169,6 @@ CREATE TABLE bet_entries (
   reconciliation_id INTEGER REFERENCES verifications(id) ON DELETE SET NULL, -- ID của bản ghi đối soát
   reconciliation_status bet_reconciliation_status DEFAULT 'pending', -- Trạng thái đối soát
   verified_by UUID REFERENCES auth.users(id), -- Người xác minh
-  verification_notes TEXT, -- Ghi chú xác minh
-  discrepancies JSONB, -- Thông tin về những khác biệt phát hiện khi đối soát
-  adjusted_amount NUMERIC(12, 2), -- Số tiền đã điều chỉnh sau đối soát
   
   -- Ràng buộc duy nhất
   UNIQUE (bet_type_id, line_number)

@@ -120,12 +120,13 @@ export async function toggleUserBetTypeStatus(
   }
 }
 
-// Cập nhật tỷ lệ trả thưởng tùy chỉnh cho loại cược của user
+// Cập nhật tỷ lệ trả thưởng và hệ số nhân tùy chỉnh cho loại cược của user
 export async function updateUserBetTypePayoutRate(
   userId,
   adminId,
   betTypeId,
-  payoutRate
+  payoutRate,
+  multiplier
 ) {
   try {
     const { data: existingSetting } = await supabaseAdmin
@@ -143,6 +144,7 @@ export async function updateUserBetTypePayoutRate(
         .from('user_bet_type_settings')
         .update({
           payout_rate: payoutRate,
+          multiplier: multiplier || 1, // Thêm multiplier vào query update
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingSetting.id)
@@ -156,6 +158,7 @@ export async function updateUserBetTypePayoutRate(
           user_id: userId,
           bet_type_id: betTypeId,
           payout_rate: payoutRate,
+          multiplier: multiplier || 1, // Thêm multiplier vào query insert
           created_by: adminId,
         })
         .select()
@@ -243,6 +246,7 @@ export async function batchUpdateUserBetTypeSettings(userId, adminId, updates) {
             .update({
               is_active: update.is_active,
               payout_rate: update.payout_rate,
+              multiplier: update.multiplier || 1, // Ensure multiplier is included
               updated_at: new Date().toISOString(),
             })
             .eq('id', update.setting_id);
@@ -253,7 +257,7 @@ export async function batchUpdateUserBetTypeSettings(userId, adminId, updates) {
             bet_type_id: update.bet_type_id,
             is_active: update.is_active,
             payout_rate: update.payout_rate,
-            multiplier: update.multiplier || 1,
+            multiplier: update.multiplier || 1, // Ensure multiplier is included
             created_by: adminId,
           });
         }

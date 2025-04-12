@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect, useContext, createContext } from 'react';
-import { fetchBetData } from '@/app/actions/bet-code';
 import { useAuth } from '@/providers/AuthProvider';
+import { fetchBetConfig } from '@/app/actions/bet-codes';
 
 // Giá trị mặc định
 const DEFAULT_CONFIG = {
@@ -40,7 +40,7 @@ export function BetConfigProvider({ children }) {
 
       try {
         setLoading(true);
-        const { data, error } = await fetchBetData(user.id);
+        const { data, error } = await fetchBetConfig(user.id);
 
         if (error) {
           console.error('Error loading bet config:', error);
