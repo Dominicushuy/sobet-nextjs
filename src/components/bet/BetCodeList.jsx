@@ -7,12 +7,21 @@ import {
   Loader2,
   PanelTopClose,
   PanelTopOpen,
+  CheckCircle2,
 } from 'lucide-react';
 import BetCodeCard from './BetCodeCard';
 import BetCodeFilter from './BetCodeFilter';
 import MultipleActionsButton from './MultipleActionsButton';
 import { formatMoney } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const BetCodeList = () => {
   const {
@@ -23,12 +32,18 @@ const BetCodeList = () => {
     getStatistics,
     filterCodes,
     getFilteredStatistics,
+    isSavingDraftCodes,
   } = useBetCode();
 
   // State for selection
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectMode, setSelectMode] = useState(false);
   const [filterOpen, setFilterOpen] = useState(true);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [saveProgress, setSaveProgress] = useState({
+    current: 0,
+    total: 0,
+  });
 
   // Get filtered draft codes
   const filteredDraftCodes = getFilteredCodes('draft');
@@ -61,6 +76,21 @@ const BetCodeList = () => {
   // Clear selection
   const clearSelection = () => {
     setSelectedIds([]);
+  };
+
+  // Handle confirm button click
+  const handleConfirmClick = () => {
+    if (draftCodes.length === 0) {
+      return;
+    }
+    setShowConfirmDialog(true);
+  };
+
+  // Handle save all bet codes
+  const handleSaveAll = () => {
+    setShowConfirmDialog(false);
+    setSaveProgress({ current: 0, total: draftCodes.length });
+    confirmDraftCodes();
   };
 
   // Show loading message
@@ -132,12 +162,21 @@ const BetCodeList = () => {
               </Button>
 
               <Button
-                onClick={confirmDraftCodes}
-                disabled={draftCodes.length === 0}
+                onClick={handleConfirmClick}
+                disabled={draftCodes.length === 0 || isSavingDraftCodes}
                 className="flex items-center gap-1.5 h-8"
               >
-                {draftCodes.length > 0 && `Xử lý (${draftCodes.length})`}
-                {draftCodes.length === 0 && 'Xử lý'}
+                {isSavingDraftCodes ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    {draftCodes.length > 0 && `Xử lý (${draftCodes.length})`}
+                    {draftCodes.length === 0 && 'Xử lý'}
+                  </>
+                )}
               </Button>
             </>
           )}
@@ -287,6 +326,70 @@ const BetCodeList = () => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              Xác nhận lưu {draftCodes.length} mã cược
+            </DialogTitle>
+            <DialogDescription>
+              Bạn đang lưu {draftCodes.length} mã cược vào hệ thống. Mã cược sau
+              khi lưu sẽ được xóa khỏi danh sách nháp.
+            </DialogDescription>
+          </DialogHeader>
+
+          {saveProgress.total > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Đang lưu...</span>
+                <span>
+                  {saveProgress.current}/{saveProgress.total}
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2.5">
+                <div
+                  className="bg-primary h-2.5 rounded-full"
+                  style={{
+                    width: `${
+                      (saveProgress.current / saveProgress.total) * 100
+                    }%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={isSavingDraftCodes}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleSaveAll}
+              disabled={isSavingDraftCodes}
+            >
+              {isSavingDraftCodes ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Đang lưu...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                  Lưu {draftCodes.length} mã cược
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

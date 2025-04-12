@@ -1,3 +1,4 @@
+// Trong hàm BetCodeCard, thay đổi phần handleConfirm
 import React, { useState } from 'react';
 import {
   Card,
@@ -21,6 +22,7 @@ import {
   Award,
   Copy,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { useBetCode } from '@/contexts/BetCodeContext';
 import { format } from 'date-fns';
@@ -29,6 +31,14 @@ import BetCodeDetailModal from './BetCodeDetailModal';
 import { formatMoney } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 import { useBetConfig } from '@/contexts/BetConfigContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const BetCodeCard = ({
   betCode,
@@ -36,12 +46,14 @@ const BetCodeCard = ({
   selected = false,
   onSelectChange = null,
 }) => {
-  const { removeDraftCode, confirmDraftCode } = useBetCode();
+  const { removeDraftCode, confirmDraftCode, isSavingDraftCode } = useBetCode();
 
   const [showDetails, setShowDetails] = useState(false);
   const [showFullCode, setShowFullCode] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const betConfig = useBetConfig();
 
   const handleRemove = () => {
@@ -49,10 +61,14 @@ const BetCodeCard = ({
     toast.success('Đã xóa mã cược');
   };
 
+  const handleConfirmClick = () => {
+    setShowConfirmDialog(true);
+  };
+
   const handleConfirm = () => {
+    setShowConfirmDialog(false);
+    setIsSaving(true);
     confirmDraftCode(betCode.id);
-    toast.success('Đã xử lý mã cược');
-    // Note: In the simplified version, this function just logs an action and doesn't actually modify state
   };
 
   const handleCopyText = () => {
@@ -372,10 +388,20 @@ const BetCodeCard = ({
             variant="outline"
             size="sm"
             className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50 dark:border-green-800"
-            onClick={handleConfirm}
+            onClick={handleConfirmClick}
+            disabled={isSavingDraftCode || isSaving}
           >
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Xử lý
+            {isSavingDraftCode || isSaving ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Đang xử lý...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Xử lý
+              </>
+            )}
           </Button>
           <Button variant="outline" size="sm" onClick={handleOpenDetail}>
             <FileText className="h-3 w-3 mr-1" />
@@ -401,6 +427,65 @@ const BetCodeCard = ({
           onClose={handleCloseDetail}
         />
       )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              Xác nhận lưu mã cược
+            </DialogTitle>
+            <DialogDescription>
+              Bạn đang lưu mã cược này vào hệ thống. Mã cược sau khi lưu sẽ được
+              xóa khỏi danh sách nháp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-3">
+            <div className="text-sm font-medium">Chi tiết mã cược:</div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="text-muted-foreground">Đài:</div>
+              <div className="font-medium">{getStationDisplayName()}</div>
+              <div className="text-muted-foreground">Tiền đóng:</div>
+              <div className="font-medium text-blue-600">
+                {formatMoney(betCode.stakeAmount || 0)}đ
+              </div>
+              <div className="text-muted-foreground">Tiềm năng thắng:</div>
+              <div className="font-medium text-green-600">
+                {formatMoney(betCode.potentialWinning || 0)}đ
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={isSavingDraftCode || isSaving}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleConfirm}
+              disabled={isSavingDraftCode || isSaving}
+            >
+              {isSavingDraftCode || isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Đang lưu...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                  Lưu mã cược
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

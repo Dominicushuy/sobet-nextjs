@@ -6,6 +6,7 @@ import {
   Download,
   AlertTriangle,
   Loader2,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -31,11 +32,23 @@ import {
 } from '@/components/ui/dialog';
 
 const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
-  const { removeDraftCode, getBetCode, batchDeleteCodes } = useBetCode();
+  const {
+    batchDeleteCodes,
+    getBetCode,
+    removeDraftCode,
+    confirmDraftCode,
+    isSavingDraftCode,
+  } = useBetCode();
 
   const [printing, setPrinting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({
+    current: 0,
+    total: 0,
+  });
+  const [saveProgress, setSaveProgress] = useState({
     current: 0,
     total: 0,
   });
@@ -86,6 +99,45 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
       // Reset progress state after completion
       setTimeout(() => {
         setDeleteProgress({ current: 0, total: 0 });
+      }, 300);
+    }
+  };
+
+  const handleSaveSelected = async () => {
+    setShowSaveConfirm(false);
+    if (selectedIds.length === 0) {
+      toast.info('Chưa có mã cược nào được chọn để lưu');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveProgress({
+        current: 0,
+        total: selectedIds.length,
+      });
+
+      // Save each bet code sequentially to avoid potential issues
+      for (let i = 0; i < selectedIds.length; i++) {
+        const id = selectedIds[i];
+        await confirmDraftCode(id);
+
+        // Update progress
+        setSaveProgress({
+          current: i + 1,
+          total: selectedIds.length,
+        });
+      }
+
+      toast.success(`Đã lưu ${selectedIds.length} mã cược thành công`);
+      onClearSelection();
+    } catch (error) {
+      console.error('Lỗi khi lưu mã cược:', error);
+      toast.error('Lỗi: ' + error.message);
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => {
+        setSaveProgress({ current: 0, total: 0 });
       }, 300);
     }
   };
@@ -152,6 +204,23 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
           <DropdownMenuSeparator />
 
           <DropdownMenuGroup>
+            <DropdownMenuItem
+              onClick={() => setShowSaveConfirm(true)}
+              disabled={isSaving || isSavingDraftCode}
+            >
+              {isSaving || isSavingDraftCode ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Đang lưu...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Lưu {selectedIds.length} mã cược
+                </>
+              )}
+            </DropdownMenuItem>
+
             <DropdownMenuItem
               onClick={handleExportSelected}
               disabled={printing}
@@ -237,6 +306,70 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
             >
               <Trash2 className="h-4 w-4 mr-1.5" />
               Xóa {selectedIds.length} mã cược
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save confirmation dialog */}
+      <Dialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              Xác nhận lưu {selectedIds.length} mã cược
+            </DialogTitle>
+            <DialogDescription>
+              Bạn đang lưu {selectedIds.length} mã cược vào hệ thống. Mã cược
+              sau khi lưu sẽ được xóa khỏi danh sách nháp.
+            </DialogDescription>
+          </DialogHeader>
+
+          {saveProgress.total > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Đang lưu...</span>
+                <span>
+                  {saveProgress.current}/{saveProgress.total}
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2.5">
+                <div
+                  className="bg-primary h-2.5 rounded-full"
+                  style={{
+                    width: `${
+                      (saveProgress.current / saveProgress.total) * 100
+                    }%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSaveConfirm(false)}
+              disabled={isSaving || isSavingDraftCode}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleSaveSelected}
+              disabled={isSaving || isSavingDraftCode}
+            >
+              {isSaving || isSavingDraftCode ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Đang lưu...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                  Lưu {selectedIds.length} mã cược
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

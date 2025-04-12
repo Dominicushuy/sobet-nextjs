@@ -1,4 +1,4 @@
-// src/contexts/BetCodeContext.jsx
+'use client';
 
 import React, {
   createContext,
@@ -10,6 +10,10 @@ import React, {
 import betCodeService from '@/services/bet';
 import { useBetConfig } from './BetConfigContext';
 import { getDrawDate } from '@/utils/bet';
+import { useServerMutation } from '@/hooks/useServerAction';
+import { saveDraftCode, saveDraftCodes } from '@/app/actions/bet-codes';
+import { useAuth } from '@/providers/AuthProvider';
+import { toast } from 'sonner';
 
 // Define action types
 const ACTION_TYPES = {
@@ -162,6 +166,64 @@ export function BetCodeProvider({ children }) {
   const { draftCodes, selectedCodeId, isInitialized } = state;
 
   const betConfig = useBetConfig();
+  const { user } = useAuth();
+
+  // Set up mutation for saving a single draft code
+  const { mutate: mutateSaveDraftCode, isPending: isSavingDraftCode } =
+    useServerMutation(
+      'saveDraftCode',
+      (draftCode) => saveDraftCode(draftCode, user?.id),
+      {
+        onSuccess: (result) => {
+          if (result.error) {
+            toast.error(`Lỗi khi lưu mã cược: ${result.error}`);
+            return;
+          }
+          toast.success('Đã lưu mã cược thành công');
+        },
+        onError: (error) => {
+          toast.error(`Lỗi khi lưu mã cược: ${error.message}`);
+        },
+      }
+    );
+
+  // Set up mutation for saving multiple draft codes
+  const { mutate: mutateSaveDraftCodes, isPending: isSavingDraftCodes } =
+    useServerMutation(
+      'saveDraftCodes',
+      (codes) => saveDraftCodes(codes, user?.id),
+      {
+        onSuccess: (result) => {
+          if (result.error) {
+            toast.error(`Lỗi khi lưu mã cược: ${result.error}`);
+            return;
+          }
+
+          const { totalSaved, totalErrors } = result.data;
+
+          if (totalSaved > 0) {
+            // Clear all draft codes after successful save
+            dispatch({
+              type: ACTION_TYPES.INIT_CODES,
+              payload: { draftCodes: [] },
+            });
+
+            toast.success(`Đã lưu ${totalSaved} mã cược thành công`);
+
+            if (totalErrors > 0) {
+              toast.warning(
+                `Lưu ý: ${totalErrors} mã cược gặp lỗi, vui lòng thử lại sau`
+              );
+            }
+          } else {
+            toast.info('Không có mã cược nào được lưu');
+          }
+        },
+        onError: (error) => {
+          toast.error(`Lỗi khi lưu mã cược: ${error.message}`);
+        },
+      }
+    );
 
   // Load from session storage on mount
   useEffect(() => {
@@ -219,21 +281,97 @@ export function BetCodeProvider({ children }) {
     });
   }, []);
 
-  // Save a draft code (simplified to just log action, no state change)
-  const confirmDraftCode = useCallback((id) => {
-    console.log('Save action triggered for code:', id);
-    // In a real app, you might trigger navigation or API call here
-    // But we don't actually modify the state anymore
-  }, []);
+  // Get a specific bet code by id
+  const getBetCode = useCallback(
+    (id) => {
+      return draftCodes.find((code) => code.id === id);
+    },
+    [draftCodes]
+  );
 
-  // Save all draft codes (simplified to just log action, no state change)
+  // Save a draft code
+  const confirmDraftCode = useCallback(
+    (id) => {
+      if (!user?.id) {
+        toast.error('Bạn cần đăng nhập để lưu mã cược');
+        return;
+      }
+
+      const draftCode = getBetCode(id);
+      if (!draftCode) {
+        toast.error('Không tìm thấy mã cược');
+        return;
+      }
+
+      // Show loading toast
+      const loadingToast = toast.loading('Đang lưu mã cược...');
+
+      try {
+        mutateSaveDraftCode(draftCode, {
+          onSuccess: (result) => {
+            toast.dismiss(loadingToast);
+
+            if (!result.error) {
+              // Remove the draft code from the client state after successful save
+              dispatch({
+                type: ACTION_TYPES.REMOVE_DRAFT,
+                payload: { id },
+              });
+            }
+          },
+          onError: () => {
+            toast.dismiss(loadingToast);
+          },
+        });
+      } catch (error) {
+        toast.dismiss(loadingToast);
+        console.error('Error confirming draft code:', error);
+        toast.error('Đã xảy ra lỗi khi lưu mã cược');
+      }
+    },
+    [user, getBetCode, mutateSaveDraftCode]
+  );
+
+  // Save all draft codes
   const confirmDraftCodes = useCallback(() => {
-    console.log('Save all action triggered');
-    // In a real app, you might trigger navigation or API call here
-    // But we don't actually modify the state anymore
+    if (!user?.id) {
+      toast.error('Bạn cần đăng nhập để lưu mã cược');
+      return;
+    }
 
-    console.log('Draft codes to be saved:', state.draftCodes);
-  }, [state]);
+    if (draftCodes.length === 0) {
+      toast.info('Không có mã cược nào để lưu');
+      return;
+    }
+
+    // Show loading toast
+    const loadingToast = toast.loading(
+      `Đang lưu ${draftCodes.length} mã cược...`
+    );
+
+    try {
+      mutateSaveDraftCodes(draftCodes, {
+        onSuccess: (result) => {
+          toast.dismiss(loadingToast);
+
+          if (!result.error) {
+            // QUAN TRỌNG: Xóa tất cả dữ liệu hiển thị sau khi lưu thành công
+            dispatch({
+              type: ACTION_TYPES.INIT_CODES,
+              payload: { draftCodes: [] },
+            });
+          }
+        },
+        onError: () => {
+          toast.dismiss(loadingToast);
+        },
+      });
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      console.error('Error confirming draft codes:', error);
+      toast.error('Đã xảy ra lỗi khi lưu mã cược');
+    }
+  }, [user, draftCodes, mutateSaveDraftCodes, dispatch]);
 
   // Select a code
   const selectBetCode = useCallback((id) => {
@@ -265,14 +403,6 @@ export function BetCodeProvider({ children }) {
       payload: { criteria },
     });
   }, []);
-
-  // Get a specific bet code by id
-  const getBetCode = useCallback(
-    (id) => {
-      return draftCodes.find((code) => code.id === id);
-    },
-    [draftCodes]
-  );
 
   // Get currently selected bet code
   const getSelectedBetCode = useCallback(() => {
@@ -429,7 +559,7 @@ export function BetCodeProvider({ children }) {
           return true;
         }
 
-        // Search in bet type names using BET_CONFIG
+        // Search in bet type names using betConfig
         const matchesBetType = betConfig.betTypes.some(
           (betType) =>
             betType.name.toLowerCase().includes(searchText) ||
@@ -620,12 +750,15 @@ export function BetCodeProvider({ children }) {
 
       return true;
     });
-  }, [state, draftCodes]);
+  }, [state, draftCodes, betConfig.betTypes]);
 
   // Analyze a new bet code without adding it
-  const analyzeBetCode = useCallback((text) => {
-    return betCodeService.analyzeBetCode(text, betConfig);
-  }, []);
+  const analyzeBetCode = useCallback(
+    (text) => {
+      return betCodeService.analyzeBetCode(text, betConfig);
+    },
+    [betConfig]
+  );
 
   const value = {
     draftCodes,
@@ -646,6 +779,8 @@ export function BetCodeProvider({ children }) {
     getFilteredCodes,
     getFilteredStatistics,
     analyzeBetCode,
+    isSavingDraftCode,
+    isSavingDraftCodes,
   };
 
   return (
