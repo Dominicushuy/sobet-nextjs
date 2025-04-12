@@ -48,10 +48,6 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
     current: 0,
     total: 0,
   });
-  const [saveProgress, setSaveProgress] = useState({
-    current: 0,
-    total: 0,
-  });
 
   // Get selected bet codes summary
   const getSelectionSummary = () => {
@@ -112,30 +108,10 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
 
     try {
       setIsSaving(true);
-      setSaveProgress({
-        current: 0,
-        total: selectedIds.length,
-      });
-
-      // Save each bet code sequentially to avoid potential issues
-      // for (let i = 0; i < selectedIds.length; i++) {
-      //   const id = selectedIds[i];
-      //   await confirmDraftCode(id);
-
-      //   // Update progress
-      //   setSaveProgress({
-      //     current: i + 1,
-      //     total: selectedIds.length,
-      //   });
-      // }
 
       await Promise.all(
         selectedIds.map(async (id) => {
           await confirmDraftCode(id);
-          setSaveProgress((prev) => ({
-            ...prev,
-            current: prev.current + 1,
-          }));
         })
       );
 
@@ -146,9 +122,6 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
       toast.error('Lỗi: ' + error.message);
     } finally {
       setIsSaving(false);
-      setTimeout(() => {
-        setSaveProgress({ current: 0, total: 0 });
-      }, 300);
     }
   };
 
@@ -334,27 +307,6 @@ const MultipleActionsButton = ({ selectedIds, onClearSelection }) => {
               sau khi lưu sẽ được xóa khỏi danh sách nháp.
             </DialogDescription>
           </DialogHeader>
-
-          {saveProgress.total > 0 && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Đang lưu...</span>
-                <span>
-                  {saveProgress.current}/{saveProgress.total}
-                </span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2.5">
-                <div
-                  className="bg-primary h-2.5 rounded-full"
-                  style={{
-                    width: `${
-                      (saveProgress.current / saveProgress.total) * 100
-                    }%`,
-                  }}
-                ></div>
-              </div>
-            </div>
-          )}
 
           <DialogFooter>
             <Button

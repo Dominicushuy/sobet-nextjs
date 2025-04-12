@@ -151,13 +151,21 @@ CREATE TABLE bet_entries (
   -- Xử lý đặc biệt
   calculation_formula TEXT, -- Công thức tính toán đã sử dụng
   
-  -- Tối ưu truy vấn
-  winning_numbers JSONB, -- Số trúng thưởng
-  
   -- Đối soát và xác minh
   reconciliation_id INTEGER REFERENCES verifications(id) ON DELETE SET NULL, -- ID của bản ghi đối soát
   reconciliation_status bet_reconciliation_status DEFAULT 'pending', -- Trạng thái đối soát
   verified_by UUID REFERENCES auth.users(id), -- Người xác minh
+
+  -- Thêm các cột liên kết với bảng lottery_results
+  lottery_result_id INTEGER REFERENCES lottery_results(id), -- ID tham chiếu đến kết quả xổ số
+  matched_prize_levels TEXT[], -- Các loại giải thưởng đã trúng, ví dụ: ['special_prize', 'first_prize']
+  matched_number TEXT, -- Số trúng thưởng chính
+  matched_numbers TEXT[], -- Tất cả các số trúng (cho trường hợp đá, đảo,...)
+  prize_category VARCHAR(50), -- Loại giải thưởng (đầu, đuôi, lô, 3 càng,...)
+  prize_position INTEGER, -- Vị trí trúng giải (nếu có nhiều vị trí)
+  result_verified_at TIMESTAMPTZ, -- Thời điểm xác minh kết quả
+  result_verified_by UUID REFERENCES auth.users(id), -- Người xác minh kết quả
+  result_details JSONB, -- Chi tiết bổ sung về kết quả khớp
   
   -- Ràng buộc duy nhất
   UNIQUE (bet_type_id, line_number)
