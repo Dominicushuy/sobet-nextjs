@@ -287,6 +287,11 @@ export function ChatProvider({ children }) {
                     : completeBetCode,
                 stakeAmount,
                 potentialWinning,
+                drawDate:
+                  lineResult.drawDate ||
+                  (lineResult.parseResult
+                    ? lineResult.parseResult.drawDate
+                    : null),
                 stakeDetails:
                   lineResult.calculationResults.stakeResult?.details || [],
                 prizeDetails:
@@ -797,6 +802,7 @@ export function ChatProvider({ children }) {
                 formattedBetCode !== text ? formattedBetCode : text,
               stakeAmount: totalStake,
               potentialWinning: totalPotential,
+              drawDate: betCodeResult.drawDate || parseResult.drawDate,
               stakeDetails: stakeResult.details || [],
               prizeDetails: prizeResult.details || [],
             });
