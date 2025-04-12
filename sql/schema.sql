@@ -110,100 +110,77 @@ CREATE TABLE number_combinations (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Bảng BetCodes (Mã cược)
 -- Enum cho trạng thái mã cược
 CREATE TYPE bet_code_status AS ENUM ('draft', 'confirmed', 'processed', 'deleted');
 CREATE TYPE bet_reconciliation_status AS ENUM ('pending', 'matched', 'discrepancy', 'adjusted', 'finalized');
 
-CREATE TABLE bet_codes (
+CREATE TABLE bet_entries (
   -- Thông tin cơ bản
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id), -- Lưu ý: Supabase sử dụng auth.users
-  created_by UUID NOT NULL REFERENCES auth.users(id),
-  admin_id UUID REFERENCES auth.users(id),
-  parent_id UUID REFERENCES bet_codes(id),
-  group_id UUID,
-  status bet_code_status NOT NULL DEFAULT 'draft',
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- ID duy nhất để nhận diện mỗi lần đặt cược
+  user_id UUID NOT NULL REFERENCES auth.users(id), -- Người dùng thực hiện đặt cược
+  created_by UUID NOT NULL REFERENCES auth.users(id), -- Người tạo bản ghi (có thể là user hoặc admin)
+  admin_id UUID REFERENCES auth.users(id), -- Admin xử lý/duyệt cược nếu có
+  status bet_code_status NOT NULL DEFAULT 'draft', -- Trạng thái hiện tại của lần đặt cược
   
   -- Timestamp
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  confirmed_at TIMESTAMPTZ,
-  processed_at TIMESTAMPTZ,
-  verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- Thời điểm tạo bản ghi
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- Thời điểm cập nhật bản ghi gần nhất
+  confirmed_at TIMESTAMPTZ, -- Thời điểm mã cược được xác nhận
+  processed_at TIMESTAMPTZ, -- Thời điểm mã cược được xử lý
+  verified_at TIMESTAMPTZ, -- Thời điểm mã cược được xác minh
   
   -- Nội dung mã cược
-  original_text TEXT NOT NULL,
-  formatted_text TEXT,
-  station_id INTEGER REFERENCES stations(id),
-  station_data JSONB NOT NULL,
-  draw_date DATE,
+  original_text TEXT NOT NULL, -- Văn bản gốc của mã cược nhận từ người dùng
+  formatted_text TEXT, -- Văn bản mã cược đã được định dạng lại
+  station_id INTEGER REFERENCES stations(id), -- ID của đài xổ số
+  station_data JSONB NOT NULL, -- Thông tin chi tiết về đài (tên, vùng, v.v.)
+  draw_date DATE, -- Ngày quay thưởng dự kiến
   
-  -- Xử lý đặc biệt
-  is_auto_expanded BOOLEAN DEFAULT FALSE,
-  special_case_type VARCHAR(50),
+  -- Thông tin dòng cược
+  line_number INTEGER NOT NULL, -- Số thứ tự của dòng cược trong mã cược
+  original_line TEXT NOT NULL, -- Nội dung gốc của dòng cược
+  bet_type_id INTEGER REFERENCES bet_types(id), -- ID của loại cược (đầu, đuôi, lô, v.v.)
+  bet_type_alias VARCHAR(100) NOT NULL, -- Tên viết tắt của loại cược
+  numbers TEXT[] NOT NULL, -- Các số được đặt cược
   
   -- Thông tin tài chính
-  stake_amount NUMERIC(12, 2) NOT NULL,
-  price_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.8,
-  actual_rate NUMERIC(5, 4),
-  potential_winning NUMERIC(12, 2) NOT NULL,
-  actual_winning NUMERIC(12, 2),
+  amount NUMERIC(12, 2) NOT NULL, -- Số tiền đặt cược từ người dùng
+  stake NUMERIC(12, 2) NOT NULL, -- Số tiền đóng thực tế sau khi tính toán
+  multiplier NUMERIC(5, 2) NOT NULL DEFAULT 1, -- Hệ số nhân áp dụng cho cược
+  price_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.8, -- Tỷ lệ giá áp dụng
+  actual_rate NUMERIC(5, 4), -- Tỷ lệ thực tế áp dụng (có thể khác với price_rate)
+  payout_rate NUMERIC(12, 2) NOT NULL, -- Tỷ lệ trả thưởng cho loại cược
+  potential_prize NUMERIC(12, 2) NOT NULL, -- Số tiền thưởng tiềm năng cho dòng cược
+  potential_winning NUMERIC(12, 2) NOT NULL, -- Tổng số tiền thưởng tiềm năng
+  winning_status BOOLEAN, -- Trạng thái trúng thưởng (true/false/null = chưa xác định)
+  actual_winning NUMERIC(12, 2), -- Số tiền thưởng thực tế nhận được
+  actual_prize NUMERIC(12, 2), -- Số tiền thưởng cho dòng cược cụ thể
   
-  -- Thông tin hoa hồng
-  commission_rate NUMERIC(5, 4),
-  export_rate NUMERIC(5, 4),
-  return_rate NUMERIC(5, 4),
-  user_commission NUMERIC(12, 2),
-  admin_commission NUMERIC(12, 2),
+  -- Xử lý đặc biệt
+  is_auto_expanded BOOLEAN DEFAULT FALSE, -- Có phải được tự động mở rộng từ mã gốc
+  special_case_type VARCHAR(50), -- Loại trường hợp đặc biệt (nếu có)
+  is_permutation BOOLEAN DEFAULT FALSE, -- Có phải kiểu cược hoán vị (đảo)
+  permutations JSONB, -- Danh sách các hoán vị được tạo ra
+  calculation_formula TEXT, -- Công thức tính toán đã sử dụng
   
   -- Tối ưu truy vấn
-  bet_lines JSONB,
-  bet_types JSONB,
-  numbers JSONB,
-  winning_numbers JSONB,
+  parsed_data JSONB, -- Dữ liệu đã phân tích từ dòng cược
+  bet_lines JSONB, -- Thông tin tổng hợp về các dòng cược
+  bet_types JSONB, -- Thông tin tổng hợp về các loại cược
+  numbers_data JSONB, -- Dữ liệu tổng hợp về các số đặt cược
+  winning_numbers JSONB, -- Số trúng thưởng
   
   -- Đối soát và xác minh
-  reconciliation_id INTEGER REFERENCES verifications(id) ON DELETE SET NULL,
-  reconciliation_status bet_reconciliation_status DEFAULT 'pending',
-  verified_by UUID REFERENCES auth.users(id),
-  verification_notes TEXT,
-  discrepancies JSONB,
-  adjusted_amount NUMERIC(12, 2),
+  reconciliation_id INTEGER REFERENCES verifications(id) ON DELETE SET NULL, -- ID của bản ghi đối soát
+  reconciliation_status bet_reconciliation_status DEFAULT 'pending', -- Trạng thái đối soát
+  verified_by UUID REFERENCES auth.users(id), -- Người xác minh
+  verification_notes TEXT, -- Ghi chú xác minh
+  discrepancies JSONB, -- Thông tin về những khác biệt phát hiện khi đối soát
+  adjusted_amount NUMERIC(12, 2), -- Số tiền đã điều chỉnh sau đối soát
   
-  -- Thông tin theo dõi
-  source VARCHAR(50) DEFAULT 'chat',
-  client_info JSONB,
-  
-  -- Trạng thái cache và thanh toán
-  cache_updated_at TIMESTAMPTZ,
-  is_settled BOOLEAN DEFAULT FALSE,
-  settlement_date TIMESTAMPTZ
-);
-
--- Tạo bảng chi tiết dòng cược
-CREATE TABLE bet_code_lines (
-  id SERIAL PRIMARY KEY,
-  bet_code_id UUID NOT NULL REFERENCES bet_codes(id) ON DELETE CASCADE,
-  line_number INTEGER NOT NULL,
-  original_line TEXT NOT NULL,
-  parsed_data JSONB,
-  bet_type_id INTEGER REFERENCES bet_types(id),
-  bet_type_alias VARCHAR(100) NOT NULL,
-  numbers TEXT[] NOT NULL,
-  amount NUMERIC(12, 2) NOT NULL,
-  stake NUMERIC(12, 2) NOT NULL,
-  payout_rate NUMERIC(12, 2) NOT NULL,
-  potential_prize NUMERIC(12, 2) NOT NULL,
-  winning_status BOOLEAN,
-  actual_prize NUMERIC(12, 2),
-  is_permutation BOOLEAN DEFAULT FALSE,
-  permutations JSONB,
-  calculation_formula TEXT,
-  is_valid BOOLEAN NOT NULL DEFAULT TRUE,
-  error_message TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (bet_code_id, line_number)
+  -- Ràng buộc duy nhất
+  UNIQUE (bet_type_id, line_number)
 );
 
 -- Bảng LotteryResults (Kết quả xổ số)
