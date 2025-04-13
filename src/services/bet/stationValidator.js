@@ -20,8 +20,8 @@ export function validateStationAvailability(parsedStation, betConfig) {
   const currentHour = now.getHours();
   let targetDate = new Date(now);
 
-  // If it's after 6PM (18:00), we check tomorrow's schedule
-  if (currentHour >= 18) {
+  // If it's after 4PM (16:00), we check tomorrow's schedule
+  if (currentHour >= 16) {
     targetDate.setDate(targetDate.getDate() + 1);
   }
 
@@ -36,7 +36,7 @@ export function validateStationAvailability(parsedStation, betConfig) {
     'saturday',
   ];
   const targetDay = daysOfWeek[targetDate.getDay()];
-  const timePhrase = currentHour >= 18 ? 'ngày mai' : 'hôm nay';
+  const timePhrase = currentHour >= 16 ? 'ngày mai' : 'hôm nay';
 
   // Find all relevant stations to check
   const stationsToCheck = [];

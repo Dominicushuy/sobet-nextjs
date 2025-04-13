@@ -77,8 +77,8 @@ export function getDrawDate() {
   const now = new Date();
   const drawDate = new Date(now);
 
-  // Nếu sau 18:00 (6 PM), ngày xổ số là ngày mai
-  if (now.getHours() >= 18) {
+  // Nếu sau 16:00 (4 PM), ngày xổ số là ngày mai
+  if (now.getHours() >= 16) {
     drawDate.setDate(drawDate.getDate() + 1);
   }
 
