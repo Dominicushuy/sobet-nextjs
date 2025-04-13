@@ -1,12 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, X, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Search,
+  X,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  Check,
+  AlertTriangle,
+} from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
-import { useServerQuery } from '@/hooks/useServerAction';
+import { useServerQuery, useServerMutation } from '@/hooks/useServerAction';
 import {
   fetchAdminBetEntries,
   fetchAdminUsers,
+  confirmBetEntries,
+  deleteBetEntries,
 } from '@/app/actions/bet-entries';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +44,16 @@ import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
 import { DateSearchFilter } from '@/components/bet-codes/DateSearchFilter';
 import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function AdminBetCodesPage() {
   const { user } = useAuth();
@@ -44,6 +65,12 @@ export default function AdminBetCodesPage() {
   const [isUserSelectorExpanded, setIsUserSelectorExpanded] = useState(true);
   const [expandedUsers, setExpandedUsers] = useState({});
 
+  // State cho chức năng chọn nhiều mã cược
+  const [selectedEntryIds, setSelectedEntryIds] = useState([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [dialogAction, setDialogAction] = useState(null);
+
   // Query for users created by this admin
   const { data: usersData, isLoading: isLoadingUsers } = useServerQuery(
     ['adminUsers', user?.id],
@@ -51,7 +78,7 @@ export default function AdminBetCodesPage() {
     {
       enabled: !!user?.id,
       onError: (error) => {
-        toast.error('Error loading users: ' + error.message);
+        toast.error('Lỗi khi tải danh sách người dùng: ' + error.message);
       },
     }
   );
@@ -89,7 +116,51 @@ export default function AdminBetCodesPage() {
     {
       enabled: selectedUserIds.length > 0,
       onError: (error) => {
-        toast.error('Error loading bet entries: ' + error.message);
+        toast.error('Lỗi khi tải mã cược: ' + error.message);
+      },
+    }
+  );
+
+  // Mutation để duyệt mã cược
+  const { mutate: confirmEntries, isPending: isConfirming } = useServerMutation(
+    'confirmBetEntries',
+    (entryIds) => confirmBetEntries(entryIds, user?.id),
+    {
+      onSuccess: (result) => {
+        if (result.error) {
+          toast.error('Lỗi khi duyệt mã cược: ' + result.error);
+        } else {
+          toast.success(
+            `Đã duyệt ${result.data.updatedCount} mã cược thành công`
+          );
+          setSelectedEntryIds([]);
+          refetchEntries();
+        }
+      },
+      onError: (error) => {
+        toast.error('Lỗi hệ thống: ' + error.message);
+      },
+    }
+  );
+
+  // Mutation để xóa mã cược
+  const { mutate: deleteEntries, isPending: isDeleting } = useServerMutation(
+    'deleteBetEntries',
+    (entryIds) => deleteBetEntries(entryIds, user?.id),
+    {
+      onSuccess: (result) => {
+        if (result.error) {
+          toast.error('Lỗi khi xóa mã cược: ' + result.error);
+        } else {
+          toast.success(
+            `Đã xóa ${result.data.updatedCount} mã cược thành công`
+          );
+          setSelectedEntryIds([]);
+          refetchEntries();
+        }
+      },
+      onError: (error) => {
+        toast.error('Lỗi hệ thống: ' + error.message);
       },
     }
   );
@@ -141,6 +212,18 @@ export default function AdminBetCodesPage() {
     if (usersData?.data) {
       setSelectedUserIds(usersData.data.map((user) => user.id));
     }
+    setSelectedEntryIds([]);
+  };
+
+  // Handle confirmation dialog
+  const handleConfirmAction = () => {
+    if (dialogAction === 'confirm') {
+      confirmEntries(selectedEntryIds);
+    } else if (dialogAction === 'delete') {
+      deleteEntries(selectedEntryIds);
+    }
+    setShowConfirmDialog(false);
+    setShowDeleteDialog(false);
   };
 
   // Filtered users for the selection panel
@@ -188,6 +271,11 @@ export default function AdminBetCodesPage() {
       })
     : [];
 
+  // Count drafts in filtered entries for action buttons
+  const draftCount = filteredEntries.filter(
+    (entry) => entry.status === 'draft'
+  ).length;
+
   // Group entries by user
   const entriesByUser = {};
   const userTotals = {};
@@ -217,8 +305,6 @@ export default function AdminBetCodesPage() {
     );
   };
 
-  console.log('Filtered Entries:', filteredEntries);
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -228,13 +314,47 @@ export default function AdminBetCodesPage() {
             Danh sách mã cược của người dùng trong hệ thống
           </p>
         </div>
-        <Button
-          onClick={() => refetchEntries()}
-          disabled={selectedUserIds.length === 0}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Làm mới
-        </Button>
+
+        <div className="flex items-center gap-2">
+          {selectedEntryIds.length > 0 && (
+            <>
+              <Button
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  setDialogAction('confirm');
+                  setShowConfirmDialog(true);
+                }}
+                disabled={isConfirming || isDeleting}
+              >
+                <Check className="mr-2 h-4 w-4" />
+                Duyệt ({selectedEntryIds.length})
+              </Button>
+
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setDialogAction('delete');
+                  setShowDeleteDialog(true);
+                }}
+                disabled={isConfirming || isDeleting}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Xóa ({selectedEntryIds.length})
+              </Button>
+            </>
+          )}
+
+          <Button
+            onClick={() => refetchEntries()}
+            disabled={selectedUserIds.length === 0}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isLoadingEntries ? 'animate-spin' : ''}`}
+            />
+            Làm mới
+          </Button>
+        </div>
       </div>
 
       {/* User Filter Card */}
@@ -361,11 +481,47 @@ export default function AdminBetCodesPage() {
             ? 'Vui lòng chọn ít nhất một người dùng'
             : isLoadingEntries
               ? 'Đang tải dữ liệu...'
-              : `Hiển thị ${filteredEntries.length} mã cược từ ${Object.keys(entriesByUser).length} người dùng`}
+              : `Hiển thị ${filteredEntries.length} mã cược (${draftCount} mã nháp) từ ${Object.keys(entriesByUser).length} người dùng`}
         </h2>
-        {isLoadingEntries && (
-          <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-        )}
+        <div className="flex items-center gap-2">
+          {!isLoadingEntries && draftCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Lấy tất cả ID của các mã cược draft
+                const allDraftEntryIds = filteredEntries
+                  .filter((entry) => entry.status === 'draft')
+                  .map((entry) => entry.id);
+
+                // Kiểm tra xem đã chọn tất cả chưa
+                const allSelected = allDraftEntryIds.every((id) =>
+                  selectedEntryIds.includes(id)
+                );
+
+                if (allSelected) {
+                  // Nếu đã chọn tất cả, bỏ chọn tất cả
+                  setSelectedEntryIds([]);
+                } else {
+                  // Nếu chưa chọn tất cả, chọn tất cả
+                  setSelectedEntryIds(allDraftEntryIds);
+                }
+              }}
+            >
+              {selectedEntryIds.length === draftCount && draftCount > 0
+                ? 'Bỏ chọn tất cả'
+                : `Chọn tất cả (${draftCount})`}
+            </Button>
+          )}
+          {isLoadingEntries && (
+            <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+          )}
+          {selectedEntryIds.length > 0 && (
+            <Badge variant="outline">
+              {selectedEntryIds.length} mã được chọn
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* User bet groups */}
@@ -456,13 +612,65 @@ export default function AdminBetCodesPage() {
                     </div>
                   </CardDescription>
                 </div>
-                <Button variant="ghost" size="icon">
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    // Tính số mã cược draft của user này
+                    const userDraftEntries = userEntries.filter(
+                      (entry) => entry.status === 'draft'
+                    );
+                    const userDraftCount = userDraftEntries.length;
+
+                    // Kiểm tra xem đã chọn tất cả mã draft của user này chưa
+                    const userDraftIds = userDraftEntries.map(
+                      (entry) => entry.id
+                    );
+                    const userDraftSelected =
+                      userDraftIds.length > 0 &&
+                      userDraftIds.every((id) => selectedEntryIds.includes(id));
+
+                    if (userDraftCount > 0) {
+                      return (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Ngăn không cho event bubbling
+
+                            if (userDraftSelected) {
+                              // Bỏ chọn tất cả mã của user này
+                              setSelectedEntryIds(
+                                selectedEntryIds.filter(
+                                  (id) => !userDraftIds.includes(id)
+                                )
+                              );
+                            } else {
+                              // Chọn tất cả mã draft của user này
+                              const newSelection = [...selectedEntryIds];
+                              userDraftIds.forEach((id) => {
+                                if (!newSelection.includes(id)) {
+                                  newSelection.push(id);
+                                }
+                              });
+                              setSelectedEntryIds(newSelection);
+                            }
+                          }}
+                        >
+                          {userDraftSelected
+                            ? 'Bỏ chọn'
+                            : `Chọn ${userDraftCount} mã`}
+                        </Button>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <Button variant="ghost" size="icon">
+                    {isExpanded ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
 
               {isExpanded && (
@@ -471,6 +679,9 @@ export default function AdminBetCodesPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-10">
+                            {/* Checkbox column */}
+                          </TableHead>
                           <TableHead>Đài</TableHead>
                           <TableHead>Loại cược</TableHead>
                           <TableHead>Số cược</TableHead>
@@ -485,6 +696,9 @@ export default function AdminBetCodesPage() {
                           entriesByStation={entriesByStation}
                           stationTotals={stationTotals}
                           userId={userId}
+                          isSelectable={true}
+                          selectedEntryIds={selectedEntryIds}
+                          onSelectEntry={setSelectedEntryIds}
                         />
                       </TableBody>
                     </Table>
@@ -494,7 +708,7 @@ export default function AdminBetCodesPage() {
 
               <CardFooter className="bg-muted/30 py-2 px-6 flex justify-end">
                 <div className="text-sm text-muted-foreground">
-                  Updated: {formatDate(userEntries[0]?.created_at)}
+                  Cập nhật: {formatDate(userEntries[0]?.created_at)}
                 </div>
               </CardFooter>
             </Card>
@@ -512,6 +726,57 @@ export default function AdminBetCodesPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Confirm Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận duyệt mã cược</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn đang thực hiện duyệt {selectedEntryIds.length} mã cược. Hành
+              động này sẽ chuyển trạng thái của các mã cược từ "Nháp" sang "Đã
+              xác nhận".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className="bg-green-600 hover:bg-green-700"
+              disabled={isConfirming}
+            >
+              {isConfirming ? 'Đang xử lý...' : 'Xác nhận duyệt'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center text-destructive">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              Xác nhận xóa mã cược
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn đang thực hiện xóa {selectedEntryIds.length} mã cược. Hành
+              động này sẽ chuyển trạng thái của các mã cược sang "Đã xóa" và
+              không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Đang xử lý...' : 'Xác nhận xóa'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -5,11 +5,15 @@ import { formatDate } from '@/utils/formatters';
 import { BetStatusBadge } from './BetStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { TableCell, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export function StationEntriesGroup({
   entriesByStation,
   stationTotals,
   userId,
+  isSelectable = false,
+  selectedEntryIds = [],
+  onSelectEntry,
 }) {
   const [expandedStations, setExpandedStations] = useState({});
 
@@ -19,6 +23,33 @@ export function StationEntriesGroup({
       ...prev,
       [stationKey]: !prev[stationKey],
     }));
+  };
+
+  // Toggle selection for all entries in a station
+  const toggleSelectAllStation = (stationKey) => {
+    if (!onSelectEntry) return;
+
+    const stationData = entriesByStation[stationKey];
+    const entryIds = stationData.entries
+      .filter((entry) => entry.status === 'draft') // Only allow selection of draft entries
+      .map((entry) => entry.id);
+
+    // Check if all entries in this station are selected
+    const allSelected = entryIds.every((id) => selectedEntryIds.includes(id));
+
+    if (allSelected) {
+      // Deselect all entries in this station
+      onSelectEntry(selectedEntryIds.filter((id) => !entryIds.includes(id)));
+    } else {
+      // Select all entries in this station
+      const newSelection = [...selectedEntryIds];
+      entryIds.forEach((id) => {
+        if (!newSelection.includes(id)) {
+          newSelection.push(id);
+        }
+      });
+      onSelectEntry(newSelection);
+    }
   };
 
   return (
@@ -31,6 +62,18 @@ export function StationEntriesGroup({
             ? true
             : expandedStations[stationKey];
 
+        // Calculate if all selectable entries in this station are selected
+        const selectableEntries = stationData.entries.filter(
+          (entry) => entry.status === 'draft'
+        );
+        const stationSelectableCount = selectableEntries.length;
+        const stationSelectedCount = selectableEntries.filter((entry) =>
+          selectedEntryIds.includes(entry.id)
+        ).length;
+        const isAllStationSelected =
+          stationSelectableCount > 0 &&
+          stationSelectableCount === stationSelectedCount;
+
         return (
           <Fragment key={stationKey}>
             {/* Station group header */}
@@ -38,7 +81,19 @@ export function StationEntriesGroup({
               className="bg-muted/40 hover:bg-muted cursor-pointer"
               onClick={() => toggleStationExpansion(stationKey)}
             >
-              <TableCell colSpan={7} className="py-2">
+              {isSelectable && (
+                <TableCell className="w-10">
+                  {stationSelectableCount > 0 && (
+                    <Checkbox
+                      checked={isAllStationSelected}
+                      onCheckedChange={() => toggleSelectAllStation(stationKey)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Select all entries for ${stationData.name}`}
+                    />
+                  )}
+                </TableCell>
+              )}
+              <TableCell colSpan={isSelectable ? 6 : 7} className="py-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {isStationExpanded ? (
@@ -50,6 +105,14 @@ export function StationEntriesGroup({
                     <Badge variant="outline" className="ml-2">
                       {stationTotal.count} mã
                     </Badge>
+                    {stationSelectableCount > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="ml-1 bg-primary/10 text-primary border-primary/20"
+                      >
+                        {stationSelectedCount}/{stationSelectableCount} đã chọn
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <span>{formatCurrency(stationTotal.totalAmount)}</span>
@@ -65,7 +128,35 @@ export function StationEntriesGroup({
             {/* Entries for this station */}
             {isStationExpanded &&
               stationData.entries.map((entry) => (
-                <TableRow key={entry.id}>
+                <TableRow
+                  key={entry.id}
+                  className={
+                    selectedEntryIds.includes(entry.id) ? 'bg-primary/5' : ''
+                  }
+                >
+                  {isSelectable && (
+                    <TableCell className="w-10">
+                      {entry.status === 'draft' && (
+                        <Checkbox
+                          checked={selectedEntryIds.includes(entry.id)}
+                          onCheckedChange={() => {
+                            if (onSelectEntry) {
+                              if (selectedEntryIds.includes(entry.id)) {
+                                onSelectEntry(
+                                  selectedEntryIds.filter(
+                                    (id) => id !== entry.id
+                                  )
+                                );
+                              } else {
+                                onSelectEntry([...selectedEntryIds, entry.id]);
+                              }
+                            }
+                          }}
+                          aria-label={`Select entry ${entry.id}`}
+                        />
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="pl-8 whitespace-nowrap">
                     {entry.station?.name ||
                       (entry.station_data?.multiStation

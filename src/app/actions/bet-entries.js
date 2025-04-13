@@ -3,6 +3,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { supabaseAdmin } from '@/utils/supabase/admin';
+import { revalidatePath } from 'next/cache';
 
 // Fetch users created by this admin
 export async function fetchAdminUsers(adminId) {
@@ -133,5 +134,67 @@ export async function fetchUserBetEntries({ date = null, searchTerm = null }) {
   } catch (error) {
     console.error('Unexpected error in fetchUserBetEntries:', error);
     return { data: null, error: 'Internal server error' };
+  }
+}
+
+// Duyệt nhiều mã cược
+export async function confirmBetEntries(entryIds, adminId) {
+  try {
+    if (!entryIds || entryIds.length === 0 || !adminId) {
+      return { data: null, error: 'Thiếu thông tin cần thiết' };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('bet_entries')
+      .update({
+        status: 'confirmed',
+        admin_id: adminId,
+        processed_at: new Date().toISOString(),
+      })
+      .in('id', entryIds)
+      .eq('status', 'draft')
+      .select('id');
+
+    if (error) {
+      console.error('Error confirming bet entries:', error);
+      return { data: null, error: error.message };
+    }
+
+    revalidatePath('/admin/bet-codes');
+    return { data: { updatedCount: data.length }, error: null };
+  } catch (error) {
+    console.error('Unexpected error in confirmBetEntries:', error);
+    return { data: null, error: 'Lỗi hệ thống' };
+  }
+}
+
+// Xóa nhiều mã cược
+export async function deleteBetEntries(entryIds, adminId) {
+  try {
+    if (!entryIds || entryIds.length === 0 || !adminId) {
+      return { data: null, error: 'Thiếu thông tin cần thiết' };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('bet_entries')
+      .update({
+        status: 'deleted',
+        admin_id: adminId,
+        processed_at: new Date().toISOString(),
+      })
+      .in('id', entryIds)
+      .in('status', ['draft', 'confirmed'])
+      .select('id');
+
+    if (error) {
+      console.error('Error deleting bet entries:', error);
+      return { data: null, error: error.message };
+    }
+
+    revalidatePath('/admin/bet-codes');
+    return { data: { updatedCount: data.length }, error: null };
+  } catch (error) {
+    console.error('Unexpected error in deleteBetEntries:', error);
+    return { data: null, error: 'Lỗi hệ thống' };
   }
 }
