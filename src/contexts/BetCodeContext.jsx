@@ -1,3 +1,5 @@
+// src/contexts/BetCodeContext.jsx - Improved permutation handling in context
+
 'use client';
 
 import React, {
@@ -43,7 +45,7 @@ const betCodeReducer = (state, action) => {
         .toString(36)
         .substring(2, 9)}`;
 
-      // Prepare new code
+      // Ensure permutation data is preserved if present
       const newCode = {
         ...action.payload,
         id: action.payload.id || uniqueId,
@@ -52,6 +54,19 @@ const betCodeReducer = (state, action) => {
         isDraft: true,
         status: 'pending',
       };
+
+      // Make sure permutation information is correctly included
+      if (action.payload.lines) {
+        for (const line of action.payload.lines) {
+          if (line.isPermutation) {
+            // If the line has permutation flag but no permutations data,
+            // make sure we have an empty object placeholder
+            if (!line.permutations) {
+              line.permutations = {};
+            }
+          }
+        }
+      }
 
       // If this is an automatically expanded code, add info about the expansion
       if (action.payload.autoExpanded) {
@@ -259,9 +274,23 @@ export function BetCodeProvider({ children }) {
 
   // Add a new draft code
   const addDraftCode = useCallback((code) => {
+    // Ensure permutation information is properly included
+    const codeToAdd = { ...code };
+
+    // Process permutation info at lines level
+    if (codeToAdd.lines) {
+      for (const line of codeToAdd.lines) {
+        if (line.isPermutation && !line.permutations) {
+          // If line is marked as permutation but doesn't have permutations data,
+          // generate it or set an empty object placeholder
+          line.permutations = {};
+        }
+      }
+    }
+
     dispatch({
       type: ACTION_TYPES.ADD_DRAFT,
-      payload: code,
+      payload: codeToAdd,
     });
   }, []);
 
@@ -289,7 +318,7 @@ export function BetCodeProvider({ children }) {
     [draftCodes]
   );
 
-  // Save a draft code
+  // Save a draft code - makes sure permutation information is preserved
   const confirmDraftCode = useCallback(
     (id) => {
       if (!user?.id) {
@@ -303,11 +332,32 @@ export function BetCodeProvider({ children }) {
         return;
       }
 
+      // Ensure permutation info is included in the saved code
+      const codeToSave = { ...draftCode };
+
+      // Process permutation info at lines level
+      if (codeToSave.lines) {
+        for (const line of codeToSave.lines) {
+          // Add proper isPermutation flag if missing but line has permutations data
+          if (
+            !line.isPermutation &&
+            line.permutations &&
+            Object.keys(line.permutations).length > 0
+          ) {
+            line.isPermutation = true;
+          }
+          // Ensure permutations data is properly structured
+          if (line.isPermutation && !line.permutations) {
+            line.permutations = {};
+          }
+        }
+      }
+
       // Show loading toast
       const loadingToast = toast.loading('Đang lưu mã cược...');
 
       try {
-        mutateSaveDraftCode(draftCode, {
+        mutateSaveDraftCode(codeToSave, {
           onSuccess: (result) => {
             toast.dismiss(loadingToast);
 
@@ -332,11 +382,11 @@ export function BetCodeProvider({ children }) {
     [user, getBetCode, mutateSaveDraftCode]
   );
 
-  // Save all draft codes
+  // Save all draft codes - ensures permutation information is preserved
   const confirmDraftCodes = useCallback(() => {
-    // console.log(draftCodes);
+    console.log(draftCodes);
 
-    // return;
+    return;
 
     if (!user?.id) {
       toast.error('Bạn cần đăng nhập để lưu mã cược');
@@ -348,13 +398,38 @@ export function BetCodeProvider({ children }) {
       return;
     }
 
+    // Ensure permutation info is properly included in all codes
+    const codesToSave = draftCodes.map((code) => {
+      const codeToSave = { ...code };
+
+      // Process permutation info at lines level
+      if (codeToSave.lines) {
+        for (const line of codeToSave.lines) {
+          // Add proper isPermutation flag if missing but line has permutations data
+          if (
+            !line.isPermutation &&
+            line.permutations &&
+            Object.keys(line.permutations).length > 0
+          ) {
+            line.isPermutation = true;
+          }
+          // Ensure permutations data is properly structured
+          if (line.isPermutation && !line.permutations) {
+            line.permutations = {};
+          }
+        }
+      }
+
+      return codeToSave;
+    });
+
     // Show loading toast
     const loadingToast = toast.loading(
-      `Đang lưu ${draftCodes.length} mã cược...`
+      `Đang lưu ${codesToSave.length} mã cược...`
     );
 
     try {
-      mutateSaveDraftCodes(draftCodes, {
+      mutateSaveDraftCodes(codesToSave, {
         onSuccess: (result) => {
           toast.dismiss(loadingToast);
 

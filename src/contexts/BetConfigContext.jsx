@@ -28,7 +28,7 @@ export function BetConfigProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // console.log(betConfig);
+  // console.log({ betConfig });
 
   // Fetch dữ liệu khi user thay đổi
   useEffect(() => {

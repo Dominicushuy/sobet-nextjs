@@ -204,8 +204,8 @@ const BetCodeList = () => {
 
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">Tổng tiền đóng:</span>{' '}
-              <span className="font-medium text-blue-600 dark:text-blue-400">
+              <span className="text-muted-foreground">Tổng tiền thu:</span>{' '}
+              <span className="font-medium text-orange-600 dark:text-orange-400">
                 {formatMoney(
                   filteredDraftCodes.length > 0
                     ? filteredDraftStats.totalStake

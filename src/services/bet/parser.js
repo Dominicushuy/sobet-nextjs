@@ -1,5 +1,8 @@
 /* eslint-disable no-useless-escape */
 // src/services/bet/parser.js
+
+import { generatePermutations } from '@/utils/bet';
+
 /**
  * Phân tích mã cược đầu vào
  * @param {string} betCode - Mã cược đầu vào
@@ -767,6 +770,8 @@ function parseStation(stationString, betConfig) {
   };
 }
 
+// src/services/bet/parser.js - Fixed permutation handling
+
 /**
  * Phân tích dòng cược
  * @param {string} line - Dòng cược
@@ -781,7 +786,8 @@ function parseBetLine(line, station, betConfig) {
     betType: null,
     originalLine: line,
     additionalBetTypes: [],
-    isPermutation: false, // Thêm flag isPermutation mặc định là false
+    isPermutation: false, // Default permutation flag
+    permutations: {}, // Initialize empty permutations object
   };
 
   try {
@@ -816,24 +822,24 @@ function parseBetLine(line, station, betConfig) {
       }
     }
 
-    // Lấy danh sách alias từ các kiểu cược, sắp xếp từ dài đến ngắn
+    // Get list of aliases sorted by length (longest first)
     const sortedAliases = betConfig.betTypes
       .flatMap((bt) => bt.aliases)
       .sort((a, b) => b.length - a.length);
 
-    // Thử phân tích bằng pattern matching tổng quát cho hầu hết dòng cược
+    // Try parsing using general pattern matching for most bet lines
     const betLinePattern = /^([\d.]+)([a-z][a-z0-9]*)(\d+(?:[,.]\d+)?)$/i;
     const betLineMatch = line.match(betLinePattern);
 
     if (betLineMatch) {
       const [_, numbersPart, betTypeText, amountText] = betLineMatch;
 
-      // Tìm kiếm kiểu cược phù hợp nhất
+      // Find the most matching bet type
       let identifiedBetType = null;
       let actualBetTypeText = betTypeText;
       let actualAmountText = amountText;
 
-      // Ưu tiên tìm kiếm các kiểu cược đặc biệt từ betConfig (như b7l, b8l)
+      // Prioritize finding special bet types from betConfig (like b7l, b8l)
       const specialBetTypes = betConfig.betTypes
         .filter((bt) => bt.aliases.some((a) => /^b[78]l/i.test(a)))
         .flatMap((bt) => bt.aliases);
@@ -845,7 +851,7 @@ function parseBetLine(line, station, betConfig) {
       ) {
         identifiedBetType = identifyBetType(betTypeText, betConfig);
       }
-      // Sau đó tìm kiếm trong các alias đã sắp xếp (dài nhất trước)
+      // Otherwise, try to match from sorted aliases (longest first)
       else {
         for (const alias of sortedAliases) {
           if (betTypeText.toLowerCase() === alias.toLowerCase()) {
@@ -854,13 +860,13 @@ function parseBetLine(line, station, betConfig) {
           }
         }
 
-        // Nếu không tìm thấy match chính xác, thử tìm bằng startsWith
+        // If no exact match, try matching with startsWith
         if (!identifiedBetType) {
           for (const alias of sortedAliases) {
             if (betTypeText.toLowerCase().startsWith(alias.toLowerCase())) {
               const remaining = betTypeText.substring(alias.length);
 
-              // Kiểm tra nếu phần còn lại có phải là số không
+              // Check if remaining part is a number
               if (/^\d+$/.test(remaining)) {
                 identifiedBetType = identifyBetType(alias, betConfig);
                 actualBetTypeText = alias;
@@ -876,7 +882,7 @@ function parseBetLine(line, station, betConfig) {
       }
 
       if (identifiedBetType) {
-        // Xử lý phần số
+        // Process numbers
         const numbers = numbersPart.split('.').filter((n) => n.trim() !== '');
         const processedNumbers = [];
         for (const num of numbers) {
@@ -884,14 +890,14 @@ function parseBetLine(line, station, betConfig) {
           processedNumbers.push(...processed);
         }
 
-        // Kiểm tra nếu có số
+        // Check if we have numbers
         if (processedNumbers.length > 0) {
-          // Tính tiền
+          // Parse amount
           const amount = parseAmount(actualAmountText);
 
-          // Kiểm tra nếu có tiền
+          // Check if we have a valid amount
           if (amount > 0) {
-            // Kiểm tra độ dài nhất quán của các số
+            // Check that all numbers have the same length
             const lengths = new Set(processedNumbers.map((num) => num.length));
             if (lengths.size > 1) {
               result.numbers = processedNumbers;
@@ -901,7 +907,7 @@ function parseBetLine(line, station, betConfig) {
               return result;
             }
 
-            // Kiểm tra tính hợp lệ của kiểu cược với độ dài số
+            // Validate bet type with number length
             if (processedNumbers.length > 0) {
               const digitCount = processedNumbers[0].length;
               const validation = validateBetTypeDigitCount(
@@ -918,7 +924,40 @@ function parseBetLine(line, station, betConfig) {
               }
             }
 
-            // Cập nhật kết quả
+            // Important: Check if this is a permutation bet type
+            const fullBetType = betConfig.betTypes.find(
+              (bt) =>
+                bt.name === identifiedBetType.id ||
+                bt.aliases.some(
+                  (a) => a.toLowerCase() === actualBetTypeText.toLowerCase()
+                )
+            );
+
+            if (fullBetType && fullBetType.is_permutation) {
+              result.isPermutation = true;
+
+              // Generate permutations for each number
+              for (const number of processedNumbers) {
+                const perms = generatePermutations(number);
+                result.permutations[number] = perms;
+              }
+            }
+            // Additional check for common permutation aliases that might not be in config
+            else if (
+              actualBetTypeText.toLowerCase().includes('dao') ||
+              actualBetTypeText.toLowerCase().includes('dxc') ||
+              actualBetTypeText.toLowerCase() === 'xcd'
+            ) {
+              result.isPermutation = true;
+
+              // Generate permutations for each number
+              for (const number of processedNumbers) {
+                const perms = generatePermutations(number);
+                result.permutations[number] = perms;
+              }
+            }
+
+            // Update result
             result.numbers = processedNumbers;
             result.betType = identifiedBetType;
             result.amount = amount;
@@ -929,7 +968,7 @@ function parseBetLine(line, station, betConfig) {
       }
     }
 
-    // Thử với pattern cụ thể cho các kiểu cược đặc biệt từ betConfig
+    // Try with pattern specifically for special bet types from betConfig
     const specialBetAliases = betConfig.betTypes
       .filter((bt) => bt.aliases.some((a) => /^b[78]l/i.test(a)))
       .flatMap((bt) => bt.aliases)
@@ -944,7 +983,7 @@ function parseBetLine(line, station, betConfig) {
     if (specialBetMatch) {
       const [_, numbersPart, betTypeText, amountText] = specialBetMatch;
 
-      // Xử lý phần số
+      // Process numbers
       const numbers = numbersPart.split('.').filter((n) => n.trim() !== '');
       const processedNumbers = [];
       for (const num of numbers) {
@@ -952,15 +991,15 @@ function parseBetLine(line, station, betConfig) {
         processedNumbers.push(...processed);
       }
 
-      // Tìm kiểu cược tương ứng
+      // Find matching bet type
       const betType = identifyBetType(betTypeText, betConfig);
 
-      // Tính tiền
+      // Parse amount
       const amount = parseAmount(amountText);
 
-      // Nếu tất cả đều hợp lệ, cập nhật result
+      // If all valid, update result
       if (betType && processedNumbers.length > 0 && amount > 0) {
-        // Kiểm tra độ dài nhất quán của các số
+        // Check consistent number lengths
         const lengths = new Set(processedNumbers.map((num) => num.length));
         if (lengths.size > 1) {
           result.numbers = processedNumbers;
@@ -968,6 +1007,25 @@ function parseBetLine(line, station, betConfig) {
           result.error =
             'Tất cả các số trong một dòng cược phải có cùng độ dài';
           return result;
+        }
+
+        // Check if this is a permutation bet type
+        const fullBetType = betConfig.betTypes.find(
+          (bt) =>
+            bt.name === betType.id ||
+            bt.aliases.some(
+              (a) => a.toLowerCase() === betTypeText.toLowerCase()
+            )
+        );
+
+        if (fullBetType && fullBetType.is_permutation) {
+          result.isPermutation = true;
+
+          // Generate permutations for each number
+          for (const number of processedNumbers) {
+            const perms = generatePermutations(number);
+            result.permutations[number] = perms;
+          }
         }
 
         result.numbers = processedNumbers;
@@ -1008,7 +1066,7 @@ function parseBetLine(line, station, betConfig) {
         const [_, firstBetTypeText, firstAmountText] = firstBetTypeMatch;
         let firstBetType = identifyBetType(firstBetTypeText, betConfig);
 
-        // Đặc biệt kiểm tra cho các kiểu cược đặc biệt từ betConfig
+        // Special check for special bet types from betConfig
         const specialBetAliases = betConfig.betTypes
           .filter((bt) => bt.aliases.some((a) => /^b[78]l/i.test(a)))
           .flatMap((bt) => bt.aliases);
@@ -1022,6 +1080,39 @@ function parseBetLine(line, station, betConfig) {
 
         if (!firstBetType) return result;
 
+        // Check if first bet type is a permutation type
+        const fullFirstBetType = betConfig.betTypes.find(
+          (bt) =>
+            bt.name === firstBetType.id ||
+            bt.aliases.some(
+              (a) => a.toLowerCase() === firstBetTypeText.toLowerCase()
+            )
+        );
+
+        if (fullFirstBetType && fullFirstBetType.is_permutation) {
+          result.isPermutation = true;
+
+          // Generate permutations for each number
+          for (const number of numbers) {
+            const perms = generatePermutations(number);
+            result.permutations[number] = perms;
+          }
+        }
+        // Additional check for common permutation aliases that might not be in config
+        else if (
+          firstBetTypeText.toLowerCase().includes('dao') ||
+          firstBetTypeText.toLowerCase().includes('dxc') ||
+          firstBetTypeText.toLowerCase() === 'xcd'
+        ) {
+          result.isPermutation = true;
+
+          // Generate permutations for each number
+          for (const number of numbers) {
+            const perms = generatePermutations(number);
+            result.permutations[number] = perms;
+          }
+        }
+
         // Process remaining bet types
         const betTypes = [{ betType: firstBetType, amount: firstAmountText }];
         const remainingBetTypePattern = /([a-z]+)(\d+(?:[,.]\d+)?)/gi;
@@ -1034,7 +1125,7 @@ function parseBetLine(line, station, betConfig) {
           const [__, betTypeText, amountText] = betTypeMatch;
           let betType = identifyBetType(betTypeText, betConfig);
 
-          // Đặc biệt kiểm tra cho các kiểu cược đặc biệt từ betConfig
+          // Special check for special bet types from betConfig
           if (
             !betType &&
             specialBetAliases.includes(betTypeText.toLowerCase())
@@ -1044,7 +1135,28 @@ function parseBetLine(line, station, betConfig) {
 
           if (betType) {
             const amount = parseAmount(amountText);
-            betTypes.push({ betType, amount });
+
+            // Check if this additional bet type is a permutation type
+            const fullAdditionalBetType = betConfig.betTypes.find(
+              (bt) =>
+                bt.name === betType.id ||
+                bt.aliases.some(
+                  (a) => a.toLowerCase() === betTypeText.toLowerCase()
+                )
+            );
+
+            // Store permutation info if it's a permutation type
+            const isAdditionalPermutation =
+              (fullAdditionalBetType && fullAdditionalBetType.is_permutation) ||
+              betTypeText.toLowerCase().includes('dao') ||
+              betTypeText.toLowerCase().includes('dxc') ||
+              betTypeText.toLowerCase() === 'xcd';
+
+            betTypes.push({
+              betType,
+              amount,
+              isPermutation: isAdditionalPermutation,
+            });
           }
         }
 
@@ -1072,6 +1184,13 @@ function parseBetLine(line, station, betConfig) {
               betType: betTypes[i].betType,
               amount: parseAmount(betTypes[i].amount),
               numbers: numbers, // Share the same numbers
+              isPermutation: betTypes[i].isPermutation, // Include permutation flag
+              // If it's a permutation type, add permutations information
+              ...(betTypes[i].isPermutation && {
+                permutations: Object.fromEntries(
+                  numbers.map((num) => [num, generatePermutations(num)])
+                ),
+              }),
             });
           }
 
@@ -1086,7 +1205,7 @@ function parseBetLine(line, station, betConfig) {
           const [_, betTypeText, amountText] = betTypeMatch;
           let betType = identifyBetType(betTypeText, betConfig);
 
-          // Đặc biệt kiểm tra cho các kiểu cược đặc biệt từ betConfig
+          // Special check for special bet types from betConfig
           const specialBetAliases = betConfig.betTypes
             .filter((bt) => bt.aliases.some((a) => /^b[78]l/i.test(a)))
             .flatMap((bt) => bt.aliases);
@@ -1124,6 +1243,39 @@ function parseBetLine(line, station, betConfig) {
                 result.error = validation.message;
                 result.numbers = numbers;
                 return result;
+              }
+            }
+
+            // Check if this is a permutation bet type
+            const fullBetType = betConfig.betTypes.find(
+              (bt) =>
+                bt.name === betType.id ||
+                bt.aliases.some(
+                  (a) => a.toLowerCase() === betTypeText.toLowerCase()
+                )
+            );
+
+            if (fullBetType && fullBetType.is_permutation) {
+              result.isPermutation = true;
+
+              // Generate permutations for each number
+              for (const number of numbers) {
+                const perms = generatePermutations(number);
+                result.permutations[number] = perms;
+              }
+            }
+            // Additional check for common permutation aliases that might not be in config
+            else if (
+              betTypeText.toLowerCase().includes('dao') ||
+              betTypeText.toLowerCase().includes('dxc') ||
+              betTypeText.toLowerCase() === 'xcd'
+            ) {
+              result.isPermutation = true;
+
+              // Generate permutations for each number
+              for (const number of numbers) {
+                const perms = generatePermutations(number);
+                result.permutations[number] = perms;
               }
             }
 
@@ -1175,7 +1327,7 @@ function parseBetLine(line, station, betConfig) {
         // Identify the primary bet type
         let betType = identifyBetType(betTypeText, betConfig);
 
-        // Đặc biệt kiểm tra cho các kiểu cược đặc biệt từ betConfig
+        // Special check for special bet types from betConfig
         const specialBetAliases = betConfig.betTypes
           .filter((bt) => bt.aliases.some((a) => /^b[78]l/i.test(a)))
           .flatMap((bt) => bt.aliases);
@@ -1188,6 +1340,39 @@ function parseBetLine(line, station, betConfig) {
           // Parse amount
           const amount = parseAmount(amountText);
 
+          // Check if this is a permutation bet type
+          const fullBetType = betConfig.betTypes.find(
+            (bt) =>
+              bt.name === betType.id ||
+              bt.aliases.some(
+                (a) => a.toLowerCase() === betTypeText.toLowerCase()
+              )
+          );
+
+          if (fullBetType && fullBetType.is_permutation) {
+            result.isPermutation = true;
+
+            // Generate permutations for each number
+            for (const number of sequence) {
+              const perms = generatePermutations(number);
+              result.permutations[number] = perms;
+            }
+          }
+          // Additional check for common permutation aliases that might not be in config
+          else if (
+            betTypeText.toLowerCase().includes('dao') ||
+            betTypeText.toLowerCase().includes('dxc') ||
+            betTypeText.toLowerCase() === 'xcd'
+          ) {
+            result.isPermutation = true;
+
+            // Generate permutations for each number
+            for (const number of sequence) {
+              const perms = generatePermutations(number);
+              result.permutations[number] = perms;
+            }
+          }
+
           // Build the result
           result.numbers = sequence;
           result.betType = betType;
@@ -1198,7 +1383,7 @@ function parseBetLine(line, station, betConfig) {
           if (secondBetType) {
             let secondBetTypeObj = identifyBetType(secondBetType, betConfig);
 
-            // Đặc biệt kiểm tra cho các kiểu cược đặc biệt từ betConfig
+            // Special check for special bet types from betConfig
             if (
               !secondBetTypeObj &&
               specialBetAliases.includes(secondBetType.toLowerCase())
@@ -1207,11 +1392,33 @@ function parseBetLine(line, station, betConfig) {
             }
 
             if (secondBetTypeObj) {
+              // Check if this is a permutation bet type
+              const fullSecondBetType = betConfig.betTypes.find(
+                (bt) =>
+                  bt.name === secondBetTypeObj.id ||
+                  bt.aliases.some(
+                    (a) => a.toLowerCase() === secondBetType.toLowerCase()
+                  )
+              );
+
+              const isSecondPermutation =
+                (fullSecondBetType && fullSecondBetType.is_permutation) ||
+                secondBetType.toLowerCase().includes('dao') ||
+                secondBetType.toLowerCase().includes('dxc') ||
+                secondBetType.toLowerCase() === 'xcd';
+
               result.additionalBetTypes = [
                 {
                   betType: secondBetTypeObj,
                   amount: parseAmount(secondAmount),
                   numbers: sequence, // Share the same numbers
+                  isPermutation: isSecondPermutation, // Include permutation flag
+                  // If it's a permutation type, add permutations information
+                  ...(isSecondPermutation && {
+                    permutations: Object.fromEntries(
+                      sequence.map((num) => [num, generatePermutations(num)])
+                    ),
+                  }),
                 },
               ];
             }
@@ -1222,39 +1429,39 @@ function parseBetLine(line, station, betConfig) {
       }
     }
 
-    // Xử lý cách thông thường nếu không phát hiện kiểu cược rõ ràng
-    // Phân tích
+    // Standard parsing if no pattern matches
+    // The rest of your existing parsing logic...
+    // Default parsing if none of the specific patterns match
     const numbers = [];
     let currentNumber = '';
     let currentBetType = '';
     let currentAmount = '';
-    let parsingState = 'number'; // Trạng thái phân tích: 'number', 'betType', 'amount'
+    let parsingState = 'number'; // States: 'number', 'betType', 'amount'
 
-    // Trong hàm parseBetLine, thay đổi đoạn xử lý ký tự:
     for (let i = 0; i < normalizedLine.length; i++) {
       const char = normalizedLine[i];
 
       if (char === '.') {
-        // Dấu chấm có thể là dấu phân cách số hoặc là dấu thập phân trong số tiền
+        // Dot can be a separator or decimal in amount
         if (parsingState === 'amount') {
-          // Nếu đang ở trạng thái phân tích số tiền, dấu chấm là một phần của số tiền
+          // In amount parsing, treat as part of amount
           currentAmount += char;
         } else if (parsingState === 'number' && currentNumber) {
-          // Thêm số hiện tại vào danh sách
+          // Add current number to list and reset
           const processedNumbers = processNumber(currentNumber, betConfig);
           numbers.push(...processedNumbers);
           currentNumber = '';
         } else if (parsingState === 'betType' && currentBetType) {
-          // Đã có kiểu cược, nhưng gặp dấu chấm, có thể có nhiều kiểu cược
+          // Found a dot after bet type, this may be multiple bet types
           result.betType = identifyBetType(currentBetType, betConfig);
           currentBetType = '';
           parsingState = 'number';
         }
       } else if (/[0-9]/.test(char)) {
-        // Ký tự số
+        // Digit character
         if (parsingState === 'number' || parsingState === 'amount') {
           if (parsingState === 'betType' && currentBetType) {
-            // Chuyển từ betType sang amount
+            // Transition from betType to amount
             result.betType = identifyBetType(currentBetType, betConfig);
             currentBetType = '';
             parsingState = 'amount';
@@ -1264,13 +1471,13 @@ function parseBetLine(line, station, betConfig) {
             parsingState === 'number' &&
             hasCompleteBetTypeAndAmount(normalizedLine, i, betConfig)
           ) {
-            // Nếu phía sau có đủ kiểu cược và số tiền, kết thúc số hiện tại
+            // If a complete bet type and amount follows, finish current number
             if (currentNumber) {
               const processedNumbers = processNumber(currentNumber, betConfig);
               numbers.push(...processedNumbers);
               currentNumber = '';
             }
-            // Chuyển sang phân tích kiểu cược
+            // Switch to bet type parsing
             parsingState = 'betType';
             currentBetType += char;
           } else if (parsingState === 'amount') {
@@ -1279,14 +1486,12 @@ function parseBetLine(line, station, betConfig) {
             currentNumber += char;
           }
         } else {
-          // Trong kiểu cược, có thể là phần của kiểu cược hoặc số tiền
-          // Cải tiến: Trong trường hợp betType có thể có nhiều ký tự (b7l, b8l)
+          // In bet type state, could be part of bet type or start of amount
           if (parsingState === 'betType') {
-            // Kiểm tra xem kết hợp với ký tự tiếp theo có tạo ra betTypeAlias hợp lệ không
+            // Try to keep as part of bet type if it could form a valid alias
             const potentialBetType = currentBetType + char;
-
-            // Thử tìm kiếm alias phù hợp trong danh sách đã sắp xếp
             let foundMatch = false;
+
             for (const alias of sortedAliases) {
               if (
                 alias.toLowerCase().startsWith(potentialBetType.toLowerCase())
@@ -1297,33 +1502,24 @@ function parseBetLine(line, station, betConfig) {
               }
             }
 
-            if (foundMatch) {
-              continue;
+            if (!foundMatch) {
+              // Not part of a bet type, treat as start of amount
+              result.betType = identifyBetType(currentBetType, betConfig);
+              currentBetType = '';
+              parsingState = 'amount';
+              currentAmount += char;
             }
-          }
-
-          if (isBetTypeOrAmount(currentBetType + char, betConfig)) {
-            currentBetType += char;
-          } else {
-            // Chuyển sang phân tích số tiền
-            result.betType = identifyBetType(currentBetType, betConfig);
-            currentBetType = '';
-            parsingState = 'amount';
-            currentAmount += char;
           }
         }
       } else if (char === '/' || char === 'k') {
-        // Ký tự đặc biệt trong số
+        // Special characters in numbers or bet types
         if (parsingState === 'number') {
           currentNumber += char;
         } else if (parsingState === 'betType') {
           currentBetType += char;
         }
       } else if (isAlphabetChar(char)) {
-        // Cải tiến: Kiểm tra kỹ hơn khi gặp ký tự chữ cái
-        // Ký tự chữ cái - có thể là phần của kiểu cược hoặc là phần của kéo hoặc từ khóa đặc biệt
-
-        // Improved check for "keo" pattern
+        // Letter character - could be part of bet type or keo pattern
         const isKeoPattern =
           currentNumber.includes('/') &&
           (char.toLowerCase() === 'k' ||
@@ -1338,17 +1534,14 @@ function parseBetLine(line, station, betConfig) {
             currentNumber.includes('/') ||
             isPartOfSpecialKeyword(currentNumber, char, betConfig))
         ) {
-          // Đang phân tích "kéo" hoặc các ký tự đặc biệt khác trong số
+          // Part of a 'keo' pattern or special keyword in number
           currentNumber += char;
         } else {
-          // Kiểm tra nếu đang ở trạng thái betType và đây có thể là phần của kiểu cược
-          // dài hơn (ví dụ: 'b7lo')
+          // Check if this could be part of a longer bet type alias
           if (parsingState === 'betType' && currentBetType) {
-            // Kiểm tra xem kết hợp với ký tự tiếp theo có tạo ra betTypeAlias hợp lệ không
             const potentialBetType = currentBetType + char;
-
-            // Thử tìm kiếm alias phù hợp
             let foundMatch = false;
+
             for (const alias of sortedAliases) {
               if (
                 alias.toLowerCase().startsWith(potentialBetType.toLowerCase())
@@ -1359,12 +1552,10 @@ function parseBetLine(line, station, betConfig) {
               }
             }
 
-            if (foundMatch) {
-              continue;
-            }
+            if (foundMatch) continue;
           }
 
-          // Chuyển sang kiểu cược
+          // Switch to bet type state
           if (parsingState === 'number' && currentNumber) {
             const processedNumbers = processNumber(currentNumber, betConfig);
             numbers.push(...processedNumbers);
@@ -1375,27 +1566,27 @@ function parseBetLine(line, station, betConfig) {
           currentBetType += char;
         }
       } else if (char === ',') {
-        // Dấu phẩy có thể dùng trong số tiền
+        // Comma - could be in amount or number separator
         if (parsingState === 'amount') {
           currentAmount += char;
         } else if (parsingState === 'number' && currentNumber) {
-          // Xử lý dấu phẩy như dấu chấm nếu đang ở phần số
+          // Treat comma as number separator
           const processedNumbers = processNumber(currentNumber, betConfig);
           numbers.push(...processedNumbers);
           currentNumber = '';
         }
       } else if (char === 'n' && parsingState === 'amount') {
-        // Ký tự 'n' trong số tiền (nghìn)
-        // Không thêm gì, bỏ qua
+        // 'n' character in amount (shorthand for 1000)
+        // Skip it in parsing
       }
     }
 
-    // Xử lý phần cuối
+    // Process the final state
     if (parsingState === 'number' && currentNumber) {
       const processedNumbers = processNumber(currentNumber, betConfig);
       numbers.push(...processedNumbers);
     } else if (parsingState === 'betType' && currentBetType) {
-      // Kiểm tra đặc biệt cho các kiểu cược trong betConfig
+      // Special check for bet types aliases
       const specialBetAliases = betConfig.betTypes
         .filter((bt) => bt.aliases.some((a) => /^b[78]l/i.test(a)))
         .flatMap((bt) => bt.aliases);
@@ -1405,21 +1596,57 @@ function parseBetLine(line, station, betConfig) {
       } else {
         result.betType = identifyBetType(currentBetType, betConfig);
       }
+
+      // Check if this is a permutation bet type
+      if (result.betType) {
+        const fullBetType = betConfig.betTypes.find(
+          (bt) =>
+            bt.name === result.betType.id ||
+            bt.aliases.some(
+              (a) => a.toLowerCase() === currentBetType.toLowerCase()
+            )
+        );
+
+        if (fullBetType && fullBetType.is_permutation) {
+          result.isPermutation = true;
+
+          // Generate permutations for each number
+          for (const number of numbers) {
+            const perms = generatePermutations(number);
+            result.permutations[number] = perms;
+          }
+        }
+        // Additional check for common permutation aliases
+        else if (
+          currentBetType.toLowerCase().includes('dao') ||
+          currentBetType.toLowerCase().includes('dxc') ||
+          currentBetType.toLowerCase() === 'xcd'
+        ) {
+          result.isPermutation = true;
+
+          // Generate permutations for each number
+          for (const number of numbers) {
+            const perms = generatePermutations(number);
+            result.permutations[number] = perms;
+          }
+        }
+      }
     } else if (parsingState === 'amount' && currentAmount) {
       result.amount = parseAmount(currentAmount);
     }
 
-    // Nếu vẫn chưa có kiểu cược, thử phân tích lại xem có vô tình bỏ qua không
+    // Try to find bet type if not identified yet
     if (!result.betType && numbers.length > 0) {
-      // Tìm kiểu cược ở cuối dòng (bao gồm cả trường hợp có khoảng trắng + chữ 'n' sau số tiền)
+      // Look for bet type at the end of line
       const betTypeMatch = normalizedLine.match(
         /([a-z][a-z0-9]+)(?:\s+)?(\d+(?:[,.]\d+)?(?:n)?)?$/i
       );
+
       if (betTypeMatch) {
         const potentialBetType = betTypeMatch[1].toLowerCase();
         let betType = null;
 
-        // Kiểm tra đặc biệt cho các kiểu cược trong betConfig
+        // Special check for bet types from betConfig
         const specialBetAliases = betConfig.betTypes
           .filter((bt) => bt.aliases.some((a) => /^b[78]l/i.test(a)))
           .flatMap((bt) => bt.aliases);
@@ -1433,7 +1660,38 @@ function parseBetLine(line, station, betConfig) {
         if (betType) {
           result.betType = betType;
 
-          // Nếu có số tiền
+          // Check if this is a permutation bet type
+          const fullBetType = betConfig.betTypes.find(
+            (bt) =>
+              bt.name === betType.id ||
+              bt.aliases.some((a) => a.toLowerCase() === potentialBetType)
+          );
+
+          if (fullBetType && fullBetType.is_permutation) {
+            result.isPermutation = true;
+
+            // Generate permutations for each number
+            for (const number of numbers) {
+              const perms = generatePermutations(number);
+              result.permutations[number] = perms;
+            }
+          }
+          // Additional check for common permutation aliases
+          else if (
+            potentialBetType.includes('dao') ||
+            potentialBetType.includes('dxc') ||
+            potentialBetType === 'xcd'
+          ) {
+            result.isPermutation = true;
+
+            // Generate permutations for each number
+            for (const number of numbers) {
+              const perms = generatePermutations(number);
+              result.permutations[number] = perms;
+            }
+          }
+
+          // Extract amount if present
           if (betTypeMatch[2]) {
             result.amount = parseAmount(betTypeMatch[2]);
           }
@@ -1441,10 +1699,10 @@ function parseBetLine(line, station, betConfig) {
       }
     }
 
-    // Đảm bảo không có số trùng lặp
+    // Remove duplicate numbers
     result.numbers = Array.from(new Set(numbers));
 
-    // THÊM ĐOẠN CODE KIỂM TRA ĐỘ DÀI NHẤT QUÁN CỦA CÁC SỐ
+    // Check consistent number lengths
     if (result.numbers.length > 0) {
       const lengths = new Set(result.numbers.map((num) => num.length));
       if (lengths.size > 1) {
@@ -1453,7 +1711,7 @@ function parseBetLine(line, station, betConfig) {
         return result;
       }
 
-      // NEW CODE: Add validation against bet type rules
+      // Validate bet type rules
       if (result.valid && result.betType && result.numbers.length > 0) {
         const digitCount = result.numbers[0].length;
         const validation = validateBetTypeDigitCount(
@@ -1468,11 +1726,11 @@ function parseBetLine(line, station, betConfig) {
       }
     }
 
-    // Kiểm tra tính hợp lệ
+    // Final validation
     result.valid =
       result.numbers.length > 0 && result.betType && result.amount > 0;
 
-    // NEW CODE: Add compatibility validation between bet type and region
+    // Region compatibility check
     if (result.valid && result.betType) {
       const compatibilityCheck = validateBetTypeRegionCompatibility(
         result.betType,
@@ -1485,9 +1743,9 @@ function parseBetLine(line, station, betConfig) {
       }
     }
 
-    // Vị trí cuối cùng của hàm, thêm đoạn xử lý đặc biệt cho các kiểu cược trong betConfig
+    // Special handling for bet types in betConfig
     if (!result.valid && result.numbers.length > 0) {
-      // Thử phân tích theo pattern đặc biệt cho kiểu cược trong betConfig
+      // Try to parse using special patterns for bet types in betConfig
       const specialBetAliases = betConfig.betTypes
         .filter((bt) => bt.aliases.some((a) => /^b[78]l/i.test(a)))
         .flatMap((bt) => bt.aliases);
@@ -1508,6 +1766,39 @@ function parseBetLine(line, station, betConfig) {
         const amount = parseAmount(amountText);
 
         if (betType && amount > 0) {
+          // Check if this is a permutation bet type
+          const fullBetType = betConfig.betTypes.find(
+            (bt) =>
+              bt.name === betType.id ||
+              bt.aliases.some(
+                (a) => a.toLowerCase() === betTypeText.toLowerCase()
+              )
+          );
+
+          if (fullBetType && fullBetType.is_permutation) {
+            result.isPermutation = true;
+
+            // Generate permutations for each number
+            for (const number of result.numbers) {
+              const perms = generatePermutations(number);
+              result.permutations[number] = perms;
+            }
+          }
+          // Additional check for common permutation aliases
+          else if (
+            betTypeText.toLowerCase().includes('dao') ||
+            betTypeText.toLowerCase().includes('dxc') ||
+            betTypeText.toLowerCase() === 'xcd'
+          ) {
+            result.isPermutation = true;
+
+            // Generate permutations for each number
+            for (const number of result.numbers) {
+              const perms = generatePermutations(number);
+              result.permutations[number] = perms;
+            }
+          }
+
           result.betType = betType;
           result.amount = amount;
           result.valid = true;

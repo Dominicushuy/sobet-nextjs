@@ -1,4 +1,5 @@
-// src/services/bet/index.js
+// src/services/bet/index.js - Fixed permutation handling
+
 import { isStationLine, parseBetCode } from './parser';
 import { formatBetCode } from './formatter';
 import { calculateStake } from './stakeCalculator';
@@ -56,31 +57,40 @@ export const betCodeService = {
 
         // Check for permutation types and ensure the permutations are generated
         for (const line of parseResult.lines) {
-          // Check if this line has a permutation bet type from BET_CONFIG
-          const betTypeAlias = line.betType?.alias?.toLowerCase();
-          const betType = betConfig.betTypes.find((bt) =>
-            bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
-          );
+          // First use the isPermutation flag directly from the parser
+          const isPermutationType = line.isPermutation;
 
-          const isPermutationType = betType && betType.is_permutation;
+          // Alternatively, check from BET_CONFIG if not already marked
+          if (!isPermutationType) {
+            // Check if this line has a permutation bet type from BET_CONFIG
+            const betTypeAlias = line.betType?.alias?.toLowerCase();
+            const betType = betConfig.betTypes.find((bt) =>
+              bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
+            );
 
-          // If this is a permutation type, mark it and generate permutations
+            // Determine if this is a permutation type based on config or aliases
+            if (
+              (betType && betType.is_permutation) ||
+              (betTypeAlias &&
+                (betTypeAlias.includes('dao') ||
+                  betTypeAlias.includes('dxc') ||
+                  betTypeAlias === 'xcd'))
+            ) {
+              line.isPermutation = true;
+            }
+          }
+
+          // Generate permutations if not already present and this is a permutation type
           if (
-            isPermutationType ||
-            (betTypeAlias &&
-              (betTypeAlias.includes('dao') ||
-                betTypeAlias.includes('dxc') ||
-                betTypeAlias === 'xcd'))
+            line.isPermutation &&
+            (!line.permutations ||
+              Object.keys(line.permutations).length === 0) &&
+            line.numbers
           ) {
-            line.isPermutation = true;
-
-            // Generate permutations if not already present
-            if (!line.permutations && line.numbers) {
-              line.permutations = {};
-              for (const number of line.numbers) {
-                const perms = generatePermutations(number);
-                line.permutations[number] = perms;
-              }
+            line.permutations = {};
+            for (const number of line.numbers) {
+              const perms = generatePermutations(number);
+              line.permutations[number] = perms;
             }
           }
         }

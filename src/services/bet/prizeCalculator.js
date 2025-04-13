@@ -1,5 +1,6 @@
-// src/services/bet/prizeCalculator.js
-import { calculatePermutationCount } from '@/utils/bet';
+// src/services/bet/prizeCalculator.js - Fixed permutation handling
+
+import { calculatePermutationCount, generatePermutations } from '@/utils/bet';
 
 /**
  * Lấy thông tin về đài
@@ -64,27 +65,47 @@ function getNumberInfo(line, betTypeInfo, station, betConfig) {
     };
   }
 
-  // Kiểm tra loại cược từ betConfig
+  // Direct checks for permutation from the line (primary source of truth)
+  // This ensures we respect the parser's determination
+  let isPermutation = line.isPermutation || false;
+
+  if (!isPermutation) {
+    // Kiểm tra loại cược từ betConfig - fallback if line doesn't have isPermutation flag
+    const betType = betConfig.betTypes.find(
+      (bt) =>
+        bt.name === betTypeInfo.id ||
+        bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
+    );
+
+    // Secondary check from bet type definition
+    isPermutation = betType ? betType.is_permutation : false;
+
+    // Tertiary check from common permutation aliases
+    if (!isPermutation && betTypeAlias) {
+      isPermutation =
+        betTypeAlias.includes('dao') ||
+        betTypeAlias.includes('dxc') ||
+        betTypeAlias === 'xcd';
+    }
+  }
+
+  // Special handling for bridge types
   const daAliases = betConfig.betTypes.find(
     (bt) => bt.special_calc === 'bridge'
   )?.aliases || ['da', 'dv'];
   const isBridge =
     betTypeInfo.specialCalc === 'bridge' || daAliases.includes(betTypeAlias);
 
-  // Find the exact bet type from BET_CONFIG
+  // Khởi tạo combinationCount
+  let combinationCount = 1;
+
+  // Get combinations from BET_CONFIG data if available
   const betType = betConfig.betTypes.find(
     (bt) =>
       bt.name === betTypeInfo.id ||
       bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
   );
 
-  // Check for permutation
-  const isPermutation = betType ? betType.is_permutation : false;
-
-  // Khởi tạo combinationCount
-  let combinationCount = 1;
-
-  // Get combinations from BET_CONFIG data if available
   if (betType && betType.combinations) {
     if (typeof betType.combinations === 'object') {
       // Case 1: Direct mapping for region
@@ -143,7 +164,7 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
       alias: betTypeAlias || '',
       payoutRate: 0,
       combined: false,
-      isPermutation: false,
+      isPermutation: line.isPermutation || false,
     };
   }
 
@@ -202,6 +223,13 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
         payoutRate = payoutRate['4 digits'] || 5500;
       }
     }
+  } else {
+    // Special case for 3-digit or 4-digit numbers
+    if (digitCount === 3 && payoutRate === 75) {
+      payoutRate = 650;
+    } else if (digitCount === 4 && payoutRate === 75) {
+      payoutRate = 5500;
+    }
   }
 
   return {
@@ -211,7 +239,7 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
     payoutRate,
     combined: betType.combined || false,
     specialCalc: betType.special_calc || null,
-    isPermutation: betType.is_permutation || false,
+    isPermutation: line.isPermutation || betType.is_permutation || false,
   };
 }
 
@@ -259,7 +287,7 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
     const n = numberInfo.count;
     const maxPairs = (n * (n - 1)) / 2; // C(n,2) = số cặp tối đa
 
-    // const potentialPrize = maxPairs * betAmount * payoutRate;
+    // Calculating potential win uses the same approach as before
     const potentialPrize = betAmount * payoutRate;
 
     return {
@@ -269,22 +297,33 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
       betPairs: maxPairs,
       betAmount,
       payoutRate,
-      // formula: `${maxPairs} × ${betAmount} × ${payoutRate}`,
       formula: `${betAmount} × ${payoutRate}`,
+      isPermutation: false,
     };
   }
   // Kiểm tra nếu là kiểu đảo (permutation) từ BET_CONFIG
-  else if (numberInfo.isPermutation) {
+  else if (numberInfo.isPermutation || line.isPermutation) {
     // Số lượng hoán vị của các số
     const numbers = line.numbers || [];
     let totalPermutations = 0;
+    const permutations = {};
 
     for (const number of numbers) {
-      totalPermutations += calculatePermutationCount(number);
+      let perms;
+
+      // Use existing permutations if available in the line
+      if (line.permutations && Array.isArray(line.permutations[number])) {
+        perms = line.permutations[number];
+      } else {
+        // Generate permutations if not available
+        perms = generatePermutations(number);
+      }
+
+      permutations[number] = perms;
+      totalPermutations += perms.length;
     }
 
-    // Tính tiềm năng thắng (nhân với combinationCount)
-    // const potentialPrize = totalPermutations * betAmount * payoutRate;
+    // Tính tiềm năng thắng
     const potentialPrize = betAmount * payoutRate;
 
     return {
@@ -295,12 +334,12 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
       numberCount: numbers.length,
       betAmount,
       payoutRate,
-      // formula: `${totalPermutations} × ${betAmount} × ${payoutRate}`,
       formula: `${betAmount} × ${payoutRate}`,
+      isPermutation: true,
+      permutations, // Include permutations data in results
     };
   } else {
     // Tính tiềm năng thắng
-    // const potentialPrize = numberInfo.count * betAmount * payoutRate;
     const potentialPrize = betAmount * payoutRate;
 
     return {
@@ -310,8 +349,8 @@ function calculateLinePotential(line, stationInfo, betTypeInfo, numberInfo) {
       numberCount: numberInfo.count,
       betAmount,
       payoutRate,
-      // formula: `${numberInfo.count} × ${betAmount} × ${payoutRate}`,
       formula: `${betAmount} × ${payoutRate}`,
+      isPermutation: false,
     };
   }
 }
@@ -380,6 +419,7 @@ export function calculatePotentialPrize(parsedResult, betConfig) {
 
       hasValidLine = true;
       totalPotential += linePotential.potentialPrize;
+
       details.push({
         lineIndex: i,
         originalLine: line.originalLine,
