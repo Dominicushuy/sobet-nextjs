@@ -157,7 +157,7 @@ export default function AdminLayout({ children }) {
       {/* Sidebar cho desktop */}
       <div
         className={`hidden md:flex flex-col bg-card border-r overflow-y-auto transition-all duration-300 ease-in-out ${
-          isSidebarOpen ? 'w-64' : 'w-20'
+          isSidebarOpen ? 'w-52' : 'w-20'
         }`}
       >
         <div className="flex h-14 items-center border-b px-4">
@@ -251,7 +251,7 @@ export default function AdminLayout({ children }) {
         onClick={() => setIsSidebarOpen(false)}
       >
         <div
-          className={`absolute inset-y-0 left-0 w-64 bg-card p-4 transition-transform duration-300 ${
+          className={`absolute inset-y-0 left-0 w-52 bg-card p-4 transition-transform duration-300 ${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           onClick={(e) => e.stopPropagation()}

@@ -191,7 +191,7 @@ export default function UserLayout({ children }) {
         {/* Sidebar */}
         <aside
           className={cn(
-            'fixed inset-y-0 left-0 z-20 mt-16 w-64 transform border-r bg-background transition-transform duration-200 ease-in-out md:translate-x-0',
+            'fixed inset-y-0 left-0 z-20 mt-16 w-52 transform border-r bg-background transition-transform duration-200 ease-in-out md:translate-x-0',
             {
               'translate-x-0': isMobileMenuOpen,
               '-translate-x-full': !isMobileMenuOpen,
@@ -255,7 +255,7 @@ export default function UserLayout({ children }) {
         )}
 
         {/* Main content */}
-        <main className="flex-1 p-4 md:ml-64">{children}</main>
+        <main className="flex-1 p-4 md:ml-52">{children}</main>
       </div>
     </div>
   );

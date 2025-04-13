@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, Fragment } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
@@ -68,19 +66,21 @@ export function StationEntriesGroup({
             {isStationExpanded &&
               stationData.entries.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="pl-8">
+                  <TableCell className="pl-8 whitespace-nowrap">
                     {entry.station?.name ||
                       (entry.station_data?.multiStation
                         ? `${entry.station_data.count} Đài ${entry.station_data.name}`
                         : entry.station_data?.name) ||
                       '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {entry.bet_type_name} ({entry.bet_type_alias})
                   </TableCell>
-                  <TableCell className="flex items-center gap-2">
-                    {Array.isArray(entry.numbers)
-                      ? entry.numbers.map((number, idx) => (
+                  <TableCell className="w-[250px] max-w-[250px]">
+                    {Array.isArray(entry.numbers) &&
+                    entry.numbers.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto py-1">
+                        {entry.numbers.map((number, idx) => (
                           <Badge
                             key={idx}
                             variant="outline"
@@ -88,24 +88,31 @@ export function StationEntriesGroup({
                           >
                             {number}
                           </Badge>
-                        ))
-                      : entry.numbers || '-'}
+                        ))}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
-                  <TableCell>{formatCurrency(entry.amount)}</TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {formatCurrency(entry.amount)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <span className="text-orange-500 font-semibold">
                         {formatCurrency(entry.original_stake)}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <BetStatusBadge
                       status={entry.status}
                       winningStatus={entry.winning_status}
                     />
                   </TableCell>
-                  <TableCell>{formatDate(entry.draw_date)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {formatDate(entry.draw_date)}
+                  </TableCell>
                 </TableRow>
               ))}
           </Fragment>
