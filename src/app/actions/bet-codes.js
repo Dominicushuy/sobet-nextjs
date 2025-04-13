@@ -191,10 +191,32 @@ export async function saveDraftCode(draftCode, userId) {
         const stakeDetail = draftCode.stakeDetails?.[index] || {};
         const prizeDetail = draftCode.prizeDetails?.[index] || {};
 
-        // Prepare the bet entry data
+        // Prepare the bet entry data with improved permutation handling
+        let allNumbers = [...(line.numbers || [])];
+        const isPermutation = line.isPermutation || false;
+
+        // Nếu là kiểu đảo (isPermutation) và có permutations, thêm tất cả số hoán vị vào numbers
+        if (isPermutation && line.permutations) {
+          for (const number in line.permutations) {
+            if (
+              line.permutations[number] &&
+              Array.isArray(line.permutations[number])
+            ) {
+              // Thêm tất cả các hoán vị của số này vào allNumbers
+              line.permutations[number].forEach((perm) => {
+                const permString = String(perm); // Đảm bảo perm là chuỗi
+                if (!allNumbers.includes(permString)) {
+                  allNumbers.push(permString);
+                }
+              });
+            }
+          }
+        }
+
         const betEntryData = {
           user_id: userId,
-          status: 'confirmed',
+          status: 'draft',
+          created_at: new Date().toISOString(),
           original_text: draftCode.originalText,
           formatted_text: draftCode.formattedText,
           station_id: stationId,
@@ -205,7 +227,7 @@ export async function saveDraftCode(draftCode, userId) {
           bet_type_id: betTypeId,
           bet_type_alias: line.betType?.alias || '',
           bet_type_name: line.betType?.name || '',
-          numbers: line.numbers || [],
+          numbers: allNumbers,
 
           // Financial data
           amount: line.amount || 0,

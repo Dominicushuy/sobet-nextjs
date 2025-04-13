@@ -3,7 +3,7 @@
 import { useState, Fragment } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import { formatDateTime } from '@/utils/formatters';
+import { formatDate } from '@/utils/formatters';
 import { BetStatusBadge } from './BetStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { TableCell, TableRow } from '@/components/ui/table';
@@ -105,7 +105,7 @@ export function StationEntriesGroup({
                       winningStatus={entry.winning_status}
                     />
                   </TableCell>
-                  <TableCell>{formatDateTime(entry.draw_date)}</TableCell>
+                  <TableCell>{formatDate(entry.draw_date)}</TableCell>
                 </TableRow>
               ))}
           </Fragment>

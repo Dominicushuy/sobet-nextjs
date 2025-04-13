@@ -19,6 +19,8 @@ import {
   Copy,
   CheckCircle2,
   Loader2,
+  Shuffle,
+  Hash,
 } from 'lucide-react';
 import { useBetCode } from '@/contexts/BetCodeContext';
 import { format } from 'date-fns';
@@ -50,6 +52,7 @@ const BetCodeCard = ({
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showPermutations, setShowPermutations] = useState(false);
   const betConfig = useBetConfig();
 
   const handleRemove = () => {
@@ -155,6 +158,42 @@ const BetCodeCard = ({
     return allNumbers;
   };
 
+  // Check if bet code contains any permutation lines
+  const hasPermutationLines = () => {
+    if (!betCode.lines || !Array.isArray(betCode.lines)) return false;
+
+    return betCode.lines.some(
+      (line) =>
+        line.isPermutation ||
+        (line.permutations && Object.keys(line.permutations).length > 0)
+    );
+  };
+
+  // Collect all permutation data for display
+  const getAllPermutations = () => {
+    if (!betCode.lines || !Array.isArray(betCode.lines)) return {};
+
+    const allPermutations = {};
+
+    betCode.lines.forEach((line) => {
+      if (line.isPermutation && line.permutations) {
+        // Add permutations to the combined object
+        Object.assign(allPermutations, line.permutations);
+      }
+
+      // Also check for permutations in additional bet types
+      if (line.additionalBetTypes && Array.isArray(line.additionalBetTypes)) {
+        line.additionalBetTypes.forEach((additionalBet) => {
+          if (additionalBet.isPermutation && additionalBet.permutations) {
+            Object.assign(allPermutations, additionalBet.permutations);
+          }
+        });
+      }
+    });
+
+    return allPermutations;
+  };
+
   // Get bet type names from the first line
   const getBetTypeNames = () => {
     if (
@@ -183,6 +222,8 @@ const BetCodeCard = ({
 
   const numbers = getAllNumbers();
   const betText = betCode.originalText || 'N/A';
+  const hasPermutations = hasPermutationLines();
+  const permutations = hasPermutations ? getAllPermutations() : {};
 
   return (
     <>
@@ -213,6 +254,15 @@ const BetCodeCard = ({
                   >
                     Mã cược
                   </Badge>
+                  {hasPermutations && (
+                    <Badge
+                      variant="outline"
+                      className="ml-1 bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800"
+                    >
+                      <Shuffle className="h-3 w-3 mr-1" />
+                      Đảo
+                    </Badge>
+                  )}
                 </CardTitle>
                 <div className="text-xs text-muted-foreground mt-1 flex items-center">
                   <Clock className="h-3 w-3 mr-1" />
@@ -285,23 +335,87 @@ const BetCodeCard = ({
           {/* Numbers list */}
           {numbers.length > 0 && (
             <div className="mt-2 mb-1">
-              <div className="flex items-center gap-1 mb-1">
-                <Tag className="h-3 w-3 text-primary" />
-                <span className="text-xs text-muted-foreground">
-                  Số cược ({numbers.length}):
-                </span>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <Hash className="h-3 w-3 text-primary" />
+                  <span className="text-xs text-muted-foreground">
+                    Số cược ({numbers.length}):
+                  </span>
+                </div>
+                {hasPermutations && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                    onClick={() => setShowPermutations(!showPermutations)}
+                  >
+                    <Shuffle className="h-3 w-3 mr-1" />
+                    {showPermutations ? 'Ẩn hoán vị' : 'Xem hoán vị'}
+                  </Button>
+                )}
               </div>
+
               <div className="flex flex-wrap gap-2 max-h-16 overflow-y-auto pr-1">
                 {numbers.map((number, idx) => (
                   <Badge
                     key={idx}
                     variant="outline"
-                    className="font-medium bg-primary/10 text-primary border-primary/20 text-xs"
+                    className={
+                      permutations[number]
+                        ? 'font-medium bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800 text-xs'
+                        : 'font-medium bg-primary/10 text-primary border-primary/20 text-xs'
+                    }
                   >
+                    {permutations[number] && (
+                      <Shuffle className="h-3 w-3 mr-1" />
+                    )}
                     {number}
                   </Badge>
                 ))}
               </div>
+
+              {/* Permutations details - only visible when showPermutations is true */}
+              {showPermutations && hasPermutations && (
+                <div className="mt-3 space-y-2">
+                  {Object.entries(permutations).map(
+                    ([number, perms], idx) =>
+                      perms &&
+                      perms.length > 1 && (
+                        <div
+                          key={idx}
+                          className="bg-purple-50 p-2 rounded-md border border-purple-100 dark:bg-purple-900/30 dark:border-purple-900 text-xs"
+                        >
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className="font-medium text-purple-800 dark:text-purple-300">
+                              Số gốc:
+                            </span>
+                            <Badge className="bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-400 dark:border-purple-800 text-xs">
+                              {number}
+                            </Badge>
+                            <span className="text-purple-600/80 dark:text-purple-400/80 text-xs">
+                              ({perms.length} hoán vị)
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-2">
+                            {perms.map((perm, permIdx) => (
+                              <Badge
+                                key={permIdx}
+                                variant="outline"
+                                className={
+                                  perm === number
+                                    ? 'bg-purple-200 text-purple-800 border-purple-300 dark:bg-purple-800/50 dark:text-purple-300 dark:border-purple-700 text-xs'
+                                    : 'bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400 dark:border-purple-800 text-xs'
+                                }
+                              >
+                                {perm}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
