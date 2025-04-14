@@ -111,7 +111,7 @@ export default function LotteryResultsPage() {
   };
 
   // Handle crawl for specific date
-  const handleCrawlForDate = () => {
+  const handleCrawlForDate = async () => {
     if (user?.id && selectedDate) {
       const formattedDate = format(selectedDate, 'yyyy-MM-dd');
       toast.info(
@@ -121,9 +121,6 @@ export default function LotteryResultsPage() {
         userId: user.id,
         date: formattedDate,
       });
-      setTimeout(() => {
-        refetchFiltered();
-      }, 2000);
     }
   };
 

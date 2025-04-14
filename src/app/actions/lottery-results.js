@@ -462,70 +462,43 @@ export async function crawlLatestResults(userId, specificDate = null) {
     // Lưu kết quả vào database với kiểm tra thời gian cho từng kết quả
     const savedResults = [];
 
-    // Save results to json file in `data` folder
-    // const fs = require('fs');
-    // const path = require('path');
-    // const dataDir = path.join(process.cwd(), 'data');
-    // const filePath = path.join(dataDir, 'lottery_results.json');
-    // fs.mkdirSync(dataDir, { recursive: true });
-    // fs.writeFileSync(filePath, JSON.stringify(results, null, 2));
-    // console.log(`Saved results to ${filePath}`);
-
-    // Thêm log để debug
-    // console.log(`Total crawled results: ${results.length}`);
-
-    // Xử lý từng kết quả một thay vì Promise.all để có thể debug rõ ràng
-    for (const result of results) {
-      // Kiểm tra xem đã có kết quả này chưa
-      const { data: existing } = await supabaseAdmin
-        .from('lottery_results')
-        .select('id')
-        .eq('station_id', result.station_id)
-        .eq('draw_date', result.draw_date)
-        .maybeSingle();
-
-      // Log thông tin
-      // console.log(
-      //   `Processing result for station ID: ${result.station_id}, region: ${result.region_code}, date: ${result.draw_date}`
-      // );
-      // console.log(`Result already exists: ${existing ? 'Yes' : 'No'}`);
-
-      // Kiểm tra thời gian nếu không phải ngày cụ thể
-      const shouldSave = specificDate
-        ? true
-        : isValidTimeForRegion(result.region_code);
-
-      // console.log(`Should save: ${shouldSave}`);
-
-      if (!existing && shouldSave) {
-        // Lưu lại region_code để log, nhưng tạo một bản sao để xóa trước khi lưu
-        const resultToSave = { ...result };
-        delete resultToSave.region_code; // Loại bỏ region_code trước khi lưu vì đây chỉ là field tạm thời
-
-        // Nếu chưa có và đã đến thời gian cho phép, lưu mới
-        // console.log(`Saving result for station ID: ${result.station_id}`);
-        const { data, error } = await supabaseAdmin
+    await Promise.all(
+      results.map(async (result) => {
+        // Kiểm tra xem đã có kết quả này chưa
+        const { data: existing } = await supabaseAdmin
           .from('lottery_results')
-          .insert(resultToSave)
-          .select();
+          .select('id')
+          .eq('station_id', result.station_id)
+          .eq('draw_date', result.draw_date)
+          .maybeSingle();
 
-        if (error) {
-          console.error(
-            `Error saving lottery result for station ID: ${result.station_id}`,
-            error
-          );
-        } else if (data) {
-          // console.log(
-          //   `Successfully saved result for station ID: ${result.station_id}`
-          // );
-          savedResults.push(data[0]);
+        // Kiểm tra thời gian nếu không phải ngày cụ thể
+        const shouldSave = specificDate
+          ? true
+          : isValidTimeForRegion(result.region_code);
+
+        if (!existing && shouldSave) {
+          // Lưu lại region_code để log, nhưng tạo một bản sao để xóa trước khi lưu
+          const resultToSave = { ...result };
+          delete resultToSave.region_code; // Loại bỏ region_code trước khi lưu vì đây chỉ là field tạm thời
+
+          // Nếu chưa có và đã đến thời gian cho phép, lưu mới
+          const { data, error } = await supabaseAdmin
+            .from('lottery_results')
+            .insert(resultToSave)
+            .select();
+
+          if (error) {
+            console.error(
+              `Error saving lottery result for station ID: ${result.station_id}`,
+              error
+            );
+          } else if (data) {
+            savedResults.push(data[0]);
+          }
         }
-      } else {
-        // console.log(
-        //   `Skipping saving result for station ID: ${result.station_id}`
-        // );
-      }
-    }
+      })
+    );
 
     revalidatePath('/lottery-results');
     return {
