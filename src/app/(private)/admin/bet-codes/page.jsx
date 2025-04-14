@@ -17,13 +17,20 @@ import { StatusDisplay } from '@/components/bet-codes/StatusDisplay';
 import { UserEntriesCard } from '@/components/bet-codes/UserEntriesCard';
 import { EmptyState } from '@/components/bet-codes/EmptyState';
 import { ConfirmDialogs } from '@/components/bet-codes/ConfirmDialogs';
+import moment from 'moment/moment';
 
 export default function AdminBetCodesPage() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserIds, setSelectedUserIds] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    return today;
+  });
   const [expandedUsers, setExpandedUsers] = useState({});
+
+  // console.log('selectedDate', selectedDate);
 
   // State cho chức năng chọn nhiều mã cược
   const [selectedEntryIds, setSelectedEntryIds] = useState([]);
@@ -74,7 +81,7 @@ export default function AdminBetCodesPage() {
     () =>
       fetchAdminBetEntries({
         userIds: selectedUserIds,
-        date: selectedDate,
+        date: moment(selectedDate).format('YYYY-MM-DD'),
       }),
     {
       enabled: selectedUserIds.length > 0,

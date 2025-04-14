@@ -25,7 +25,11 @@ import {
 
 export default function LotteryResultsPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    return today;
+  });
   const [isAfterDrawTime, setIsAfterDrawTime] = useState(false);
 
   // 7 ngày gần nhất

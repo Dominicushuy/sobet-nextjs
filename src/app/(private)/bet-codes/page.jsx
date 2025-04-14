@@ -29,11 +29,16 @@ import { formatDate } from '@/utils/formatters';
 import { SearchFilter } from '@/components/bet-codes/SearchFilter';
 import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup';
 import { EmptyState } from '@/components/bet-codes/EmptyState';
+import moment from 'moment';
 
 export default function UserBetCodesPage() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    return today;
+  });
   const [filteredEntries, setFilteredEntries] = useState([]);
 
   // Query for bet entries
@@ -45,8 +50,8 @@ export default function UserBetCodesPage() {
     ['userBetEntries', selectedDate],
     () =>
       fetchUserBetEntries({
-        date: selectedDate,
-        searchTerm: null, // We'll do client-side filtering for responsiveness
+        date: moment(selectedDate).format('YYYY-MM-DD'),
+        searchTerm: null,
       }),
     {
       enabled: !!user?.id,
@@ -55,6 +60,8 @@ export default function UserBetCodesPage() {
       },
     }
   );
+
+  // console.log('betEntriesData', betEntriesData);
 
   // Filter bet entries by search term (client-side)
   useEffect(() => {

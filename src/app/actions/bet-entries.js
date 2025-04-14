@@ -52,10 +52,13 @@ export async function fetchAdminBetEntries({ userIds = [], date = null }) {
 
     // Apply date filter if provided
     if (date) {
-      // Convert the date to a string format if it's not already
+      // Date is already formatted as YYYY-MM-DD from client
+      console.log('Filtering by date:', date);
+
       const dateStr =
         typeof date === 'string' ? date : date.toISOString().split('T')[0];
       query = query.eq('draw_date', dateStr);
+      console.log('Filtering by draw_date:', dateStr);
     }
 
     // Order by created_at in descending order (newest first)
@@ -104,7 +107,8 @@ export async function fetchUserBetEntries({ date = null, searchTerm = null }) {
 
     // Apply date filter if provided
     if (date) {
-      // Convert the date to a string format if it's not already
+      // Date is already formatted as YYYY-MM-DD from client
+
       const dateStr =
         typeof date === 'string' ? date : date.toISOString().split('T')[0];
       query = query.eq('draw_date', dateStr);
