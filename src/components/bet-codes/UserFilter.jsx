@@ -30,9 +30,14 @@ export function UserFilter({
   // Handle user selection
   const handleUserToggle = (userId) => {
     setSelectedUserIds((prev) => {
-      if (prev.includes(userId)) {
+      // Kiểm tra xem ID này đã tồn tại trong mảng chưa
+      const exists = prev.includes(userId);
+
+      if (exists) {
+        // Nếu đã tồn tại, bỏ chọn bằng cách loại bỏ khỏi mảng
         return prev.filter((id) => id !== userId);
       } else {
+        // Nếu chưa tồn tại, thêm vào mảng
         return [...prev, userId];
       }
     });
@@ -40,12 +45,33 @@ export function UserFilter({
 
   // Select all or none
   const handleSelectAllUsers = () => {
-    if (filteredUsers.length > 0) {
-      if (selectedUserIds.length === filteredUsers.length) {
-        setSelectedUserIds([]);
-      } else {
-        setSelectedUserIds(filteredUsers.map((user) => user.id));
-      }
+    // Lấy danh sách ID của các user đang hiển thị sau khi lọc
+    const filteredUserIds = filteredUsers.map((user) => user.id);
+
+    // Kiểm tra xem tất cả các user đang hiển thị đã được chọn chưa
+    const allFilteredUsersSelected = filteredUserIds.every((id) =>
+      selectedUserIds.includes(id)
+    );
+
+    if (allFilteredUsersSelected) {
+      // Nếu tất cả đã được chọn, bỏ chọn các user đang hiển thị
+      setSelectedUserIds((prevSelected) =>
+        prevSelected.filter((id) => !filteredUserIds.includes(id))
+      );
+    } else {
+      // Nếu chưa tất cả được chọn, chọn thêm các user chưa được chọn
+      setSelectedUserIds((prevSelected) => {
+        const newSelection = [...prevSelected];
+
+        // Thêm các ID chưa có trong selection
+        filteredUserIds.forEach((id) => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+
+        return newSelection;
+      });
     }
   };
 
@@ -139,13 +165,22 @@ export function UserFilter({
         <Button
           variant="outline"
           onClick={() => {
-            setSearchTerm('');
+            // Hãy đảm bảo rõ ràng về hành động này
             if (users.length > 0) {
-              setSelectedUserIds(users.map((user) => user.id));
+              // Nếu tất cả các user đang được chọn, bỏ chọn tất cả
+              if (users.every((user) => selectedUserIds.includes(user.id))) {
+                setSelectedUserIds([]);
+              } else {
+                // Ngược lại, chọn tất cả
+                setSelectedUserIds(users.map((user) => user.id));
+              }
             }
+            setSearchTerm('');
           }}
         >
-          Chọn tất cả
+          {users.every((user) => selectedUserIds.includes(user.id))
+            ? 'Bỏ chọn tất cả'
+            : 'Chọn tất cả'}
         </Button>
         <Button onClick={onApplyFilter}>
           Áp dụng

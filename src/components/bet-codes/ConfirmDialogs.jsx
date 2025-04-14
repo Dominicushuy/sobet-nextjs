@@ -31,7 +31,8 @@ export function ConfirmDialogs({
             <AlertDialogTitle>Xác nhận duyệt mã cược</AlertDialogTitle>
             <AlertDialogDescription>
               Bạn đang thực hiện duyệt {selectedCount} mã cược. Hành động này sẽ
-              chuyển trạng thái của các mã cược từ "Nháp" sang "Đã xác nhận".
+              chuyển trạng thái của các mã cược từ &quot;Nháp&quot; sang
+              &quot;Đã xác nhận&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -57,8 +58,8 @@ export function ConfirmDialogs({
             </AlertDialogTitle>
             <AlertDialogDescription>
               Bạn đang thực hiện xóa {selectedCount} mã cược. Hành động này sẽ
-              chuyển trạng thái của các mã cược sang "Đã xóa" và không thể hoàn
-              tác.
+              chuyển trạng thái của các mã cược sang &quot;Đã xóa&quot; và không
+              thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

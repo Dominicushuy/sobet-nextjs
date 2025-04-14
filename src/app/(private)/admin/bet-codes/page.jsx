@@ -43,13 +43,13 @@ export default function AdminBetCodesPage() {
     }
   );
 
-  // When users are loaded, select all by default
+  // State để theo dõi đã khởi tạo dữ liệu chưa
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // When users are loaded, select all by default (but only once)
   useEffect(() => {
-    if (
-      usersData?.data &&
-      usersData.data.length > 0 &&
-      selectedUserIds.length === 0
-    ) {
+    // Chỉ thực hiện khởi tạo một lần khi có dữ liệu và chưa khởi tạo
+    if (!isInitialized && usersData?.data && usersData.data.length > 0) {
       setSelectedUserIds(usersData.data.map((user) => user.id));
 
       // Initialize all users as expanded
@@ -58,8 +58,11 @@ export default function AdminBetCodesPage() {
         initialExpandedState[user.id] = true;
       });
       setExpandedUsers(initialExpandedState);
+
+      // Đánh dấu đã khởi tạo
+      setIsInitialized(true);
     }
-  }, [usersData?.data, selectedUserIds.length]);
+  }, [usersData?.data, isInitialized]);
 
   // Query for bet entries
   const {
