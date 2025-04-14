@@ -381,29 +381,32 @@ export async function crawlLatestResults(userId, specificDate = null) {
 
     // Lưu kết quả vào database
     const savedResults = [];
-    for (const result of results) {
-      // Kiểm tra xem đã có kết quả này chưa
-      const { data: existing } = await supabaseAdmin
-        .from('lottery_results')
-        .select('id')
-        .eq('station_id', result.station_id)
-        .eq('draw_date', result.draw_date)
-        .maybeSingle();
 
-      if (!existing) {
-        // Nếu chưa có, lưu mới
-        const { data, error } = await supabaseAdmin
+    await Promise.all(
+      results.map(async (result) => {
+        // Kiểm tra xem đã có kết quả này chưa
+        const { data: existing } = await supabaseAdmin
           .from('lottery_results')
-          .insert(result)
-          .select();
+          .select('id')
+          .eq('station_id', result.station_id)
+          .eq('draw_date', result.draw_date)
+          .maybeSingle();
 
-        if (error) {
-          console.error('Error saving lottery result:', error);
-        } else if (data) {
-          savedResults.push(data[0]);
+        if (!existing) {
+          // Nếu chưa có, lưu mới
+          const { data, error } = await supabaseAdmin
+            .from('lottery_results')
+            .insert(result)
+            .select();
+
+          if (error) {
+            console.error('Error saving lottery result:', error);
+          } else if (data) {
+            savedResults.push(data[0]);
+          }
         }
-      }
-    }
+      })
+    );
 
     revalidatePath('/lottery-results');
     return {
