@@ -98,17 +98,8 @@ export function LotteryResultCard({ result }) {
             <h3 className="text-lg font-bold text-primary">
               {result.station.name}
             </h3>
-            <Badge variant="outline">{result.day_of_week}</Badge>
-          </div>
-          <div className="flex items-center justify-between">
             <div className="text-sm">{formattedDate}</div>
-            <div className="text-xs text-muted-foreground">
-              {result.station.region?.code === 'north'
-                ? 'XSMB'
-                : result.station.region?.code === 'central'
-                  ? 'XSMT'
-                  : 'XSMN'}
-            </div>
+            {/* <Badge variant="outline">{result.day_of_week}</Badge> */}
           </div>
         </div>
       </CardHeader>

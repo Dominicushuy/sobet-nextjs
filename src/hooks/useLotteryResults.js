@@ -1,7 +1,7 @@
 // src/hooks/useLotteryResults.js
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useServerQuery, useServerMutation } from '@/hooks/useServerAction';
 import { toast } from 'sonner';
 import {
@@ -11,9 +11,11 @@ import {
   canShowUpdateButton,
 } from '@/app/actions/lottery-results';
 
-export function useLotteryResults() {
+export function useLotteryResults(initialFilters = {}) {
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
+  const [filterCriteria, setFilterCriteria] = useState(initialFilters);
+  const [filteredData, setFilteredData] = useState([]);
 
   // Fetch latest result date
   const { data: latestDateData, isLoading: isLoadingLatestDate } =
@@ -33,11 +35,27 @@ export function useLotteryResults() {
 
   // Fetch results based on filters
   const fetchParams = useCallback(() => {
-    return {
+    const params = {
       region: selectedRegion,
       stationId: selectedStation,
     };
-  }, [selectedRegion, selectedStation]);
+
+    // Thêm ngày nếu có
+    if (filterCriteria.date) {
+      params.date = filterCriteria.date;
+    }
+    // Hỗ trợ cả date range nếu cần
+    else if (filterCriteria.dateRange) {
+      if (filterCriteria.dateRange.from) {
+        params.from = filterCriteria.dateRange.from;
+      }
+      if (filterCriteria.dateRange.to) {
+        params.to = filterCriteria.dateRange.to;
+      }
+    }
+
+    return params;
+  }, [selectedRegion, selectedStation, filterCriteria]);
 
   const {
     data: resultsData,
@@ -55,6 +73,49 @@ export function useLotteryResults() {
     }
   );
 
+  // Apply filters to results data
+  const applyFilters = useCallback(
+    (data = []) => {
+      if (!data || data.length === 0) {
+        setFilteredData([]);
+        return [];
+      }
+
+      let filtered = [...data];
+
+      // Apply additional client-side filters if needed
+      if (filterCriteria.searchTerm && filterCriteria.searchTerm.trim()) {
+        const searchRegex = new RegExp(filterCriteria.searchTerm.trim(), 'i');
+        filtered = filtered.filter(
+          (item) =>
+            searchRegex.test(item.station?.name) ||
+            searchRegex.test(item.special_prize?.join(' ')) ||
+            searchRegex.test(item.first_prize?.join(' '))
+        );
+      }
+
+      setFilteredData(filtered);
+      return filtered;
+    },
+    [filterCriteria]
+  );
+
+  // Function to refresh filtered data
+  const refetchFiltered = useCallback(() => {
+    if (resultsData?.data) {
+      return applyFilters(resultsData.data);
+    }
+    return [];
+  }, [applyFilters, resultsData?.data]);
+
+  // Update filters
+  const updateFilters = useCallback((newFilters) => {
+    setFilterCriteria((prev) => {
+      const updated = { ...prev, ...newFilters };
+      return updated;
+    });
+  }, []);
+
   // Crawl latest results
   const { mutate: crawlResults, isPending: isCrawling } = useServerMutation(
     'crawlResults',
@@ -70,6 +131,7 @@ export function useLotteryResults() {
             `Đã lấy ${result.data.total} kết quả, lưu ${result.data.saved} kết quả mới`
           );
           refetchResults();
+          // Will trigger refetchFiltered via the useEffect below
         }
       },
       onError: () => {
@@ -80,11 +142,18 @@ export function useLotteryResults() {
     }
   );
 
+  // Apply filters whenever results or filter criteria change
+  useEffect(() => {
+    refetchFiltered();
+  }, [resultsData?.data, filterCriteria, refetchFiltered]);
+
   return {
     // Data
     latestDate: latestDateData?.data,
     results: resultsData?.data || [],
+    filteredData,
     canShowUpdateButton: canUpdateData?.data || false,
+    filterCriteria,
 
     // Loading states
     isLoadingLatestDate,
@@ -95,7 +164,10 @@ export function useLotteryResults() {
     // Actions
     setSelectedRegion,
     setSelectedStation,
+    updateFilters,
     crawlResults,
     refetchResults,
+    refetchFiltered,
+    applyFilters,
   };
 }

@@ -1,15 +1,10 @@
-// src/app/(private)/lottery-results/page.jsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useLotteryResults } from '@/hooks/useLotteryResults';
 import { useServerQuery } from '@/hooks/useServerAction';
-import {
-  fetchLotteryResults,
-  checkResultsExist,
-  canShowUpdateButton,
-} from '@/app/actions/lottery-results';
+import { checkResultsExist } from '@/app/actions/lottery-results';
 import { LotteryResultCard } from '@/components/lottery/LotteryResultCard';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -27,30 +22,24 @@ import {
 export default function LotteryResultsPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showUpdateButton, setShowUpdateButton] = useState(false);
 
   // 7 ngày gần nhất
   const today = new Date();
   const sevenDaysAgo = subDays(today, 7); // 7 ngày bao gồm ngày hiện tại
 
-  // Fetch base lottery results data
-  const { latestDate, isCrawling, crawlResults } = useLotteryResults();
-
-  // Kiểm tra xem có thể hiển thị nút cập nhật kết quả không
-  const { data: canUpdate } = useServerQuery(
-    'canShowUpdateButton',
+  // Sử dụng hook đã nâng cấp với bộ lọc ban đầu theo ngày
+  const {
+    latestDate,
+    filteredData,
     canShowUpdateButton,
-    {
-      refetchInterval: 60000, // Kiểm tra lại mỗi phút
-    }
-  );
-
-  // Cập nhật trạng thái hiển thị nút dựa trên kết quả từ server
-  useEffect(() => {
-    if (canUpdate?.data !== undefined) {
-      setShowUpdateButton(canUpdate.data);
-    }
-  }, [canUpdate]);
+    isCrawling,
+    isLoadingResults,
+    crawlResults,
+    updateFilters,
+    refetchFiltered,
+  } = useLotteryResults({
+    date: format(selectedDate, 'yyyy-MM-dd'),
+  });
 
   // Check if the selected date has results
   const { data: dateResults, isLoading: isCheckingDate } = useServerQuery(
@@ -70,37 +59,20 @@ export default function LotteryResultsPage() {
     }
   );
 
-  // Fetch results by date only (no region or station filter)
-  const {
-    data: filteredData,
-    isLoading: isLoadingResults,
-    refetch: refetchFiltered,
-  } = useServerQuery(
-    [
-      'filteredResults',
-      {
-        date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
-      },
-    ],
-    () =>
-      fetchLotteryResults({
-        date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
-      }),
-    {
-      onError: (error) => {
-        toast.error(`Lỗi khi lấy kết quả: ${error.message}`);
-      },
-    }
-  );
-
-  // Handle date change với validation
+  // Handle date change with validation
   const handleDateChange = (date) => {
     // Kiểm tra nếu ngày được chọn nằm trong phạm vi cho phép
     if (date && (isBefore(date, sevenDaysAgo) || isAfter(date, today))) {
       toast.error('Chỉ được chọn ngày trong phạm vi 7 ngày gần nhất');
       return;
     }
+
     setSelectedDate(date);
+
+    // Cập nhật bộ lọc trong hook với ngày đơn
+    updateFilters({
+      date: format(date, 'yyyy-MM-dd'),
+    });
   };
 
   // Handle crawl for latest results
@@ -124,13 +96,10 @@ export default function LotteryResultsPage() {
     }
   };
 
-  // Get results from filteredData
-  const results = filteredData?.data || [];
-
   // Group results by region for better organization
   const groupedResults = {};
-  if (results && results.length > 0) {
-    results.forEach((result) => {
+  if (filteredData && filteredData.length > 0) {
+    filteredData.forEach((result) => {
       const regionId = result.station?.region?.id;
       const regionName = result.station?.region?.name || 'Unknown';
       const regionCode = result.station?.region?.code || 'unknown';
@@ -163,7 +132,7 @@ export default function LotteryResultsPage() {
           </p>
         </div>
 
-        {(isSuperAdmin || isAdmin) && showUpdateButton && (
+        {(isSuperAdmin || isAdmin) && canShowUpdateButton && (
           <Button onClick={handleCrawl} disabled={isCrawling}>
             <RefreshCw
               className={`mr-2 h-4 w-4 ${isCrawling ? 'animate-spin' : ''}`}
@@ -210,7 +179,7 @@ export default function LotteryResultsPage() {
             {(isSuperAdmin || isAdmin) &&
               selectedDate &&
               dateResults?.data === false &&
-              showUpdateButton && (
+              canShowUpdateButton && (
                 <Button
                   onClick={handleCrawlForDate}
                   disabled={isCrawling || isCheckingDate}
@@ -284,10 +253,10 @@ export default function LotteryResultsPage() {
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
                 {selectedDate && dateResults?.data === false
-                  ? (isSuperAdmin || isAdmin) && showUpdateButton
+                  ? (isSuperAdmin || isAdmin) && canShowUpdateButton
                     ? 'Vui lòng nhấn "Lấy kết quả" để lấy kết quả cho ngày đã chọn.'
                     : 'Chưa có kết quả cho ngày đã chọn. Vui lòng thử chọn ngày khác.'
-                  : (isSuperAdmin || isAdmin) && showUpdateButton
+                  : (isSuperAdmin || isAdmin) && canShowUpdateButton
                     ? 'Vui lòng nhấn "Cập nhật kết quả mới" để lấy kết quả mới nhất.'
                     : 'Chưa có kết quả cho ngày hôm nay. Vui lòng thử lại sau.'}
               </p>
