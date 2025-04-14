@@ -1,0 +1,230 @@
+[
+  {
+    "station_id": 37,
+    "draw_date": "2025-04-14",
+    "day_of_week": 1,
+    "special_prize": [
+      "46935"
+    ],
+    "first_prize": [
+      "76071"
+    ],
+    "second_prize": [
+      "08866",
+      "77999"
+    ],
+    "third_prize": [
+      "28854",
+      "16105",
+      "81240",
+      "42422",
+      "16899",
+      "38673"
+    ],
+    "fourth_prize": [
+      "2965",
+      "5032",
+      "6805",
+      "8755"
+    ],
+    "fifth_prize": [
+      "7669",
+      "6117",
+      "1605",
+      "0743",
+      "6632",
+      "8420"
+    ],
+    "sixth_prize": [
+      "025",
+      "442",
+      "188"
+    ],
+    "seventh_prize": [
+      "74",
+      "03",
+      "68",
+      "19"
+    ],
+    "eighth_prize": [],
+    "source": "https://www.minhngoc.net.vn/ket-qua-xo-so/mien-bac/thu-hai.html",
+    "created_by": "d9b00195-a16e-46c5-a9a1-0b22e6929a13",
+    "region_code": "north"
+  },
+  {
+    "station_id": 27,
+    "draw_date": "2025-04-14",
+    "day_of_week": 1,
+    "special_prize": [
+      "718388"
+    ],
+    "first_prize": [
+      "74408"
+    ],
+    "second_prize": [
+      "13467"
+    ],
+    "third_prize": [
+      "40218",
+      "06023"
+    ],
+    "fourth_prize": [
+      "26211",
+      "41111",
+      "74654",
+      "57605",
+      "38006",
+      "46155",
+      "42647"
+    ],
+    "fifth_prize": [
+      "3843"
+    ],
+    "sixth_prize": [
+      "6079",
+      "8194",
+      "0734"
+    ],
+    "seventh_prize": [
+      "510"
+    ],
+    "eighth_prize": [
+      "30"
+    ],
+    "source": "https://www.minhngoc.net.vn/ket-qua-xo-so/mien-trung/thu-hai.html",
+    "created_by": "d9b00195-a16e-46c5-a9a1-0b22e6929a13",
+    "region_code": "central"
+  },
+  {
+    "station_id": 1,
+    "draw_date": "2025-04-14",
+    "day_of_week": 1,
+    "special_prize": [
+      "499030"
+    ],
+    "first_prize": [
+      "24550"
+    ],
+    "second_prize": [
+      "91587"
+    ],
+    "third_prize": [
+      "79795",
+      "70029"
+    ],
+    "fourth_prize": [
+      "22944",
+      "33223",
+      "31070",
+      "84876",
+      "18265",
+      "98828",
+      "77462"
+    ],
+    "fifth_prize": [
+      "0654"
+    ],
+    "sixth_prize": [
+      "9465",
+      "3776",
+      "6429"
+    ],
+    "seventh_prize": [
+      "730"
+    ],
+    "eighth_prize": [
+      "61"
+    ],
+    "source": "https://www.minhngoc.net.vn/ket-qua-xo-so/mien-nam/thu-hai.html",
+    "created_by": "d9b00195-a16e-46c5-a9a1-0b22e6929a13",
+    "region_code": "south"
+  },
+  {
+    "station_id": 2,
+    "draw_date": "2025-04-14",
+    "day_of_week": 1,
+    "special_prize": [
+      "382771"
+    ],
+    "first_prize": [
+      "26749"
+    ],
+    "second_prize": [
+      "87474"
+    ],
+    "third_prize": [
+      "64373",
+      "05072"
+    ],
+    "fourth_prize": [
+      "07032",
+      "80477",
+      "32937",
+      "27529",
+      "24290",
+      "43247",
+      "26252"
+    ],
+    "fifth_prize": [
+      "1660"
+    ],
+    "sixth_prize": [
+      "8335",
+      "4100",
+      "2899"
+    ],
+    "seventh_prize": [
+      "639"
+    ],
+    "eighth_prize": [
+      "12"
+    ],
+    "source": "https://www.minhngoc.net.vn/ket-qua-xo-so/mien-nam/thu-hai.html",
+    "created_by": "d9b00195-a16e-46c5-a9a1-0b22e6929a13",
+    "region_code": "south"
+  },
+  {
+    "station_id": 3,
+    "draw_date": "2025-04-14",
+    "day_of_week": 1,
+    "special_prize": [
+      "846360"
+    ],
+    "first_prize": [
+      "91493"
+    ],
+    "second_prize": [
+      "52828"
+    ],
+    "third_prize": [
+      "82555",
+      "06271"
+    ],
+    "fourth_prize": [
+      "28140",
+      "73000",
+      "75656",
+      "92318",
+      "84467",
+      "76041",
+      "00349"
+    ],
+    "fifth_prize": [
+      "9087"
+    ],
+    "sixth_prize": [
+      "0015",
+      "3368",
+      "2424"
+    ],
+    "seventh_prize": [
+      "856"
+    ],
+    "eighth_prize": [
+      "71"
+    ],
+    "source": "https://www.minhngoc.net.vn/ket-qua-xo-so/mien-nam/thu-hai.html",
+    "created_by": "d9b00195-a16e-46c5-a9a1-0b22e6929a13",
+    "region_code": "south"
+  }
+]

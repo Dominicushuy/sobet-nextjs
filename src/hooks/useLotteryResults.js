@@ -8,6 +8,7 @@ import {
   fetchLotteryResults,
   getLatestResultDate,
   crawlLatestResults,
+  canShowUpdateButton,
 } from '@/app/actions/lottery-results';
 
 export function useLotteryResults() {
@@ -22,6 +23,12 @@ export function useLotteryResults() {
           'Lỗi khi lấy ngày kết quả xổ số mới nhất. Vui lòng thử lại hoặc kiểm tra lại quyền truy cập.'
         );
       },
+    });
+
+  // Kiểm tra có thể hiển thị nút cập nhật kết quả không
+  const { data: canUpdateData, isLoading: isCheckingUpdatePermission } =
+    useServerQuery('canShowUpdateButton', canShowUpdateButton, {
+      refetchInterval: 60000, // Kiểm tra lại mỗi phút
     });
 
   // Fetch results based on filters
@@ -77,11 +84,13 @@ export function useLotteryResults() {
     // Data
     latestDate: latestDateData?.data,
     results: resultsData?.data || [],
+    canShowUpdateButton: canUpdateData?.data || false,
 
     // Loading states
     isLoadingLatestDate,
     isLoadingResults,
     isCrawling,
+    isCheckingUpdatePermission,
 
     // Actions
     setSelectedRegion,

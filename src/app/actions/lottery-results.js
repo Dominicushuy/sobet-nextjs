@@ -16,8 +16,49 @@ const DAYS_MAPPING = [
   'thu-bay', // 6
 ];
 
+// Hàm kiểm tra thời gian hợp lệ cho từng miền
+function isValidTimeForRegion(regionCode) {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const currentTime = currentHour * 60 + currentMinute; // Thời gian hiện tại tính bằng phút
+
+  // Các mốc thời gian (tính bằng phút)
+  const NAM_VALID_TIME = 16 * 60 + 40; // 16:40
+  const TRUNG_VALID_TIME = 17 * 60 + 40; // 17:40
+  const BAC_VALID_TIME = 18 * 60 + 40; // 18:40
+
+  // Log thông tin để debug
+  console.log(
+    `Current time: ${currentHour}:${currentMinute} (${currentTime} minutes)`
+  );
+  console.log(`Checking region: ${regionCode}`);
+  console.log(`NAM_VALID_TIME: ${NAM_VALID_TIME} minutes`);
+  console.log(`TRUNG_VALID_TIME: ${TRUNG_VALID_TIME} minutes`);
+  console.log(`BAC_VALID_TIME: ${BAC_VALID_TIME} minutes`);
+
+  let isValid = false;
+  switch (regionCode) {
+    case 'south': // Miền Nam
+      isValid = currentTime >= NAM_VALID_TIME;
+      console.log(`South region valid: ${isValid}`);
+      return isValid;
+    case 'central': // Miền Trung
+      isValid = currentTime >= TRUNG_VALID_TIME;
+      console.log(`Central region valid: ${isValid}`);
+      return isValid;
+    case 'north': // Miền Bắc
+      isValid = currentTime >= BAC_VALID_TIME;
+      console.log(`North region valid: ${isValid}`);
+      return isValid;
+    default:
+      console.log(`Unknown region: ${regionCode}`);
+      return false;
+  }
+}
+
 // Cập nhật hàm fetchLotteryResults để hỗ trợ tham số date
-export async function fetchLotteryResults({ date } = {}) {
+export async function fetchLotteryResults({ region, stationId, date } = {}) {
   try {
     // const supabase = await createClient();
 
@@ -32,7 +73,7 @@ export async function fetchLotteryResults({ date } = {}) {
       const currentMinute = now.getMinutes();
       const currentTime = currentHour * 60 + currentMinute;
 
-      const NAM_TIME = 16 * 60 + 30; // 16:30
+      const NAM_TIME = 16 * 60 + 40; // 16:40 - Sử dụng thời điểm sớm nhất để xác định ngày
 
       if (currentTime < NAM_TIME) {
         targetDate = new Date(now);
@@ -45,8 +86,8 @@ export async function fetchLotteryResults({ date } = {}) {
       targetDate = targetDate.toISOString().split('T')[0];
     }
 
-    // Sửa lại cú pháp quan hệ trong query
-    const { data, error } = await supabaseAdmin
+    // Xây dựng query cơ bản
+    let query = supabaseAdmin
       .from('lottery_results')
       .select(
         `  
@@ -63,15 +104,26 @@ export async function fetchLotteryResults({ date } = {}) {
         )  
       `
       )
-      .eq('draw_date', targetDate)
-      .order('station_id', { ascending: true });
+      .eq('draw_date', targetDate);
+
+    // Thêm các filter nếu có
+    if (region) {
+      query = query.eq('station.region.code', region);
+    }
+
+    if (stationId) {
+      query = query.eq('station_id', stationId);
+    }
+
+    // Thực hiện query
+    const { data, error } = await query.order('station_id', {
+      ascending: true,
+    });
 
     if (error) {
       console.error('Error fetching lottery results:', error);
       return { data: null, error: error.message };
     }
-
-    // console.log(`Found ${data?.length || 0} results for date ${targetDate}`);
 
     return { data: data || [], error: null };
   } catch (error) {
@@ -109,17 +161,17 @@ export async function getLatestResultDate() {
     const currentMinute = now.getMinutes();
     const currentTime = currentHour * 60 + currentMinute; // Thời gian hiện tại tính bằng phút
 
-    // Thời gian mốc: 16:30 (Nam)
-    const NAM_TIME = 16 * 60 + 30; // 16:30
+    // Thời gian mốc: 16:40 (Nam - sớm nhất)
+    const NAM_TIME = 16 * 60 + 40; // 16:40
 
     // Xác định ngày cần lấy kết quả
     let targetDate;
     if (currentTime < NAM_TIME) {
-      // Nếu thời gian hiện tại < 16:30, lấy kết quả của ngày hôm qua
+      // Nếu thời gian hiện tại < 16:40, lấy kết quả của ngày hôm qua
       targetDate = new Date(now);
       targetDate.setDate(targetDate.getDate() - 1);
     } else {
-      // Nếu >= 16:30, lấy kết quả của ngày hiện tại
+      // Nếu >= 16:40, lấy kết quả của ngày hiện tại
       targetDate = now;
     }
 
@@ -214,6 +266,32 @@ export async function crawlLatestResults(userId, specificDate = null) {
     const results = [];
 
     for (const mien of mienList) {
+      // Xác định region code từ mien
+      let regionCode;
+      switch (mien) {
+        case 'mien-bac':
+          regionCode = 'north';
+          break;
+        case 'mien-trung':
+          regionCode = 'central';
+          break;
+        case 'mien-nam':
+          regionCode = 'south';
+          break;
+        default:
+          regionCode = '';
+      }
+
+      console.log(`Processing region: ${regionCode} (${mien})`);
+
+      // Chúng ta không bỏ qua việc crawl dữ liệu, chỉ kiểm tra khi lưu
+      // Điều này cho phép chúng ta lấy tất cả dữ liệu nhưng chỉ lưu khi đúng thời gian
+      // Nếu là ngày cụ thể, không cần thông báo gì
+      if (!specificDate) {
+        const canSave = isValidTimeForRegion(regionCode);
+        console.log(`Can save ${regionCode} region results: ${canSave}`);
+      }
+
       const url = `${baseUrl}/${mien}/${dayOfWeekSlug}.html`;
 
       try {
@@ -292,6 +370,7 @@ export async function crawlLatestResults(userId, specificDate = null) {
                     ...formattedData,
                     source: url,
                     created_by: userId,
+                    region_code: regionCode,
                   });
                 }
               }
@@ -366,6 +445,7 @@ export async function crawlLatestResults(userId, specificDate = null) {
                       ...formattedData,
                       source: url,
                       created_by: userId,
+                      region_code: regionCode,
                     });
                   }
                 }
@@ -379,34 +459,73 @@ export async function crawlLatestResults(userId, specificDate = null) {
       }
     }
 
-    // Lưu kết quả vào database
+    // Lưu kết quả vào database với kiểm tra thời gian cho từng kết quả
     const savedResults = [];
 
-    await Promise.all(
-      results.map(async (result) => {
-        // Kiểm tra xem đã có kết quả này chưa
-        const { data: existing } = await supabaseAdmin
+    // Save results to json file in `data` folder
+    // const fs = require('fs');
+    // const path = require('path');
+    // const dataDir = path.join(process.cwd(), 'data');
+    // const filePath = path.join(dataDir, 'lottery_results.json');
+    // fs.mkdirSync(dataDir, { recursive: true });
+    // fs.writeFileSync(filePath, JSON.stringify(results, null, 2));
+    // console.log(`Saved results to ${filePath}`);
+
+    // Thêm log để debug
+    // console.log(`Total crawled results: ${results.length}`);
+
+    // Xử lý từng kết quả một thay vì Promise.all để có thể debug rõ ràng
+    for (const result of results) {
+      // Kiểm tra xem đã có kết quả này chưa
+      const { data: existing } = await supabaseAdmin
+        .from('lottery_results')
+        .select('id')
+        .eq('station_id', result.station_id)
+        .eq('draw_date', result.draw_date)
+        .maybeSingle();
+
+      // Log thông tin
+      // console.log(
+      //   `Processing result for station ID: ${result.station_id}, region: ${result.region_code}, date: ${result.draw_date}`
+      // );
+      // console.log(`Result already exists: ${existing ? 'Yes' : 'No'}`);
+
+      // Kiểm tra thời gian nếu không phải ngày cụ thể
+      const shouldSave = specificDate
+        ? true
+        : isValidTimeForRegion(result.region_code);
+
+      // console.log(`Should save: ${shouldSave}`);
+
+      if (!existing && shouldSave) {
+        // Lưu lại region_code để log, nhưng tạo một bản sao để xóa trước khi lưu
+        const resultToSave = { ...result };
+        delete resultToSave.region_code; // Loại bỏ region_code trước khi lưu vì đây chỉ là field tạm thời
+
+        // Nếu chưa có và đã đến thời gian cho phép, lưu mới
+        // console.log(`Saving result for station ID: ${result.station_id}`);
+        const { data, error } = await supabaseAdmin
           .from('lottery_results')
-          .select('id')
-          .eq('station_id', result.station_id)
-          .eq('draw_date', result.draw_date)
-          .maybeSingle();
+          .insert(resultToSave)
+          .select();
 
-        if (!existing) {
-          // Nếu chưa có, lưu mới
-          const { data, error } = await supabaseAdmin
-            .from('lottery_results')
-            .insert(result)
-            .select();
-
-          if (error) {
-            console.error('Error saving lottery result:', error);
-          } else if (data) {
-            savedResults.push(data[0]);
-          }
+        if (error) {
+          console.error(
+            `Error saving lottery result for station ID: ${result.station_id}`,
+            error
+          );
+        } else if (data) {
+          // console.log(
+          //   `Successfully saved result for station ID: ${result.station_id}`
+          // );
+          savedResults.push(data[0]);
         }
-      })
-    );
+      } else {
+        // console.log(
+        //   `Skipping saving result for station ID: ${result.station_id}`
+        // );
+      }
+    }
 
     revalidatePath('/lottery-results');
     return {
@@ -420,5 +539,24 @@ export async function crawlLatestResults(userId, specificDate = null) {
   } catch (error) {
     console.error('Unexpected error in crawlLatestResults:', error);
     return { data: null, error: 'Internal server error' };
+  }
+}
+
+// Hàm kiểm tra xem có thể hiển thị nút cập nhật kết quả chưa
+export async function canShowUpdateButton() {
+  try {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute;
+
+    // Thời gian mốc: 16:35 (Nam - sớm nhất)
+    const NAM_TIME = 16 * 60 + 40; // 16:40
+
+    // Chỉ hiển thị nút nếu đã qua thời gian mốc
+    return { data: currentTime >= NAM_TIME, error: null };
+  } catch (error) {
+    console.error('Error in canShowUpdateButton:', error);
+    return { data: false, error: 'Internal server error' };
   }
 }

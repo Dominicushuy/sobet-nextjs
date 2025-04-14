@@ -8,6 +8,7 @@ import { useServerQuery } from '@/hooks/useServerAction';
 import {
   fetchLotteryResults,
   checkResultsExist,
+  canShowUpdateButton,
 } from '@/app/actions/lottery-results';
 import { LotteryResultCard } from '@/components/lottery/LotteryResultCard';
 import { Button } from '@/components/ui/button';
@@ -26,36 +27,30 @@ import {
 export default function LotteryResultsPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isAfterDrawTime, setIsAfterDrawTime] = useState(false);
+  const [showUpdateButton, setShowUpdateButton] = useState(false);
 
   // 7 ngày gần nhất
   const today = new Date();
   const sevenDaysAgo = subDays(today, 7); // 7 ngày bao gồm ngày hiện tại
 
-  // Check if current time is after draw time (16:30)
-  useEffect(() => {
-    const checkTime = () => {
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      const currentTime = currentHour * 60 + currentMinute; // Convert to minutes
-      const drawTime = 16 * 60 + 30; // 16:30 in minutes
-
-      setIsAfterDrawTime(currentTime >= drawTime);
-    };
-
-    // Check immediately on mount
-    checkTime();
-
-    // Set up interval to check every minute
-    const intervalId = setInterval(checkTime, 60000);
-
-    // Clean up interval on unmount
-    return () => clearInterval(intervalId);
-  }, []);
-
   // Fetch base lottery results data
   const { latestDate, isCrawling, crawlResults } = useLotteryResults();
+
+  // Kiểm tra xem có thể hiển thị nút cập nhật kết quả không
+  const { data: canUpdate } = useServerQuery(
+    'canShowUpdateButton',
+    canShowUpdateButton,
+    {
+      refetchInterval: 60000, // Kiểm tra lại mỗi phút
+    }
+  );
+
+  // Cập nhật trạng thái hiển thị nút dựa trên kết quả từ server
+  useEffect(() => {
+    if (canUpdate?.data !== undefined) {
+      setShowUpdateButton(canUpdate.data);
+    }
+  }, [canUpdate]);
 
   // Check if the selected date has results
   const { data: dateResults, isLoading: isCheckingDate } = useServerQuery(
@@ -171,7 +166,7 @@ export default function LotteryResultsPage() {
           </p>
         </div>
 
-        {(isSuperAdmin || isAdmin) && isAfterDrawTime && (
+        {(isSuperAdmin || isAdmin) && showUpdateButton && (
           <Button onClick={handleCrawl} disabled={isCrawling}>
             <RefreshCw
               className={`mr-2 h-4 w-4 ${isCrawling ? 'animate-spin' : ''}`}
@@ -217,7 +212,8 @@ export default function LotteryResultsPage() {
             {/* Crawl button for specific date */}
             {(isSuperAdmin || isAdmin) &&
               selectedDate &&
-              dateResults?.data === false && (
+              dateResults?.data === false &&
+              showUpdateButton && (
                 <Button
                   onClick={handleCrawlForDate}
                   disabled={isCrawling || isCheckingDate}
@@ -291,10 +287,10 @@ export default function LotteryResultsPage() {
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
                 {selectedDate && dateResults?.data === false
-                  ? isSuperAdmin || isAdmin
+                  ? (isSuperAdmin || isAdmin) && showUpdateButton
                     ? 'Vui lòng nhấn "Lấy kết quả" để lấy kết quả cho ngày đã chọn.'
                     : 'Chưa có kết quả cho ngày đã chọn. Vui lòng thử chọn ngày khác.'
-                  : isSuperAdmin || (isAdmin && isAfterDrawTime)
+                  : (isSuperAdmin || isAdmin) && showUpdateButton
                     ? 'Vui lòng nhấn "Cập nhật kết quả mới" để lấy kết quả mới nhất.'
                     : 'Chưa có kết quả cho ngày hôm nay. Vui lòng thử lại sau.'}
               </p>
