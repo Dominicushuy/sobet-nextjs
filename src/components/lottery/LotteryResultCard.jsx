@@ -1,7 +1,6 @@
 // src/components/lottery/LotteryResultCard.jsx
 import React from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
