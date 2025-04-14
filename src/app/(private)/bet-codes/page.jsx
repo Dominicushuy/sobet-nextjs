@@ -1,13 +1,9 @@
-// src/app/(private)/bet-codes/page.jsx
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useServerQuery } from '@/hooks/useServerAction';
 import { fetchUserBetEntries } from '@/app/actions/bet-entries';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -16,8 +12,7 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { DateSearchFilter } from '@/components/bet-codes/DateSearchFilter';
-import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -25,15 +20,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
+
+// Import các component đã tạo
+import { SearchFilter } from '@/components/bet-codes/SearchFilter';
+import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup';
+import { EmptyState } from '@/components/bet-codes/EmptyState';
 
 export default function UserBetCodesPage() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState(null);
-  const [isFilterExpanded, setIsFilterExpanded] = useState(true);
   const [filteredEntries, setFilteredEntries] = useState([]);
 
   // Query for bet entries
@@ -150,19 +150,34 @@ export default function UserBetCodesPage() {
             Danh sách mã cược đã đặt trong hệ thống
           </p>
         </div>
+
+        <Button onClick={refetchEntries} disabled={isLoadingEntries}>
+          <RefreshCw
+            className={`mr-2 h-4 w-4 ${isLoadingEntries ? 'animate-spin' : ''}`}
+          />
+          Làm mới
+        </Button>
       </div>
 
-      {/* Filter Card */}
-      <DateSearchFilter
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        resetFilters={resetFilters}
-        onRefresh={refetchEntries}
-        isExpanded={isFilterExpanded}
-        setIsExpanded={setIsFilterExpanded}
-      />
+      {/* Filter Card (sử dụng SearchFilter component) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Bộ lọc</CardTitle>
+          <CardDescription>
+            Lọc danh sách mã cược theo ngày và từ khóa
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SearchFilter
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            onResetFilters={resetFilters}
+            onApplyFilters={() => {}}
+          />
+        </CardContent>
+      </Card>
 
       {/* Status info */}
       <div className="flex items-center justify-between">
@@ -247,16 +262,11 @@ export default function UserBetCodesPage() {
           </CardFooter>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-center text-muted-foreground">
-              Không tìm thấy mã cược nào
-            </p>
-            <Button variant="outline" className="mt-4" onClick={resetFilters}>
-              Xóa bộ lọc
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          type="no-entries"
+          onAction={resetFilters}
+          actionLabel="Xóa bộ lọc"
+        />
       )}
     </div>
   );
