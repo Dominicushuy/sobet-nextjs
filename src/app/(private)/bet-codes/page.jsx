@@ -34,11 +34,7 @@ import moment from 'moment';
 export default function UserBetCodesPage() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-    return today;
-  });
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [filteredEntries, setFilteredEntries] = useState([]);
 
   // Query for bet entries

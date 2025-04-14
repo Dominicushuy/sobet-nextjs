@@ -23,11 +23,7 @@ export default function AdminBetCodesPage() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserIds, setSelectedUserIds] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-    return today;
-  });
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedUsers, setExpandedUsers] = useState({});
 
   // console.log('selectedDate', selectedDate);
