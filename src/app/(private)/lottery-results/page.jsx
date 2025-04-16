@@ -122,6 +122,8 @@ export default function LotteryResultsPage() {
     (a, b) => regionOrder[a.code] - regionOrder[b.code]
   );
 
+  // console.log({ canShowUpdateButton, selectedDate, dateResults });
+
   return (
     <div className="space-y-6 container mx-auto px-4 py-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -178,7 +180,7 @@ export default function LotteryResultsPage() {
             {/* Crawl button for specific date */}
             {(isSuperAdmin || isAdmin) &&
               selectedDate &&
-              dateResults?.data === false &&
+              !dateResults?.data &&
               canShowUpdateButton && (
                 <Button
                   onClick={handleCrawlForDate}

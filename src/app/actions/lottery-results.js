@@ -516,14 +516,23 @@ export async function crawlLatestResults(userId, specificDate = null) {
 }
 
 // Hàm kiểm tra xem có thể hiển thị nút cập nhật kết quả chưa
-export async function canShowUpdateButton() {
+export async function canShowUpdateButton(date) {
   try {
     const now = new Date();
+    const today = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+    // Nếu là ngày trong quá khứ, luôn hiển thị nút
+    if (date && date < today) {
+      return { data: true, error: null };
+    }
+
+    // Với ngày hiện tại, ngày tương lai, hoặc không có ngày cụ thể
+    // vẫn sử dụng kiểm tra dựa trên thời gian
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTime = currentHour * 60 + currentMinute;
 
-    // Thời gian mốc: 16:35 (Nam - sớm nhất)
+    // Thời gian mốc: 16:40 (Nam - sớm nhất)
     const NAM_TIME = 16 * 60 + 40; // 16:40
 
     // Chỉ hiển thị nút nếu đã qua thời gian mốc

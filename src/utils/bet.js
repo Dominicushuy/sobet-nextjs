@@ -74,6 +74,15 @@ export function generatePermutations(number) {
  * @returns {string} Ngày xổ số dưới dạng chuỗi ISO (YYYY-MM-DD)
  */
 export function getDrawDate() {
+  // Kiểm tra chế độ DEV_MODE từ biến môi trường
+  if (process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
+    // Trong DEV_MODE, trả về ngày hôm qua
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+  }
+
+  // Logic tiêu chuẩn cho chế độ production
   const now = new Date();
   const drawDate = new Date(now);
 

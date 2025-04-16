@@ -29,9 +29,13 @@ export function useLotteryResults(initialFilters = {}) {
 
   // Kiểm tra có thể hiển thị nút cập nhật kết quả không
   const { data: canUpdateData, isLoading: isCheckingUpdatePermission } =
-    useServerQuery('canShowUpdateButton', canShowUpdateButton, {
-      refetchInterval: 60000, // Kiểm tra lại mỗi phút
-    });
+    useServerQuery(
+      ['canShowUpdateButton', filterCriteria.date],
+      () => canShowUpdateButton(filterCriteria.date),
+      {
+        refetchInterval: 60000, // Kiểm tra lại mỗi phút
+      }
+    );
 
   // Fetch results based on filters
   const fetchParams = useCallback(() => {
