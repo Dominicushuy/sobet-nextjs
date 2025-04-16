@@ -87,6 +87,7 @@ export async function fetchBetsForReconciliation(date) {
 }
 
 // Process reconciliation of bets
+// Process reconciliation of bets
 export async function reconcileBets(betIds, adminId, date) {
   try {
     if (!betIds || betIds.length === 0 || !adminId) {
@@ -138,6 +139,16 @@ export async function reconcileBets(betIds, adminId, date) {
       return { data: null, error: 'No lottery results found for this date' };
     }
 
+    // 3.5. Get station schedules for handling multi-station bets
+    const { data: stationSchedules, error: scheduleError } = await supabaseAdmin
+      .from('station_schedules')
+      .select('*, station:stations(*, region:regions(id, name, code))');
+
+    if (scheduleError) {
+      console.error('Error fetching station schedules:', scheduleError);
+      return { data: null, error: scheduleError.message };
+    }
+
     // 4. Process each bet to determine winning status
     const updates = [];
     const results = {
@@ -147,19 +158,21 @@ export async function reconcileBets(betIds, adminId, date) {
       totalWinAmount: 0,
     };
 
+    // Determine day of week for the draw date
+    const drawDate = new Date(dateStr);
+    const dayOfWeekIndex = drawDate.getDay(); // 0 = Sunday, 1 = Monday, ...
+    const daysOfWeek = [
+      'sunday',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+    ];
+    const dayOfWeek = daysOfWeek[dayOfWeekIndex];
+
     for (const bet of bets) {
-      // Find matching lottery result for this bet
-      const matchingResult = lotteryResults.find(
-        (result) => result.station_id === bet.station_id
-      );
-
-      if (!matchingResult) {
-        console.log(
-          `No matching lottery result for bet ${bet.id}, station ${bet.station_id}`
-        );
-        continue;
-      }
-
       // Find bet type details
       const betType = betTypes.find(
         (type) => type.id === bet.bet_type_id || type.name === bet.bet_type_name
@@ -172,9 +185,108 @@ export async function reconcileBets(betIds, adminId, date) {
         continue;
       }
 
-      // Determine if bet is winning based on the bet type and numbers
-      const { isWinning, matchedNumbers, prizeLevels, winAmount } =
-        checkIfBetWon(bet, matchingResult, betType);
+      let isWinning = false;
+      let matchedNumbers = [];
+      let prizeLevels = [];
+      let winAmount = 0;
+      let firstMatchingResultId = null;
+
+      // Check if this is a multi-station bet
+      if (
+        !bet.station_id &&
+        bet.station_data &&
+        bet.station_data.multiStation === true
+      ) {
+        // Handle multi-station bet
+        const region = bet.station_data.region;
+        const count = bet.station_data.count || 1;
+
+        console.log(
+          `Processing multi-station bet ${bet.id} for region ${region}, count ${count}, day ${dayOfWeek}`
+        );
+
+        // Find schedules for stations in this region on the given day, ordered by order_number
+        const relevantSchedules = stationSchedules
+          .filter(
+            (schedule) =>
+              schedule.station &&
+              schedule.station.region &&
+              schedule.station.region.code === region &&
+              (schedule.day_of_week === dayOfWeek ||
+                schedule.day_of_week === 'daily')
+          )
+          .sort((a, b) => a.order_number - b.order_number)
+          .slice(0, count);
+
+        console.log(
+          `Found ${relevantSchedules.length} relevant schedules for day ${dayOfWeek}`
+        );
+
+        // For each relevant station, check if the bet won
+        for (const schedule of relevantSchedules) {
+          // Find matching lottery result for this station
+          const matchingResult = lotteryResults.find(
+            (result) => result.station_id === schedule.station_id
+          );
+
+          if (!matchingResult) {
+            console.log(
+              `No matching lottery result for station ${schedule.station_id} on ${dateStr}`
+            );
+            continue;
+          }
+
+          // Check if bet won against this station
+          const result = checkIfBetWon(bet, matchingResult, betType);
+
+          if (result.isWinning) {
+            isWinning = true;
+            // Use Set to avoid duplicate numbers
+            const newMatchedNumbers = Array.from(
+              new Set([...matchedNumbers, ...result.matchedNumbers])
+            );
+            matchedNumbers = newMatchedNumbers;
+            prizeLevels = [
+              ...prizeLevels,
+              ...result.prizeLevels.map(
+                (level) => `${schedule.station?.name || 'Unknown'}: ${level}`
+              ),
+            ];
+            winAmount += result.winAmount;
+
+            // Store the first matching result ID
+            if (!firstMatchingResultId) {
+              firstMatchingResultId = matchingResult.id;
+            }
+
+            console.log(
+              `Bet ${bet.id} won against station ${schedule.station_id}`
+            );
+          }
+        }
+      } else {
+        // Handle single station bet
+        const matchingResult = lotteryResults.find(
+          (result) => result.station_id === bet.station_id
+        );
+
+        if (!matchingResult) {
+          console.log(
+            `No matching lottery result for bet ${bet.id}, station ${bet.station_id}`
+          );
+          continue;
+        }
+
+        const result = checkIfBetWon(bet, matchingResult, betType);
+        isWinning = result.isWinning;
+        matchedNumbers = result.matchedNumbers;
+        prizeLevels = result.prizeLevels;
+        winAmount = result.winAmount;
+
+        if (isWinning) {
+          firstMatchingResultId = matchingResult.id;
+        }
+      }
 
       // Prepare update object
       const updateData = {
@@ -183,7 +295,7 @@ export async function reconcileBets(betIds, adminId, date) {
         actual_winning: isWinning ? winAmount : 0,
         matched_numbers: isWinning ? matchedNumbers : [],
         matched_prize_levels: isWinning ? prizeLevels : [],
-        lottery_result_id: matchingResult.id,
+        lottery_result_id: firstMatchingResultId,
         result_verified_at: new Date().toISOString(),
         reconciliation_status: 'matched',
         verified_by: adminId,
