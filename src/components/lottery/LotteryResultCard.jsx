@@ -4,7 +4,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
-export function LotteryResultCard({ result }) {
+export function LotteryResultCard({ result, highlightNumber }) {
   if (!result || !result.station) return null;
 
   const regionCode = result.station.region?.code || '';
@@ -19,23 +19,38 @@ export function LotteryResultCard({ result }) {
   ) => {
     if (!numbers || numbers.length === 0) return null;
 
+    // Kiểm tra xem giải này có chứa số trúng không
+    const hasHighlightedNumber =
+      highlightNumber && numbers.some((num) => num.endsWith(highlightNumber));
+
     return (
-      <div className="border-b py-2">
+      <div
+        className={`border-b py-2 ${hasHighlightedNumber ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
+      >
         <div className="grid grid-cols-12">
-          <div className="col-span-3 flex items-center font-medium">
+          <div
+            className={`col-span-3 flex items-center font-medium ${hasHighlightedNumber ? 'text-green-700 dark:text-green-400' : ''}`}
+          >
             {label}
           </div>
           <div
             className={`col-span-9 grid gap-2 ${numbers.length > 3 ? 'grid-cols-3' : numbers.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
           >
-            {numbers.map((num, index) => (
-              <div
-                key={index}
-                className={`text-center ${largeFont ? 'text-2xl md:text-3xl font-bold' : 'text-base md:text-lg'} ${customClasses}`}
-              >
-                {num}
-              </div>
-            ))}
+            {numbers.map((num, index) => {
+              // Kiểm tra xem số này có phải là số trúng không
+              const isHighlighted =
+                highlightNumber && num.endsWith(highlightNumber);
+              return (
+                <div
+                  key={index}
+                  className={`text-center ${largeFont ? 'text-2xl md:text-3xl font-bold' : 'text-base md:text-lg'} 
+                    ${isHighlighted ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 font-bold rounded-md' : ''} 
+                    ${customClasses}`}
+                >
+                  {num}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -176,6 +176,7 @@ export function UserEntriesCard({
                     <TableHead>Số cược</TableHead>
                     <TableHead>Tiền cược</TableHead>
                     <TableHead>Tiền đóng</TableHead>
+                    <TableHead>Tiền thắng</TableHead>
                     <TableHead>Trạng thái</TableHead>
                     <TableHead>Ngày cược</TableHead>
                   </TableRow>

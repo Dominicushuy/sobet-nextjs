@@ -1,11 +1,12 @@
 import { useState, Fragment } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, XCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
 import { BetStatusBadge } from './BetStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { WinningNumberTooltip } from './WinningNumberTooltip';
 
 export function StationEntriesGroup({
   entriesByStation,
@@ -52,6 +53,30 @@ export function StationEntriesGroup({
     }
   };
 
+  // Render winning amount cell based on entry status
+  const renderWinningAmount = (entry) => {
+    // Nếu chưa xử lý, hiển thị dấu gạch
+    if (entry.status !== 'processed') {
+      return <span className="text-gray-400">-</span>;
+    }
+
+    // Nếu đã xử lý và có thắng
+    if (entry.winning_status === true) {
+      return (
+        <span className="text-green-600 font-bold">
+          {formatCurrency(entry.actual_winning)}
+        </span>
+      );
+    }
+
+    // Nếu đã xử lý và không thắng
+    return (
+      <span className="text-red-500 flex items-center">
+        <XCircle className="h-4 w-4 mr-1" />0
+      </span>
+    );
+  };
+
   return (
     <>
       {Object.keys(entriesByStation).map((stationKey) => {
@@ -93,7 +118,7 @@ export function StationEntriesGroup({
                   )}
                 </TableCell>
               )}
-              <TableCell colSpan={isSelectable ? 6 : 7} className="py-2">
+              <TableCell colSpan={isSelectable ? 7 : 8} className="py-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {isStationExpanded ? (
@@ -175,9 +200,25 @@ export function StationEntriesGroup({
                           <Badge
                             key={idx}
                             variant="outline"
-                            className="font-medium bg-primary/10 text-primary border-primary/20 text-xs"
+                            className={`font-medium text-xs ${
+                              entry.matched_numbers &&
+                              entry.matched_numbers.includes(number)
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800'
+                                : 'bg-primary/10 text-primary border-primary/20'
+                            }`}
                           >
-                            {number}
+                            {entry.matched_numbers &&
+                            entry.matched_numbers.includes(number) ? (
+                              <WinningNumberTooltip
+                                number={number}
+                                matchedNumbers={entry.matched_numbers}
+                                entryId={entry.id}
+                                station={entry.station}
+                                drawDate={entry.draw_date}
+                              />
+                            ) : (
+                              number
+                            )}
                           </Badge>
                         ))}
                       </div>
@@ -194,6 +235,9 @@ export function StationEntriesGroup({
                         {formatCurrency(entry.original_stake)}
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {renderWinningAmount(entry)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <BetStatusBadge
