@@ -1,7 +1,7 @@
 // src/components/bet-codes/ReconciliationDialog.jsx
 'use client';
 
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup';
@@ -121,6 +121,9 @@ export function ReconciliationDialog({
         (bet) => bet.status === 'confirmed'
       );
       const betIdsToReconcile = confirmedBets.map((bet) => bet.id);
+
+      // console.log(betIdsToReconcile);
+
       onConfirmReconciliation(betIdsToReconcile);
     }
   };
@@ -410,6 +413,16 @@ export function ReconciliationDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogTitle className="flex items-center justify-between">
+          <span className="text-lg font-bold">Đối soát mã cược</span>
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            className="text-muted-foreground hover:bg-transparent"
+          >
+            <span className="sr-only">Đóng</span>
+          </Button>
+        </DialogTitle>
         {dialogContent}
       </DialogContent>
     </Dialog>
