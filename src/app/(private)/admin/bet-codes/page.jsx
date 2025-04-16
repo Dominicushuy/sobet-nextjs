@@ -331,18 +331,6 @@ export default function AdminBetCodesPage() {
             Quản lý và xử lý mã cược của người dùng
           </p>
         </div>
-
-        {/* Reconciliation Button */}
-        {confirmedCount > 0 && (
-          <Button
-            onClick={handleOpenReconciliation}
-            variant="outline"
-            className="bg-green-50 text-green-600 border-green-200 hover:bg-green-100 hover:text-green-700"
-          >
-            <CheckSquare className="mr-2 h-4 w-4" />
-            Đối soát kết quả
-          </Button>
-        )}
       </div>
 
       {/* Unified Filter Card with Tabs and Action Buttons */}
