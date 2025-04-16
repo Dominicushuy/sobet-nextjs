@@ -61,7 +61,7 @@ export async function fetchBetsForReconciliation(date) {
       confirmed: confirmedBets.filter((bet) => bet.status === 'confirmed')
         .length,
       totalStake: confirmedBets.reduce(
-        (sum, bet) => sum + Number(bet.stake || 0),
+        (sum, bet) => sum + Number(bet.original_stake || 0),
         0
       ),
       totalAmount: confirmedBets.reduce(
