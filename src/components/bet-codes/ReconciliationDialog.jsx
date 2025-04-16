@@ -1,31 +1,32 @@
 // src/components/bet-codes/ReconciliationDialog.jsx
 'use client';
 
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BetStatusBadge } from '@/components/bet-codes/BetStatusBadge';
 import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup';
+import { LotteryResultCard } from '@/components/lottery/LotteryResultCard';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
-import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import {
+  Loader2,
+  CheckCircle,
+  AlertTriangle,
+  RefreshCw,
+  Calendar,
+} from 'lucide-react';
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useServerMutation } from '@/hooks/useServerAction';
+import { crawlLatestResults } from '@/app/actions/lottery-results';
+import { toast } from 'sonner';
 
 export function ReconciliationDialog({
   isOpen,
@@ -36,8 +37,44 @@ export function ReconciliationDialog({
   onConfirmReconciliation,
   isProcessing,
   results,
+  refetchReconciliation,
 }) {
-  const [confirmStep, setConfirmStep] = useState(false);
+  const formattedDate = date ? formatDate(date) : '';
+
+  // Mutation to crawl latest results
+  const { mutate: fetchLatestResults, isPending: isFetchingResults } =
+    useServerMutation(
+      'fetchLatestResults',
+      (params) => crawlLatestResults(params.userId, params.date),
+      {
+        onSuccess: (result) => {
+          if (result.data) {
+            toast.success(
+              `Đã lấy ${result.data.total} kết quả, lưu ${result.data.saved} kết quả mới`
+            );
+
+            // Instead of reloading, refetch the reconciliation data
+            if (typeof refetchReconciliation === 'function') {
+              refetchReconciliation();
+            }
+          } else {
+            toast.error('Không thể lấy kết quả xổ số');
+          }
+        },
+        onError: () => {
+          toast.error('Lỗi khi lấy kết quả xổ số');
+        },
+      }
+    );
+
+  const handleFetchResults = () => {
+    if (reconciliationData?.date) {
+      fetchLatestResults({
+        userId: reconciliationData.userId,
+        date: reconciliationData.date,
+      });
+    }
+  };
 
   // Group entries by station for display
   const entriesByStation = {};
@@ -72,11 +109,21 @@ export function ReconciliationDialog({
       }
 
       entriesByStation[stationKey].entries.push(entry);
-      stationTotals[stationKey].totalAmount += Number(entry.amount) || 0;
-      stationTotals[stationKey].totalStake += Number(entry.stake) || 0;
+      stationTotals[stationKey].totalAmount += Number(entry.amount || 0);
+      stationTotals[stationKey].totalStake += Number(entry.stake || 0);
       stationTotals[stationKey].count += 1;
     });
   }
+
+  const handleDirectReconciliation = () => {
+    if (reconciliationData?.bets) {
+      const confirmedBets = reconciliationData.bets.filter(
+        (bet) => bet.status === 'confirmed'
+      );
+      const betIdsToReconcile = confirmedBets.map((bet) => bet.id);
+      onConfirmReconciliation(betIdsToReconcile);
+    }
+  };
 
   // Content based on current state
   let dialogContent;
@@ -157,105 +204,26 @@ export function ReconciliationDialog({
         </div>
       </div>
     );
-  } else if (confirmStep && reconciliationData) {
-    // Confirmation step
-    const confirmedBets = reconciliationData.bets.filter(
-      (bet) => bet.status === 'confirmed'
-    );
-    const betIdsToReconcile = confirmedBets.map((bet) => bet.id);
-
-    dialogContent = (
-      <div className="space-y-6">
-        <div className="flex items-center">
-          <AlertTriangle className="h-6 w-6 text-amber-500 mr-2" />
-          <div>
-            <h3 className="text-lg font-medium">Xác nhận đối soát</h3>
-            <p className="text-sm text-muted-foreground">
-              Bạn đang thực hiện đối soát {confirmedBets.length} mã cược đã xác
-              nhận. Hành động này sẽ cập nhật trạng thái trúng/thua cho các mã
-              cược.
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
-          <p className="text-amber-800 text-sm">
-            Quá trình đối soát sẽ đánh dấu các mã cược là &quot;đã xử lý&quot;
-            và không thể hoàn tác. Vui lòng kiểm tra các số liệu bên dưới trước
-            khi xác nhận.
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Thống kê đối soát</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Tổng số mã cược</p>
-                <p className="text-2xl font-bold">{confirmedBets.length}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Tổng tiền cược</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(
-                    confirmedBets.reduce(
-                      (sum, bet) => sum + Number(bet.amount || 0),
-                      0
-                    )
-                  )}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Tổng tiền đóng</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(
-                    confirmedBets.reduce(
-                      (sum, bet) => sum + Number(bet.stake || 0),
-                      0
-                    )
-                  )}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="mt-6">
-          <Button
-            className="w-full"
-            onClick={() => onConfirmReconciliation(betIdsToReconcile)}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Đang xử lý...
-              </>
-            ) : (
-              'Xác nhận đối soát'
-            )}
-          </Button>
-        </div>
-      </div>
-    );
   } else if (reconciliationData) {
     // Initial data display
-    const { statistics, bets, lotteryResults, date } = reconciliationData;
+    const { statistics, bets, lotteryResults, date, userId } =
+      reconciliationData;
     const confirmedBets = bets.filter((bet) => bet.status === 'confirmed');
     const hasLotteryResults = lotteryResults && lotteryResults.length > 0;
 
     dialogContent = (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-medium">
-              Đối soát kết quả ngày {formatDate(date)}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Kiểm tra và xác nhận kết quả trúng thưởng
-            </p>
+        <div className="flex items-center justify-between bg-muted/30 p-3 rounded-lg">
+          <div className="flex items-center">
+            <Calendar className="h-5 w-5 text-primary mr-2" />
+            <div>
+              <h3 className="text-lg font-medium">
+                Đối soát kết quả ngày {formattedDate}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Kiểm tra và xác nhận kết quả trúng thưởng
+              </p>
+            </div>
           </div>
           {!hasLotteryResults && (
             <Badge variant="destructive">
@@ -264,157 +232,157 @@ export function ReconciliationDialog({
           )}
         </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Thống kê mã cược</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Tổng mã cược</p>
-                <p className="text-2xl font-bold">{statistics.total}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Thống kê mã cược</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Tổng mã cược</p>
+                  <p className="text-2xl font-bold">{statistics.total}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Mã nháp</p>
+                  <p className="text-2xl font-bold">{statistics.draft}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Mã đã xác nhận
+                  </p>
+                  <p className="text-2xl font-bold">{statistics.confirmed}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Tổng tiền đóng
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(statistics.totalStake)}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Mã nháp</p>
-                <p className="text-2xl font-bold">{statistics.draft}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Mã đã xác nhận</p>
-                <p className="text-2xl font-bold">{statistics.confirmed}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Tổng tiền đóng</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(statistics.totalStake)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {hasLotteryResults ? (
-          <>
-            <Card>
+          {hasLotteryResults ? (
+            <Card className="col-span-1 md:col-span-2">
               <CardHeader className="pb-2">
-                <CardTitle>Kết quả xổ số</CardTitle>
+                <CardTitle className="flex justify-between items-center">
+                  <span>Kết quả xổ số</span>
+                  <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
+                    {lotteryResults.length} đài
+                  </Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-sm">
-                  <div className="max-h-48 overflow-y-auto border rounded-md p-3">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Đài</TableHead>
-                          <TableHead>Giải ĐB</TableHead>
-                          <TableHead>Giải Nhất</TableHead>
-                          <TableHead>Ngày xổ</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {lotteryResults.map((result) => (
-                          <TableRow key={result.id}>
-                            <TableCell className="font-medium">
-                              {result.station?.name || 'N/A'}
-                            </TableCell>
-                            <TableCell>
-                              {result.special_prize?.map((num, i) => (
-                                <Badge
-                                  key={i}
-                                  variant="outline"
-                                  className="mr-1"
-                                >
-                                  {num}
-                                </Badge>
-                              ))}
-                            </TableCell>
-                            <TableCell>
-                              {result.first_prize?.map((num, i) => (
-                                <Badge
-                                  key={i}
-                                  variant="outline"
-                                  className="mr-1"
-                                >
-                                  {num}
-                                </Badge>
-                              ))}
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(result.draw_date)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                <ScrollArea className="h-72">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {lotteryResults.map((result) => (
+                      <LotteryResultCard key={result.id} result={result} />
+                    ))}
                   </div>
-                </div>
+                </ScrollArea>
               </CardContent>
             </Card>
-
-            {confirmedBets.length > 0 ? (
-              <>
-                <div className="mt-4">
-                  <h4 className="font-medium mb-2">
-                    Danh sách mã cược cần đối soát ({confirmedBets.length})
-                  </h4>
-
-                  <div className="border rounded-md overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Đài</TableHead>
-                            <TableHead>Loại cược</TableHead>
-                            <TableHead>Số cược</TableHead>
-                            <TableHead>Tiền cược</TableHead>
-                            <TableHead>Tiền đóng</TableHead>
-                            <TableHead>Trạng thái</TableHead>
-                            <TableHead>Ngày cược</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          <StationEntriesGroup
-                            entriesByStation={entriesByStation}
-                            stationTotals={stationTotals}
-                            isSelectable={false}
-                          />
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between mt-6">
-                  <Button variant="outline" onClick={onClose}>
-                    Hủy bỏ
-                  </Button>
-                  <Button onClick={() => setConfirmStep(true)}>
-                    Tiến hành đối soát
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 space-y-2">
-                <AlertTriangle className="mx-auto h-12 w-12 text-amber-500" />
-                <p className="text-lg font-medium">
-                  Không có mã cược nào đã xác nhận
+          ) : (
+            <Card className="col-span-1 md:col-span-2 border-dashed border-2">
+              <CardContent className="flex flex-col items-center justify-center h-full py-8">
+                <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+                <p className="text-lg font-medium text-center">
+                  Chưa có kết quả xổ số cho ngày {formattedDate}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Bạn cần xác nhận các mã cược trước khi thực hiện đối soát
+                <p className="text-sm text-muted-foreground text-center mb-6">
+                  Vui lòng lấy kết quả xổ số trước khi thực hiện đối soát
                 </p>
-                <Button variant="outline" onClick={onClose} className="mt-4">
-                  Đóng
+                <Button
+                  onClick={handleFetchResults}
+                  disabled={isFetchingResults}
+                  size="lg"
+                  className="bg-amber-500 hover:bg-amber-600 text-white"
+                >
+                  {isFetchingResults ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Đang lấy kết quả...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Lấy kết quả xổ số ngày {formattedDate}
+                    </>
+                  )}
                 </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {confirmedBets.length > 0 ? (
+          <>
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium">
+                  Danh sách mã cược cần đối soát ({confirmedBets.length})
+                </h4>
               </div>
-            )}
+
+              <div className="border rounded-md overflow-hidden">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Đài</TableHead>
+                        <TableHead>Loại cược</TableHead>
+                        <TableHead>Số cược</TableHead>
+                        <TableHead>Tiền cược</TableHead>
+                        <TableHead>Tiền đóng</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Ngày cược</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <StationEntriesGroup
+                        entriesByStation={entriesByStation}
+                        stationTotals={stationTotals}
+                        isSelectable={false}
+                      />
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between mt-6">
+              <Button variant="outline" onClick={onClose}>
+                Hủy bỏ
+              </Button>
+              {hasLotteryResults && (
+                <Button
+                  onClick={handleDirectReconciliation}
+                  disabled={isProcessing}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    'Tiến hành đối soát'
+                  )}
+                </Button>
+              )}
+            </div>
           </>
         ) : (
           <div className="text-center py-8 space-y-2">
             <AlertTriangle className="mx-auto h-12 w-12 text-amber-500" />
             <p className="text-lg font-medium">
-              Chưa có kết quả xổ số cho ngày này
+              Không có mã cược nào đã xác nhận
             </p>
             <p className="text-sm text-muted-foreground">
-              Bạn cần chờ có kết quả xổ số trước khi thực hiện đối soát
+              Bạn cần xác nhận các mã cược trước khi thực hiện đối soát
             </p>
             <Button variant="outline" onClick={onClose} className="mt-4">
               Đóng
@@ -441,7 +409,7 @@ export function ReconciliationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         {dialogContent}
       </DialogContent>
     </Dialog>

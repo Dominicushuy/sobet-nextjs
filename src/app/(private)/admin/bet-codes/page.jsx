@@ -381,13 +381,11 @@ export default function AdminBetCodesPage() {
 
         {confirmedCount > 0 && !isLoadingEntries && (
           <Button
-            size="sm"
             onClick={handleOpenReconciliation}
-            variant="outline"
-            className="ml-2 bg-green-50 text-green-600 border-green-200 hover:bg-green-100 hover:text-green-700"
+            className="ml-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 h-10 font-medium shadow-sm"
           >
-            <CheckSquare className="mr-2 h-4 w-4" />
-            Đối soát {confirmedCount} mã xác nhận
+            <CheckSquare className="mr-2 h-5 w-5" />
+            Đối soát {confirmedCount} mã cược
           </Button>
         )}
       </div>
@@ -460,6 +458,7 @@ export default function AdminBetCodesPage() {
         onConfirmReconciliation={handleConfirmReconciliation}
         isProcessing={isReconciling}
         results={reconciliationResults}
+        refetchReconciliation={refetchReconciliation}
       />
     </div>
   );
