@@ -49,7 +49,7 @@ const betCodeReducer = (state, action) => {
       const newCode = {
         ...action.payload,
         id: action.payload.id || uniqueId,
-        drawDate: getDrawDate(),
+        drawDate: getDrawDate(true),
         createdAt: action.payload.createdAt || new Date().toISOString(),
         isDraft: true,
         status: 'pending',

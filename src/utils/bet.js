@@ -71,11 +71,12 @@ export function generatePermutations(number) {
 
 /**
  * Lấy ngày xổ số dự kiến
+ * @param {boolean} isSaveBet - Chế độ lưu cược (true nếu trong DEV_MODE)
  * @returns {string} Ngày xổ số dưới dạng chuỗi ISO (YYYY-MM-DD)
  */
-export function getDrawDate() {
+export function getDrawDate(isSaveBet = false) {
   // Kiểm tra chế độ DEV_MODE từ biến môi trường
-  if (process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
+  if (process.env.NEXT_PUBLIC_DEV_MODE === 'true' && isSaveBet) {
     // Trong DEV_MODE, trả về ngày hôm qua
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
