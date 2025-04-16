@@ -1,6 +1,6 @@
 // src/services/bet/prizeCalculator.js - Fixed permutation handling
 
-import { calculatePermutationCount, generatePermutations } from '@/utils/bet';
+import { generatePermutations } from '@/utils/bet';
 
 /**
  * Lấy thông tin về đài

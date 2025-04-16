@@ -1,0 +1,3 @@
+- Tính sai số tiền thắng
+- Chưa hiển thị Tooltip được đài trúng
+- Làm chức năng đối soát kết quả đến user

@@ -23,7 +23,7 @@ export function calculateStake(parsedResult, betConfig) {
     let totalStake = 0;
     const details = [];
     // Lấy hệ số nhân từ BET_CONFIG
-    const priceRate = betConfig.commissionSettings.priceRate || 0.81;
+    const priceRate = betConfig.commissionSettings.priceRate || 0.8;
     let hasValidLine = false;
 
     // Xử lý từng dòng trong mã cược
