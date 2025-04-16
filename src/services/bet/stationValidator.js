@@ -11,8 +11,13 @@ import { isStationLine } from './parser';
  * @returns {object} - Validation result {valid: boolean, message: string}
  */
 export function validateStationAvailability(parsedStation, betConfig) {
-  if (!parsedStation || !betConfig || !betConfig.stationSchedules) {
-    return { valid: true }; // Skip validation if missing data
+  if (
+    !parsedStation ||
+    !betConfig ||
+    !betConfig.stationSchedules ||
+    process.env.NEXT_PUBLIC_DEV_MODE === 'true'
+  ) {
+    return { valid: true };
   }
 
   // Get current time and target day
@@ -164,7 +169,7 @@ function findMatchingStation(stationName, accessibleStations) {
  * @returns {object} - Validation results for each station line
  */
 export function validateMultiStationBetCode(betCode, betConfig) {
-  if (!betCode || !betConfig) {
+  if (!betCode || !betConfig || process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
     return { valid: true };
   }
 

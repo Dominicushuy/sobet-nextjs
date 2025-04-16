@@ -146,6 +146,7 @@ CREATE TABLE bet_entries (
   stake NUMERIC(12, 2) NOT NULL, -- Số tiền đóng thực tế sau khi tính toán
   original_stake NUMERIC(12, 2) NOT NULL, -- Số tiền đóng gốc (trước khi tính toán)
   potential_winning NUMERIC(12, 2) NOT NULL, -- Tổng số tiền thưởng tiềm năng
+  
   winning_status BOOLEAN, -- Trạng thái trúng thưởng (true/false/null = chưa xác định)
   actual_winning NUMERIC(12, 2), -- Số tiền thưởng thực tế nhận được
   

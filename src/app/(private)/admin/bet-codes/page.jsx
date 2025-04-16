@@ -1,3 +1,4 @@
+// src/app/(private)/admin/bet-codes/page.jsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,6 +10,10 @@ import {
   confirmBetEntries,
   deleteBetEntries,
 } from '@/app/actions/bet-entries';
+import {
+  fetchBetsForReconciliation,
+  reconcileBets,
+} from '@/app/actions/bet-reconciliation';
 import { toast } from 'sonner';
 
 // Import components
@@ -17,6 +22,9 @@ import { StatusDisplay } from '@/components/bet-codes/StatusDisplay';
 import { UserEntriesCard } from '@/components/bet-codes/UserEntriesCard';
 import { EmptyState } from '@/components/bet-codes/EmptyState';
 import { ConfirmDialogs } from '@/components/bet-codes/ConfirmDialogs';
+import { ReconciliationDialog } from '@/components/bet-codes/ReconciliationDialog';
+import { Button } from '@/components/ui/button';
+import { CheckSquare } from 'lucide-react';
 import moment from 'moment/moment';
 
 export default function AdminBetCodesPage() {
@@ -26,9 +34,12 @@ export default function AdminBetCodesPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedUsers, setExpandedUsers] = useState({});
 
-  // console.log('selectedDate', selectedDate);
+  // State for reconciliation dialog
+  const [showReconciliationDialog, setShowReconciliationDialog] =
+    useState(false);
+  const [reconciliationResults, setReconciliationResults] = useState(null);
 
-  // State cho chức năng chọn nhiều mã cược
+  // State for selection and confirmation dialogs
   const [selectedEntryIds, setSelectedEntryIds] = useState([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -46,12 +57,11 @@ export default function AdminBetCodesPage() {
     }
   );
 
-  // State để theo dõi đã khởi tạo dữ liệu chưa
+  // State to track initialization
   const [isInitialized, setIsInitialized] = useState(false);
 
   // When users are loaded, select all by default (but only once)
   useEffect(() => {
-    // Chỉ thực hiện khởi tạo một lần khi có dữ liệu và chưa khởi tạo
     if (!isInitialized && usersData?.data && usersData.data.length > 0) {
       setSelectedUserIds(usersData.data.map((user) => user.id));
 
@@ -62,7 +72,6 @@ export default function AdminBetCodesPage() {
       });
       setExpandedUsers(initialExpandedState);
 
-      // Đánh dấu đã khởi tạo
       setIsInitialized(true);
     }
   }, [usersData?.data, isInitialized]);
@@ -87,7 +96,23 @@ export default function AdminBetCodesPage() {
     }
   );
 
-  // Mutation để duyệt mã cược
+  // Query for reconciliation data
+  const {
+    data: reconciliationData,
+    isLoading: isLoadingReconciliation,
+    refetch: refetchReconciliation,
+  } = useServerQuery(
+    ['reconciliationData', selectedDate],
+    () => fetchBetsForReconciliation(moment(selectedDate).format('YYYY-MM-DD')),
+    {
+      enabled: showReconciliationDialog,
+      onError: (error) => {
+        toast.error('Lỗi khi tải dữ liệu đối soát: ' + error.message);
+      },
+    }
+  );
+
+  // Mutation to confirm (approve) bet entries
   const { mutate: confirmEntries, isPending: isConfirming } = useServerMutation(
     'confirmBetEntries',
     (entryIds) => confirmBetEntries(entryIds, user?.id),
@@ -109,7 +134,7 @@ export default function AdminBetCodesPage() {
     }
   );
 
-  // Mutation để xóa mã cược
+  // Mutation to delete bet entries
   const { mutate: deleteEntries, isPending: isDeleting } = useServerMutation(
     'deleteBetEntries',
     (entryIds) => deleteBetEntries(entryIds, user?.id),
@@ -131,6 +156,29 @@ export default function AdminBetCodesPage() {
     }
   );
 
+  // Mutation to reconcile bet entries
+  const { mutate: reconcileEntries, isPending: isReconciling } =
+    useServerMutation(
+      'reconcileBets',
+      ({ betIds, date }) => reconcileBets(betIds, user?.id, date),
+      {
+        onSuccess: (result) => {
+          if (result.error) {
+            toast.error('Lỗi khi đối soát mã cược: ' + result.error);
+            setShowReconciliationDialog(false);
+          } else {
+            toast.success('Đối soát mã cược thành công');
+            setReconciliationResults(result.data.results);
+            refetchEntries();
+          }
+        },
+        onError: (error) => {
+          toast.error('Lỗi hệ thống: ' + error.message);
+          setShowReconciliationDialog(false);
+        },
+      }
+    );
+
   // Reset filters
   const resetFilters = () => {
     setSelectedDate(null);
@@ -150,6 +198,27 @@ export default function AdminBetCodesPage() {
     }
     setShowConfirmDialog(false);
     setShowDeleteDialog(false);
+  };
+
+  // Handle opening reconciliation dialog
+  const handleOpenReconciliation = () => {
+    setReconciliationResults(null);
+    setShowReconciliationDialog(true);
+    refetchReconciliation();
+  };
+
+  // Handle closing reconciliation dialog
+  const handleCloseReconciliation = () => {
+    setShowReconciliationDialog(false);
+    setReconciliationResults(null);
+  };
+
+  // Handle reconciliation confirmation
+  const handleConfirmReconciliation = (betIds) => {
+    reconcileEntries({
+      betIds,
+      date: moment(selectedDate).format('YYYY-MM-DD'),
+    });
   };
 
   // Handle select all draft entries
@@ -219,6 +288,11 @@ export default function AdminBetCodesPage() {
     (entry) => entry.status === 'draft'
   ).length;
 
+  // Count confirmed entries for reconciliation button
+  const confirmedCount = filteredEntries.filter(
+    (entry) => entry.status === 'confirmed'
+  ).length;
+
   // Group entries by user
   const entriesByUser = {};
   const userTotals = {};
@@ -257,6 +331,18 @@ export default function AdminBetCodesPage() {
             Quản lý và xử lý mã cược của người dùng
           </p>
         </div>
+
+        {/* Reconciliation Button */}
+        {confirmedCount > 0 && (
+          <Button
+            onClick={handleOpenReconciliation}
+            variant="outline"
+            className="bg-green-50 text-green-600 border-green-200 hover:bg-green-100 hover:text-green-700"
+          >
+            <CheckSquare className="mr-2 h-4 w-4" />
+            Đối soát kết quả
+          </Button>
+        )}
       </div>
 
       {/* Unified Filter Card with Tabs and Action Buttons */}
@@ -304,6 +390,18 @@ export default function AdminBetCodesPage() {
           userCount={Object.keys(entriesByUser).length}
           selectedEntryIds={selectedEntryIds}
         />
+
+        {confirmedCount > 0 && !isLoadingEntries && (
+          <Button
+            size="sm"
+            onClick={handleOpenReconciliation}
+            variant="outline"
+            className="ml-2 bg-green-50 text-green-600 border-green-200 hover:bg-green-100 hover:text-green-700"
+          >
+            <CheckSquare className="mr-2 h-4 w-4" />
+            Đối soát {confirmedCount} mã xác nhận
+          </Button>
+        )}
       </div>
 
       {/* User bet groups */}
@@ -362,6 +460,18 @@ export default function AdminBetCodesPage() {
         isConfirming={isConfirming}
         isDeleting={isDeleting}
         onConfirm={handleConfirmAction}
+      />
+
+      {/* Reconciliation Dialog */}
+      <ReconciliationDialog
+        isOpen={showReconciliationDialog}
+        onClose={handleCloseReconciliation}
+        date={selectedDate}
+        reconciliationData={reconciliationData?.data}
+        isLoading={isLoadingReconciliation}
+        onConfirmReconciliation={handleConfirmReconciliation}
+        isProcessing={isReconciling}
+        results={reconciliationResults}
       />
     </div>
   );
