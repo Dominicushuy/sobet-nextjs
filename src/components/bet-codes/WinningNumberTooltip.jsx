@@ -15,27 +15,87 @@ export function WinningNumberTooltip({
   entryId,
   station,
   drawDate,
+  station_data,
 }) {
   const [result, setResult] = useState(null);
 
-  // Fetch the lottery result for this station and date
+  // Fetch all lottery results for the date
   const { data: resultsData, isLoading } = useServerQuery(
-    ['lotteryResult', station?.id, drawDate, entryId],
-    () => fetchLotteryResults({ stationId: station?.id, date: drawDate }),
+    ['lotteryResults', drawDate, entryId],
+    () => fetchLotteryResults({ date: drawDate }),
     {
-      enabled: !!station?.id && !!drawDate,
+      enabled: !!drawDate,
     }
   );
 
   useEffect(() => {
     if (resultsData?.data && resultsData.data.length > 0) {
-      // Find the result for this station
-      const stationResult = resultsData.data.find(
-        (result) => result.station_id === station.id
-      );
-      setResult(stationResult);
+      let matchingResult = null;
+
+      // If we have a direct station, find that specific result
+      if (station?.id) {
+        matchingResult = resultsData.data.find(
+          (result) => result.station_id === station.id
+        );
+      }
+      // Otherwise, try to find a match based on station_data
+      else if (station_data) {
+        // If it's a multi-station bet
+        if (station_data.multiStation && station_data.region) {
+          // Try to find a result where the number matches in one of the prizes
+          for (const res of resultsData.data) {
+            if (res.station?.region?.code === station_data.region) {
+              // Check if this number matches in any of the prizes
+              const allPrizes = [
+                ...(res.special_prize || []),
+                ...(res.first_prize || []),
+                ...(res.second_prize || []),
+                ...(res.third_prize || []),
+                ...(res.fourth_prize || []),
+                ...(res.fifth_prize || []),
+                ...(res.sixth_prize || []),
+                ...(res.seventh_prize || []),
+                ...(res.eighth_prize || []),
+              ];
+
+              // Match by the last n digits where n is the length of the number
+              const matchFound = allPrizes.some((prize) =>
+                prize.endsWith(number)
+              );
+
+              if (matchFound) {
+                matchingResult = res;
+                break;
+              }
+            }
+          }
+
+          // If no match found, just take the first result from this region
+          if (!matchingResult) {
+            matchingResult = resultsData.data.find(
+              (result) => result.station?.region?.code === station_data.region
+            );
+          }
+        }
+        // If station_data has a specific ID, use that
+        else if (station_data.id) {
+          matchingResult = resultsData.data.find(
+            (result) => result.station_id === station_data.id
+          );
+        }
+        // If station_data has a name, try to match by name
+        else if (station_data.name) {
+          matchingResult = resultsData.data.find(
+            (result) =>
+              result.station?.name.toLowerCase() ===
+              station_data.name.toLowerCase()
+          );
+        }
+      }
+
+      setResult(matchingResult);
     }
-  }, [resultsData, station]);
+  }, [resultsData, station, station_data, number]);
 
   // Check if this number is matched
   const isMatched = matchedNumbers && matchedNumbers.includes(number);

@@ -77,6 +77,8 @@ export function StationEntriesGroup({
     );
   };
 
+  // console.log({ entriesByStation });
+
   return (
     <>
       {Object.keys(entriesByStation).map((stationKey) => {
@@ -215,6 +217,7 @@ export function StationEntriesGroup({
                                 entryId={entry.id}
                                 station={entry.station}
                                 drawDate={entry.draw_date}
+                                station_data={entry.station_data}
                               />
                             ) : (
                               number
