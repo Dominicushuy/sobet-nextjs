@@ -15,6 +15,7 @@ import {
   reconcileBets,
 } from '@/app/actions/bet-reconciliation';
 import { toast } from 'sonner';
+import { getStationName } from '@/utils/displayUtils';
 
 // Import components
 import { FilterCard } from '@/components/bet-codes/FilterCard';
@@ -272,8 +273,8 @@ export default function AdminBetCodesPage() {
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
           entry.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          entry.station?.name
-            ?.toLowerCase()
+          getStationName(entry)
+            .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
           (Array.isArray(entry.numbers) &&
             entry.numbers.some((num) =>

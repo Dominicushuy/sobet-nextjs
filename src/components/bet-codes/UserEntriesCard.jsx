@@ -21,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
+import { getStationName } from '@/utils/displayUtils';
 import { StationEntriesGroup } from './StationEntriesGroup';
 
 export function UserEntriesCard({
@@ -52,13 +53,7 @@ export function UserEntriesCard({
 
   // Group entries by station
   entries.forEach((entry) => {
-    const stationName =
-      entry.station?.name ||
-      (entry.station_data?.multiStation
-        ? `${entry.station_data.count} Đài ${entry.station_data.name}`
-        : entry.station_data?.name) ||
-      'Không xác định';
-
+    const stationName = getStationName(entry);
     const stationKey = stationName.replace(/\s+/g, '-').toLowerCase();
 
     if (!entriesByStation[stationKey]) {

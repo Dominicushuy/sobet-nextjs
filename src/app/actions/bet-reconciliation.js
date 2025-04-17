@@ -190,100 +190,130 @@ export async function reconcileBets(betIds, adminId, date) {
       let winAmount = 0;
       let firstMatchingResultId = null;
 
-      // Check if this is a multi-station bet
-      if (
-        !bet.station_id &&
-        bet.station_data &&
-        bet.station_data.multiStation === true
-      ) {
-        // Handle multi-station bet
-        const region = bet.station_data.region;
-        const count = bet.station_data.count || 1;
-
-        console.log(
-          `Processing multi-station bet ${bet.id} for region ${region}, count ${count}, day ${dayOfWeek}`
-        );
-
-        // Find schedules for stations in this region on the given day, ordered by order_number
-        const relevantSchedules = stationSchedules
-          .filter(
-            (schedule) =>
-              schedule.station &&
-              schedule.station.region &&
-              schedule.station.region.code === region &&
-              (schedule.day_of_week === dayOfWeek ||
-                schedule.day_of_week === 'daily')
-          )
-          .sort((a, b) => a.order_number - b.order_number)
-          .slice(0, count);
-
-        console.log(
-          `Found ${relevantSchedules.length} relevant schedules for day ${dayOfWeek}`
-        );
-
-        // For each relevant station, check if the bet won
-        for (const schedule of relevantSchedules) {
-          // Find matching lottery result for this station
-          const matchingResult = lotteryResults.find(
-            (result) => result.station_id === schedule.station_id
-          );
-
-          if (!matchingResult) {
-            console.log(
-              `No matching lottery result for station ${schedule.station_id} on ${dateStr}`
-            );
-            continue;
-          }
-
-          // Check if bet won against this station
-          const result = checkIfBetWon(bet, matchingResult, betType);
-
-          if (result.isWinning) {
-            isWinning = true;
-            // Use Set to avoid duplicate numbers
-            const newMatchedNumbers = Array.from(
-              new Set([...matchedNumbers, ...result.matchedNumbers])
-            );
-            matchedNumbers = newMatchedNumbers;
-            prizeLevels = [
-              ...prizeLevels,
-              ...result.prizeLevels.map(
-                (level) => `${schedule.station?.name || 'Unknown'}: ${level}`
-              ),
-            ];
-            winAmount += result.winAmount;
-
-            // Store the first matching result ID
-            if (!firstMatchingResultId) {
-              firstMatchingResultId = matchingResult.id;
-            }
-
-            console.log(
-              `Bet ${bet.id} won against station ${schedule.station_id}`
-            );
-          }
-        }
-      } else {
-        // Handle single station bet
+      // NEW LOGIC: Check bet station format and reconcile accordingly
+      if (bet.station_id) {
+        // Case 1: Simple station - direct match with station_id
         const matchingResult = lotteryResults.find(
           (result) => result.station_id === bet.station_id
         );
 
-        if (!matchingResult) {
-          console.log(
-            `No matching lottery result for bet ${bet.id}, station ${bet.station_id}`
-          );
-          continue;
+        if (matchingResult) {
+          const result = checkIfBetWon(bet, matchingResult, betType);
+          isWinning = result.isWinning;
+          matchedNumbers = result.matchedNumbers;
+          prizeLevels = result.prizeLevels;
+          winAmount = result.winAmount;
+
+          if (isWinning) {
+            firstMatchingResultId = matchingResult.id;
+          }
         }
+      } else if (bet.station_data) {
+        if (
+          bet.station_data.stations &&
+          Array.isArray(bet.station_data.stations)
+        ) {
+          // Case 2: List of specific stations
+          for (const stationInfo of bet.station_data.stations) {
+            // Find matching lottery result for this station
+            const matchingResult = lotteryResults.find(
+              (result) =>
+                result.station?.name?.toLowerCase() ===
+                stationInfo.name.toLowerCase()
+            );
 
-        const result = checkIfBetWon(bet, matchingResult, betType);
-        isWinning = result.isWinning;
-        matchedNumbers = result.matchedNumbers;
-        prizeLevels = result.prizeLevels;
-        winAmount = result.winAmount;
+            if (matchingResult) {
+              const result = checkIfBetWon(bet, matchingResult, betType);
 
-        if (isWinning) {
-          firstMatchingResultId = matchingResult.id;
+              if (result.isWinning) {
+                isWinning = true;
+                // Use Set to avoid duplicate numbers
+                matchedNumbers = Array.from(
+                  new Set([...matchedNumbers, ...result.matchedNumbers])
+                );
+                prizeLevels = [
+                  ...prizeLevels,
+                  ...result.prizeLevels.map(
+                    (level) =>
+                      `${matchingResult.station?.name || 'Unknown'}: ${level}`
+                  ),
+                ];
+                winAmount += result.winAmount;
+
+                if (!firstMatchingResultId) {
+                  firstMatchingResultId = matchingResult.id;
+                }
+              }
+            }
+          }
+        } else if (bet.station_data.multiStation === true) {
+          // Case 3: Multi-station bet (region-based)
+          const region = bet.station_data.region;
+          const count = bet.station_data.count || 1;
+
+          // Find schedules for stations in this region on the given day, ordered by order_number
+          const relevantSchedules = stationSchedules
+            .filter(
+              (schedule) =>
+                schedule.station &&
+                schedule.station.region &&
+                schedule.station.region.code === region &&
+                (schedule.day_of_week === dayOfWeek ||
+                  schedule.day_of_week === 'daily')
+            )
+            .sort((a, b) => a.order_number - b.order_number)
+            .slice(0, count);
+
+          // For each relevant station, check if the bet won
+          for (const schedule of relevantSchedules) {
+            // Find matching lottery result for this station
+            const matchingResult = lotteryResults.find(
+              (result) => result.station_id === schedule.station_id
+            );
+
+            if (matchingResult) {
+              const result = checkIfBetWon(bet, matchingResult, betType);
+
+              if (result.isWinning) {
+                isWinning = true;
+                // Use Set to avoid duplicate numbers
+                matchedNumbers = Array.from(
+                  new Set([...matchedNumbers, ...result.matchedNumbers])
+                );
+                prizeLevels = [
+                  ...prizeLevels,
+                  ...result.prizeLevels.map(
+                    (level) =>
+                      `${schedule.station?.name || 'Unknown'}: ${level}`
+                  ),
+                ];
+                winAmount += result.winAmount;
+
+                if (!firstMatchingResultId) {
+                  firstMatchingResultId = matchingResult.id;
+                }
+              }
+            }
+          }
+        } else if (bet.station_data.name) {
+          // Case 4: Simple station name in station_data
+          const matchingResult = lotteryResults.find(
+            (result) =>
+              result.station?.name?.toLowerCase() ===
+              bet.station_data.name.toLowerCase()
+          );
+
+          if (matchingResult) {
+            const result = checkIfBetWon(bet, matchingResult, betType);
+            isWinning = result.isWinning;
+            matchedNumbers = result.matchedNumbers;
+            prizeLevels = result.prizeLevels;
+            winAmount = result.winAmount;
+
+            if (isWinning) {
+              firstMatchingResultId = matchingResult.id;
+            }
+          }
         }
       }
 

@@ -77,6 +77,51 @@ export function WinningNumberTooltip({
             );
           }
         }
+        // If station_data has stations array
+        else if (
+          station_data.stations &&
+          Array.isArray(station_data.stations)
+        ) {
+          // Try to find a matching result for any of the stations
+          for (const stationInfo of station_data.stations) {
+            // Try to find a result where the number matches
+            for (const res of resultsData.data) {
+              if (res.station?.name === stationInfo.name) {
+                // Check if this number matches in any of the prizes
+                const allPrizes = [
+                  ...(res.special_prize || []),
+                  ...(res.first_prize || []),
+                  ...(res.second_prize || []),
+                  ...(res.third_prize || []),
+                  ...(res.fourth_prize || []),
+                  ...(res.fifth_prize || []),
+                  ...(res.sixth_prize || []),
+                  ...(res.seventh_prize || []),
+                  ...(res.eighth_prize || []),
+                ];
+
+                // Match by the last n digits where n is the length of the number
+                const matchFound = allPrizes.some((prize) =>
+                  prize.endsWith(number)
+                );
+
+                if (matchFound) {
+                  matchingResult = res;
+                  break;
+                }
+              }
+            }
+            if (matchingResult) break;
+          }
+
+          // If no match found, just take the first result from the first station in the list
+          if (!matchingResult && station_data.stations.length > 0) {
+            const firstStation = station_data.stations[0];
+            matchingResult = resultsData.data.find(
+              (result) => result.station?.name === firstStation.name
+            );
+          }
+        }
         // If station_data has a specific ID, use that
         else if (station_data.id) {
           matchingResult = resultsData.data.find(

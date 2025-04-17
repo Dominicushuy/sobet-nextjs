@@ -1,7 +1,9 @@
+// src/components/bet-codes/StationEntriesGroup.jsx
 import { useState, Fragment } from 'react';
 import { ChevronDown, ChevronRight, XCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
+import { getStationName } from '@/utils/displayUtils';
 import { BetStatusBadge } from './BetStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { TableCell, TableRow } from '@/components/ui/table';
@@ -76,8 +78,6 @@ export function StationEntriesGroup({
       </span>
     );
   };
-
-  // console.log({ entriesByStation });
 
   return (
     <>
@@ -185,11 +185,7 @@ export function StationEntriesGroup({
                     </TableCell>
                   )}
                   <TableCell className="pl-8 whitespace-nowrap">
-                    {entry.station?.name ||
-                      (entry.station_data?.multiStation
-                        ? `${entry.station_data.count} Đài ${entry.station_data.name}`
-                        : entry.station_data?.name) ||
-                      '-'}
+                    {getStationName(entry)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {entry.bet_type_name} ({entry.bet_type_alias})

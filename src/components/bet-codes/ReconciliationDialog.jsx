@@ -8,6 +8,7 @@ import { StationEntriesGroup } from '@/components/bet-codes/StationEntriesGroup'
 import { LotteryResultCard } from '@/components/lottery/LotteryResultCard';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
+import { getStationName } from '@/utils/displayUtils';
 import {
   Loader2,
   CheckCircle,
@@ -87,13 +88,7 @@ export function ReconciliationDialog({
     );
 
     confirmedBets.forEach((entry) => {
-      const stationName =
-        entry.station?.name ||
-        (entry.station_data?.multiStation
-          ? `${entry.station_data.count} Đài ${entry.station_data.name}`
-          : entry.station_data?.name) ||
-        'Không xác định';
-
+      const stationName = getStationName(entry);
       const stationKey = stationName.replace(/\s+/g, '-').toLowerCase();
 
       if (!entriesByStation[stationKey]) {

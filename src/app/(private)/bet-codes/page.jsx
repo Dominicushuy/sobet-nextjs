@@ -24,6 +24,7 @@ import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
+import { getStationName } from '@/utils/displayUtils';
 
 // Import các component đã tạo
 import { SearchFilter } from '@/components/bet-codes/SearchFilter';
@@ -57,8 +58,6 @@ export default function UserBetCodesPage() {
     }
   );
 
-  // console.log('betEntriesData', betEntriesData);
-
   // Filter bet entries by search term (client-side)
   useEffect(() => {
     if (betEntriesData?.data) {
@@ -79,8 +78,8 @@ export default function UserBetCodesPage() {
           entry.bet_type_alias
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          entry.station?.name
-            ?.toLowerCase()
+          getStationName(entry)
+            .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
           (Array.isArray(entry.numbers) &&
             entry.numbers.some((num) =>
@@ -105,13 +104,7 @@ export default function UserBetCodesPage() {
 
   if (filteredEntries?.length > 0) {
     filteredEntries.forEach((entry) => {
-      const stationName =
-        entry.station?.name ||
-        (entry.station_data?.multiStation
-          ? `${entry.station_data.count} Đài ${entry.station_data.name}`
-          : entry.station_data?.name) ||
-        'Không xác định';
-
+      const stationName = getStationName(entry);
       const stationKey = stationName.replace(/\s+/g, '-').toLowerCase();
 
       if (!entriesByStation[stationKey]) {
