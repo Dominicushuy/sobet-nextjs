@@ -19,7 +19,7 @@ export function ActionButtons({
   return (
     <div className="flex flex-wrap gap-2 justify-end">
       {draftCount > 0 && (
-        <Button variant="outline" size="sm" onClick={onSelectAllDrafts}>
+        <Button variant="outline" onClick={onSelectAllDrafts}>
           {isAllDraftsSelected
             ? `Bỏ chọn tất cả (${draftCount})`
             : `Chọn tất cả (${draftCount})`}

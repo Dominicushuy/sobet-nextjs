@@ -87,7 +87,6 @@ export async function fetchBetsForReconciliation(date) {
 }
 
 // Process reconciliation of bets
-// Process reconciliation of bets
 export async function reconcileBets(betIds, adminId, date) {
   try {
     if (!betIds || betIds.length === 0 || !adminId) {
@@ -341,7 +340,7 @@ export async function reconcileBets(betIds, adminId, date) {
       };
     }
 
-    // Create verification record
+    // Prepare verification data
     const verificationData = {
       date: dateStr,
       admin_id: adminId,
@@ -358,14 +357,45 @@ export async function reconcileBets(betIds, adminId, date) {
       ),
       total_winning_amount: results.totalWinAmount,
       status: 'completed',
+      updated_at: new Date().toISOString(),
     };
 
-    const { error: verificationError } = await supabaseAdmin
-      .from('verifications')
-      .insert(verificationData);
+    // Check if verification record already exists for this date and admin
+    const { data: existingVerification, error: checkError } =
+      await supabaseAdmin
+        .from('verifications')
+        .select('id')
+        .eq('date', dateStr)
+        .eq('admin_id', adminId)
+        .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking for existing verification:', checkError);
+    }
+
+    let verificationError;
+
+    if (existingVerification) {
+      // Update existing verification record
+      console.log(`Updating existing verification record for date ${dateStr}`);
+      const { error } = await supabaseAdmin
+        .from('verifications')
+        .update(verificationData)
+        .eq('id', existingVerification.id);
+
+      verificationError = error;
+    } else {
+      // Create new verification record
+      console.log(`Creating new verification record for date ${dateStr}`);
+      const { error } = await supabaseAdmin
+        .from('verifications')
+        .insert(verificationData);
+
+      verificationError = error;
+    }
 
     if (verificationError) {
-      console.error('Error creating verification record:', verificationError);
+      console.error('Error with verification record:', verificationError);
       // We continue as the main task is already complete
     }
 
@@ -547,38 +577,9 @@ function checkIfBetWon(bet, lotteryResult, betType) {
 
   // Calculate winning amount if this is a winner
   if (isWinning) {
-    // First, get the standard payout rate from bet type
-    let payoutRate;
-    if (typeof betType.payout_rate === 'object') {
-      // Handle complex payout rates based on region or digit count
-      const digitCount = betNumbers[0]?.length || 2;
-      const region = bet.station?.region?.code || 'south';
-
-      if (betTypeAlias === 'da' || betTypeAlias === 'dv') {
-        // Bridge bet type logic
-        if (region === 'north') {
-          payoutRate = betType.payout_rate.bridgeNorth || 650;
-        } else if (matchedNumbers.length === 2) {
-          payoutRate = betType.payout_rate.bridgeTwoStations || 550;
-        } else {
-          payoutRate = betType.payout_rate.bridgeOneStation || 750;
-        }
-      } else {
-        // Regular bet type
-        if (digitCount === 2) {
-          payoutRate = betType.payout_rate['2 digits'] || 75;
-        } else if (digitCount === 3) {
-          payoutRate = betType.payout_rate['3 digits'] || 650;
-        } else if (digitCount === 4) {
-          payoutRate = betType.payout_rate['4 digits'] || 5500;
-        }
-      }
-    } else {
-      payoutRate = betType.payout_rate || 75;
-    }
-
-    // Calculate win amount based on bet amount and payout rate
-    winAmount = (bet.amount || 0) * (payoutRate / 10); // Adjust based on your payment logic
+    // Tính toán theo công thức mới:
+    // Tổng số tiền thắng = số lượng số trúng * tiền thắng tiềm năng
+    winAmount = matchedNumbers.length * (bet.potential_winning || 0);
   }
 
   return { isWinning, matchedNumbers, prizeLevels, winAmount };

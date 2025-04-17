@@ -24,7 +24,6 @@ ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE regions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE station_schedules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE station_relationships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bet_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE number_combinations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bet_codes ENABLE ROW LEVEL SECURITY;
@@ -177,19 +176,6 @@ CREATE POLICY "admin_manage_station_schedules" ON station_schedules
 
 -- Tất cả người dùng có thể xem
 CREATE POLICY "all_users_view_station_schedules" ON station_schedules
-    FOR SELECT
-    USING (true);
-
---------------------------
--- Policies cho Station Relationships
---------------------------
--- Super admin và Admin có toàn quyền
-CREATE POLICY "admin_manage_station_relationships" ON station_relationships
-    USING (public.is_admin_or_super_admin())
-    WITH CHECK (public.is_admin_or_super_admin());
-
--- Tất cả người dùng có thể xem
-CREATE POLICY "all_users_view_station_relationships" ON station_relationships
     FOR SELECT
     USING (true);
 

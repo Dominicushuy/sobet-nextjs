@@ -67,16 +67,6 @@ CREATE TABLE station_schedules (
   UNIQUE (station_id, day_of_week, order_number)
 );
 
--- Bảng StationRelationships (Quan hệ đài cha-con)
-CREATE TABLE station_relationships (
-  id SERIAL PRIMARY KEY,
-  parent_id INTEGER NOT NULL REFERENCES stations(id),
-  child_id INTEGER NOT NULL REFERENCES stations(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (parent_id, child_id)
-);
-
 -- Bảng BetTypes (Loại cược)
 CREATE TABLE bet_types (
   id SERIAL PRIMARY KEY,

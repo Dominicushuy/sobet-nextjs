@@ -269,41 +269,7 @@ BEGIN
     (station_id, 'daily', 1);
 END $$;
 
--- 5. Dữ liệu cho bảng StationRelationships (Quan hệ đài cha-con)
-DO $$
-DECLARE
-    parent_id INT;
-    child_id INT;
-BEGIN
-    -- Lấy ID của đài Miền Bắc
-    SELECT id INTO parent_id FROM stations WHERE name = 'Miền Bắc';
-    
-    -- Thiết lập quan hệ với Hà Nội
-    SELECT id INTO child_id FROM stations WHERE name = 'Hà Nội';
-    INSERT INTO station_relationships (parent_id, child_id) VALUES (parent_id, child_id);
-    
-    -- Thiết lập quan hệ với Quảng Ninh
-    SELECT id INTO child_id FROM stations WHERE name = 'Quảng Ninh';
-    INSERT INTO station_relationships (parent_id, child_id) VALUES (parent_id, child_id);
-    
-    -- Thiết lập quan hệ với Bắc Ninh
-    SELECT id INTO child_id FROM stations WHERE name = 'Bắc Ninh';
-    INSERT INTO station_relationships (parent_id, child_id) VALUES (parent_id, child_id);
-    
-    -- Thiết lập quan hệ với Hải Phòng
-    SELECT id INTO child_id FROM stations WHERE name = 'Hải Phòng';
-    INSERT INTO station_relationships (parent_id, child_id) VALUES (parent_id, child_id);
-    
-    -- Thiết lập quan hệ với Nam Định
-    SELECT id INTO child_id FROM stations WHERE name = 'Nam Định';
-    INSERT INTO station_relationships (parent_id, child_id) VALUES (parent_id, child_id);
-    
-    -- Thiết lập quan hệ với Thái Bình
-    SELECT id INTO child_id FROM stations WHERE name = 'Thái Bình';
-    INSERT INTO station_relationships (parent_id, child_id) VALUES (parent_id, child_id);
-END $$;
-
--- 6. Dữ liệu cho bảng BetTypes
+-- 5. Dữ liệu cho bảng BetTypes
 INSERT INTO bet_types (name, aliases, applicable_regions, bet_rule, matching_method, payout_rate, combinations, is_permutation, special_calc, is_active) VALUES
 ('Đầu Đuôi', 
  ARRAY['dd', 'dau duoi', 'đầu đuôi', 'head and tail'], 
@@ -470,7 +436,7 @@ INSERT INTO bet_types (name, aliases, applicable_regions, bet_rule, matching_met
  NULL,
  TRUE);
 
--- 7. Dữ liệu cho bảng NumberCombinations
+-- 6. Dữ liệu cho bảng NumberCombinations
 INSERT INTO number_combinations (name, aliases, definition, syntax, applicable_bet_types, examples, calculation_method, is_active) VALUES
 ('Kéo', 
  ARRAY['keo', 'sequence'], 
