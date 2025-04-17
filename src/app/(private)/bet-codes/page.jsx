@@ -212,7 +212,7 @@ export default function UserBetCodesPage() {
                   <span className="text-sm font-semibold mr-2">
                     Tổng số tiền cược:
                   </span>
-                  <span className="text-sm font-bold text-primary">
+                  <span className="text-sm font-bold">
                     {formatCurrency(grandTotals.totalAmount)}
                   </span>
                 </div>
@@ -220,7 +220,7 @@ export default function UserBetCodesPage() {
                   <span className="text-sm font-semibold mr-2">
                     Tổng số tiền đóng:
                   </span>
-                  <span className="text-sm font-bold text-primary">
+                  <span className="text-sm font-bold text-orange-500">
                     {formatCurrency(grandTotals.totalStake)}
                   </span>
                 </div>

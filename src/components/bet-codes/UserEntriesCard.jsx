@@ -119,7 +119,7 @@ export function UserEntriesCard({
                 <span className="text-sm font-semibold mr-2">
                   Tổng số tiền cược:
                 </span>
-                <span className="text-sm font-bold text-primary">
+                <span className="text-sm font-bold">
                   {formatCurrency(totalAmount)}
                 </span>
               </div>
@@ -127,7 +127,7 @@ export function UserEntriesCard({
                 <span className="text-sm font-semibold mr-2">
                   Tổng số tiền đóng:
                 </span>
-                <span className="text-sm font-bold text-primary">
+                <span className="text-sm font-bold text-orange-500">
                   {formatCurrency(totalStake)}
                 </span>
               </div>

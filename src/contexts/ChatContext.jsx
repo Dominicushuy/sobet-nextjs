@@ -759,21 +759,20 @@ export function ChatProvider({ children }) {
                     [],
                 });
               }
-
-              // Add this message after processing all lines
-              const message = `Mã cược hợp lệ! Đã tách thành ${parseResult.lines.length} mã cược riêng biệt và thêm vào danh sách.`;
-              addMessage(message, 'bot', {
-                betCodeInfo: {
-                  station: parseResult.station.name,
-                  lineCount: parseResult.lines.length,
-                  totalStake: parseResult.lines.reduce(
-                    (sum, line) => sum + (line.amount || 0),
-                    0
-                  ),
-                  potentialWin: 0, // Calculate this if needed
-                },
-              });
             }
+            // Add this message after processing all lines
+            const message = `Mã cược hợp lệ! Đã tách thành ${parseResult.lines.length} mã cược riêng biệt và thêm vào danh sách.`;
+            addMessage(message, 'bot', {
+              betCodeInfo: {
+                station: parseResult.station.name,
+                lineCount: parseResult.lines.length,
+                totalStake: parseResult.lines.reduce(
+                  (sum, line) => sum + (line.amount || 0),
+                  0
+                ),
+                potentialWin: 0, // Calculate this if needed
+              },
+            });
           } else {
             // Single line - keep existing logic
             let message = 'Mã cược hợp lệ! Đã thêm vào danh sách mã cược.';
