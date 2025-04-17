@@ -449,21 +449,59 @@ export async function reconcileBets(betIds, adminId, date) {
 
 // Helper function to check if a bet won
 function checkIfBetWon(bet, lotteryResult, betType) {
-  // Extract all prize numbers from lottery result
-  const allPrizeNumbers = [
-    ...(lotteryResult.special_prize || []),
-    ...(lotteryResult.first_prize || []),
-    ...(lotteryResult.second_prize || []),
-    ...(lotteryResult.third_prize || []),
-    ...(lotteryResult.fourth_prize || []),
-    ...(lotteryResult.fifth_prize || []),
-    ...(lotteryResult.sixth_prize || []),
-    ...(lotteryResult.seventh_prize || []),
-    ...(lotteryResult.eighth_prize || []),
-  ];
+  // Xác định vùng (region) của đài
+  const region = lotteryResult.station?.region_id
+    ? lotteryResult.station.region?.code ||
+      getRegionCodeFromId(lotteryResult.station.region_id)
+    : 'unknown';
+
+  // Tách các loại giải thưởng theo cấu trúc giải thưởng
+  const prizes = {
+    special: lotteryResult.special_prize || [],
+    first: lotteryResult.first_prize || [],
+    second: lotteryResult.second_prize || [],
+    third: lotteryResult.third_prize || [],
+    fourth: lotteryResult.fourth_prize || [],
+    fifth: lotteryResult.fifth_prize || [],
+    sixth: lotteryResult.sixth_prize || [],
+    seventh: lotteryResult.seventh_prize || [],
+    eighth: lotteryResult.eighth_prize || [],
+  };
+
+  // Xác định giải đầu và giải đuôi dựa trên vùng
+  const headPrizes = {
+    south: prizes.eighth, // Giải 8 ở miền Nam
+    central: prizes.eighth, // Giải 8 ở miền Trung
+    north: prizes.seventh, // Giải 7 ở miền Bắc
+  };
+
+  const headPrizes3Digits = {
+    south: prizes.seventh, // Giải 7 ở miền Nam
+    central: prizes.seventh, // Giải 7 ở miền Trung
+    north: prizes.sixth, // Giải 6 ở miền Bắc
+  };
+
+  const tailPrizes = {
+    south: prizes.special, // Giải đặc biệt ở miền Nam
+    central: prizes.special, // Giải đặc biệt ở miền Trung
+    north: prizes.special, // Giải đặc biệt ở miền Bắc
+  };
+
+  // Tất cả các giải thưởng gộp lại
+  const allPrizes = [
+    ...prizes.special,
+    ...prizes.first,
+    ...prizes.second,
+    ...prizes.third,
+    ...prizes.fourth,
+    ...prizes.fifth,
+    ...prizes.sixth,
+    ...prizes.seventh,
+    ...prizes.eighth,
+  ].filter((prize) => prize); // Lọc ra các giá trị undefined/null
 
   const betNumbers = bet.numbers || [];
-  const betTypeAlias = bet.bet_type_alias.toLowerCase();
+  const betTypeAlias = bet.bet_type_alias?.toLowerCase();
   const isPermutation = betType.is_permutation;
 
   let isWinning = false;
@@ -471,35 +509,75 @@ function checkIfBetWon(bet, lotteryResult, betType) {
   let prizeLevels = [];
   let winAmount = 0;
 
-  // Different logic based on bet type
+  // Xác định số chữ số của số cược (2, 3, hoặc 4 chữ số)
+  const digitLength = betNumbers.length > 0 ? betNumbers[0].length : 0;
+
+  // Kiểm tra trúng thưởng dựa trên loại cược
   switch (betTypeAlias) {
     case 'dd': // Đầu Đuôi (Head and Tail)
     case 'dau duoi':
-    case 'đầu đuôi':
-    case 'dau':
-    case 'đầu':
-    case 'duoi':
-    case 'đuôi':
-    case 'dui':
-      // Check if any bet number appears in any prize numbers
+    case 'đầu đuôi': {
+      // Kiểm tra giải đầu
+      const headPrizeArray =
+        digitLength === 3
+          ? headPrizes3Digits[region] || []
+          : headPrizes[region] || [];
       for (const num of betNumbers) {
-        for (const prizeNum of allPrizeNumbers) {
-          // For 2-digit numbers, match the last 2 digits
-          if (num.length === 2 && prizeNum.endsWith(num)) {
+        // Kiểm tra giải đầu
+        for (const prizeNum of headPrizeArray) {
+          if (prizeNum && prizeNum.endsWith(num)) {
             isWinning = true;
             matchedNumbers.push(num);
-            prizeLevels.push(
-              getPrizeLevel(prizeNum, allPrizeNumbers, lotteryResult)
-            );
+            prizeLevels.push(getHeadPrizeLevel(region));
             break;
           }
-          // For 3-digit numbers, match the last 3 digits
-          else if (num.length === 3 && prizeNum.endsWith(num)) {
+        }
+
+        // Kiểm tra giải đuôi (giải đặc biệt)
+        for (const prizeNum of tailPrizes[region] || []) {
+          if (prizeNum && prizeNum.endsWith(num)) {
             isWinning = true;
             matchedNumbers.push(num);
-            prizeLevels.push(
-              getPrizeLevel(prizeNum, allPrizeNumbers, lotteryResult)
-            );
+            prizeLevels.push('special_prize');
+            break;
+          }
+        }
+      }
+      break;
+    }
+
+    case 'dau': // Đầu (Head only)
+    case 'đầu':
+    case 'head': {
+      // Chỉ kiểm tra giải đầu
+      const headArray =
+        digitLength === 3
+          ? headPrizes3Digits[region] || []
+          : headPrizes[region] || [];
+      for (const num of betNumbers) {
+        for (const prizeNum of headArray) {
+          if (prizeNum && prizeNum.endsWith(num)) {
+            isWinning = true;
+            matchedNumbers.push(num);
+            prizeLevels.push(getHeadPrizeLevel(region));
+            break;
+          }
+        }
+      }
+      break;
+    }
+
+    case 'duoi': // Đuôi (Tail only)
+    case 'đuôi':
+    case 'dui':
+    case 'tail':
+      // Chỉ kiểm tra giải đuôi (giải đặc biệt)
+      for (const num of betNumbers) {
+        for (const prizeNum of tailPrizes[region] || []) {
+          if (prizeNum && prizeNum.endsWith(num)) {
+            isWinning = true;
+            matchedNumbers.push(num);
+            prizeLevels.push('special_prize');
             break;
           }
         }
@@ -510,16 +588,25 @@ function checkIfBetWon(bet, lotteryResult, betType) {
     case 'x':
     case 'xiu chu':
     case 'xiuchu':
-      // Check for 3-digit matches
+      // Kiểm tra giải đầu 3 chữ số
       for (const num of betNumbers) {
         if (num.length === 3) {
-          for (const prizeNum of allPrizeNumbers) {
-            if (prizeNum.endsWith(num)) {
+          // Kiểm tra giải đầu
+          for (const prizeNum of headPrizes3Digits[region] || []) {
+            if (prizeNum && prizeNum.endsWith(num)) {
               isWinning = true;
               matchedNumbers.push(num);
-              prizeLevels.push(
-                getPrizeLevel(prizeNum, allPrizeNumbers, lotteryResult)
-              );
+              prizeLevels.push(getHeadPrizeLevel(region, 3));
+              break;
+            }
+          }
+
+          // Kiểm tra giải đuôi (giải đặc biệt)
+          for (const prizeNum of tailPrizes[region] || []) {
+            if (prizeNum && prizeNum.endsWith(num)) {
+              isWinning = true;
+              matchedNumbers.push(num);
+              prizeLevels.push('special_prize');
               break;
             }
           }
@@ -531,16 +618,70 @@ function checkIfBetWon(bet, lotteryResult, betType) {
     case 'bao':
     case 'bao lo':
     case 'bao lô':
-      // Check all digits
+      // Kiểm tra tất cả các giải
       for (const num of betNumbers) {
-        for (const prizeNum of allPrizeNumbers) {
-          if (prizeNum.endsWith(num)) {
+        for (const prizeNum of allPrizes) {
+          if (prizeNum && prizeNum.endsWith(num)) {
             isWinning = true;
             matchedNumbers.push(num);
-            prizeLevels.push(
-              getPrizeLevel(prizeNum, allPrizeNumbers, lotteryResult)
-            );
+            prizeLevels.push(getPrizeLevel(prizeNum, allPrizes, lotteryResult));
             break;
+          }
+        }
+      }
+      break;
+
+    case 'baobay': // Bao Lô 7
+    case 'b7l':
+    case 'b7lo':
+      if (['south', 'central'].includes(region)) {
+        // Bao Lô 7 chỉ áp dụng cho Miền Nam và Miền Trung
+        // 7 giải cụ thể: giải 8, giải 7, giải 6, giải 5 và giải đặc biệt
+        const specificPrizes = [
+          ...prizes.eighth,
+          ...prizes.seventh,
+          ...prizes.sixth,
+          ...prizes.fifth,
+          ...prizes.special,
+        ];
+
+        for (const num of betNumbers) {
+          for (const prizeNum of specificPrizes) {
+            if (prizeNum && prizeNum.endsWith(num)) {
+              isWinning = true;
+              matchedNumbers.push(num);
+              prizeLevels.push(
+                getPrizeLevel(prizeNum, allPrizes, lotteryResult)
+              );
+              break;
+            }
+          }
+        }
+      }
+      break;
+
+    case 'baotam': // Bao Lô 8
+    case 'b8l':
+    case 'b8lo':
+      if (region === 'north') {
+        // Bao Lô 8 chỉ áp dụng cho Miền Bắc
+        // 8 giải cụ thể: giải 7 (4 số), giải 6 (3 số) và giải đặc biệt (1 số)
+        const specificPrizes = [
+          ...prizes.seventh,
+          ...prizes.sixth,
+          ...prizes.special,
+        ];
+
+        for (const num of betNumbers) {
+          for (const prizeNum of specificPrizes) {
+            if (prizeNum && prizeNum.endsWith(num)) {
+              isWinning = true;
+              matchedNumbers.push(num);
+              prizeLevels.push(
+                getPrizeLevel(prizeNum, allPrizes, lotteryResult)
+              );
+              break;
+            }
           }
         }
       }
@@ -548,67 +689,267 @@ function checkIfBetWon(bet, lotteryResult, betType) {
 
     case 'da': // Đá (Bridge)
     case 'dv': {
-      // Check if at least 2 of the bet numbers match
-      let matches = 0;
+      // Cần có ít nhất 2 số trong danh sách cược trùng với kết quả
+      const matchingResults = [];
+
+      // Kiểm tra từng số cược
       for (const num of betNumbers) {
-        for (const prizeNum of allPrizeNumbers) {
-          if (prizeNum.endsWith(num)) {
-            matchedNumbers.push(num);
-            prizeLevels.push(
-              getPrizeLevel(prizeNum, allPrizeNumbers, lotteryResult)
-            );
-            matches++;
+        for (const prizeNum of allPrizes) {
+          if (prizeNum && prizeNum.endsWith(num)) {
+            matchingResults.push({
+              betNumber: num,
+              prizeNumber: prizeNum,
+              prizeLevel: getPrizeLevel(prizeNum, allPrizes, lotteryResult),
+            });
             break;
           }
         }
       }
-      isWinning = matches >= 2;
+
+      // Cần ít nhất 2 số trúng
+      if (matchingResults.length >= 2) {
+        isWinning = true;
+        matchedNumbers = matchingResults.map((match) => match.betNumber);
+        prizeLevels = matchingResults.map((match) => match.prizeLevel);
+
+        // Tính số tiền thắng với công thức đặc biệt
+        const winMultiplier = matchingResults.length - 1; // Hệ số W
+
+        // Tỉ lệ thưởng R dựa vào loại đá
+        let rateType = 'bridgeOneStation';
+        if (bet.station_data && bet.station_data.multiStation) {
+          rateType = region === 'north' ? 'bridgeNorth' : 'bridgeTwoStations';
+        }
+
+        // Giá trị tỉ lệ thưởng từ betType
+        const payoutRate = betType.payout_rate[rateType] || 750;
+
+        // Số tiền thắng cơ bản (V)
+        const baseWinAmount = bet.amount * payoutRate;
+
+        // Kiểm tra các số trùng lặp trong kết quả (N)
+        const prizeNumberFrequency = {};
+        for (const match of matchingResults) {
+          prizeNumberFrequency[match.betNumber] =
+            (prizeNumberFrequency[match.betNumber] || 0) + 1;
+        }
+
+        // Tìm số xuất hiện nhiều nhất
+        let maxFrequency = 1;
+        for (const frequency of Object.values(prizeNumberFrequency)) {
+          maxFrequency = Math.max(maxFrequency, frequency);
+        }
+
+        // Tính tiền thưởng nháy (B)
+        const bonusAmount =
+          maxFrequency > 1 ? (maxFrequency - 1) * 0.5 * baseWinAmount : 0;
+
+        // Tổng tiền thưởng = V * W + B
+        winAmount = baseWinAmount * winMultiplier + bonusAmount;
+      }
       break;
     }
 
     default:
-      // For other bet types or permutation types
+      // Xử lý cho các loại cược còn lại
       if (isPermutation) {
-        // Check permutations
+        // Các loại đảo (cần kiểm tra hoán vị)
         for (const num of betNumbers) {
-          // Generate permutations (or use ones from the bet if available)
-          const perms = bet.permutations?.[num] || generatePermutations(num);
+          // Tạo các hoán vị của số cược
+          const permutations = generatePermutations(num);
+          let found = false;
 
-          for (const perm of perms) {
-            for (const prizeNum of allPrizeNumbers) {
-              if (prizeNum.endsWith(perm)) {
-                isWinning = true;
-                matchedNumbers.push(perm);
-                prizeLevels.push(
-                  getPrizeLevel(prizeNum, allPrizeNumbers, lotteryResult)
-                );
-                break;
+          switch (betTypeAlias) {
+            case 'daob': // Đảo Bao Lô
+            case 'bdao':
+            case 'dao bao':
+            case 'dao bao lo':
+              // Kiểm tra tất cả các giải với mọi hoán vị
+              for (const perm of permutations) {
+                for (const prizeNum of allPrizes) {
+                  if (prizeNum && prizeNum.endsWith(perm)) {
+                    isWinning = true;
+                    matchedNumbers.push(perm);
+                    prizeLevels.push(
+                      getPrizeLevel(prizeNum, allPrizes, lotteryResult)
+                    );
+                    found = true;
+                    break;
+                  }
+                }
+                if (found) break;
               }
-            }
-            if (isWinning) break;
+              break;
+
+            case 'b7ld': // Bao Lô 7 Đảo
+            case 'b7ldao':
+              if (['south', 'central'].includes(region)) {
+                const specificPrizes = [
+                  ...prizes.eighth,
+                  ...prizes.seventh,
+                  ...prizes.sixth,
+                  ...prizes.fifth,
+                  ...prizes.special,
+                ];
+
+                for (const perm of permutations) {
+                  for (const prizeNum of specificPrizes) {
+                    if (prizeNum && prizeNum.endsWith(perm)) {
+                      isWinning = true;
+                      matchedNumbers.push(perm);
+                      prizeLevels.push(
+                        getPrizeLevel(prizeNum, allPrizes, lotteryResult)
+                      );
+                      found = true;
+                      break;
+                    }
+                  }
+                  if (found) break;
+                }
+              }
+              break;
+
+            case 'b8ld': // Bao Lô 8 Đảo
+            case 'b8ldao':
+              if (region === 'north') {
+                const specificPrizes = [
+                  ...prizes.seventh,
+                  ...prizes.sixth,
+                  ...prizes.special,
+                ];
+
+                for (const perm of permutations) {
+                  for (const prizeNum of specificPrizes) {
+                    if (prizeNum && prizeNum.endsWith(perm)) {
+                      isWinning = true;
+                      matchedNumbers.push(perm);
+                      prizeLevels.push(
+                        getPrizeLevel(prizeNum, allPrizes, lotteryResult)
+                      );
+                      found = true;
+                      break;
+                    }
+                  }
+                  if (found) break;
+                }
+              }
+              break;
+
+            case 'daoxc': // Đảo Xỉu Chủ
+            case 'dxc':
+            case 'xcd':
+            case 'xcdao':
+              // Kiểm tra giải đầu 3 chữ số và giải đặc biệt với mọi hoán vị
+              for (const perm of permutations) {
+                // Kiểm tra giải đầu 3 chữ số
+                for (const prizeNum of headPrizes3Digits[region] || []) {
+                  if (prizeNum && prizeNum.endsWith(perm)) {
+                    isWinning = true;
+                    matchedNumbers.push(perm);
+                    prizeLevels.push(getHeadPrizeLevel(region, 3));
+                    found = true;
+                    break;
+                  }
+                }
+
+                // Kiểm tra giải đặc biệt
+                if (!found) {
+                  for (const prizeNum of tailPrizes[region] || []) {
+                    if (prizeNum && prizeNum.endsWith(perm)) {
+                      isWinning = true;
+                      matchedNumbers.push(perm);
+                      prizeLevels.push('special_prize');
+                      found = true;
+                      break;
+                    }
+                  }
+                }
+
+                if (found) break;
+              }
+              break;
+
+            case 'dxcdau': // Đảo Xỉu Chủ Đầu
+            case 'daodau':
+            case 'ddau':
+              // Chỉ kiểm tra giải đầu 3 chữ số với mọi hoán vị
+              for (const perm of permutations) {
+                for (const prizeNum of headPrizes3Digits[region] || []) {
+                  if (prizeNum && prizeNum.endsWith(perm)) {
+                    isWinning = true;
+                    matchedNumbers.push(perm);
+                    prizeLevels.push(getHeadPrizeLevel(region, 3));
+                    found = true;
+                    break;
+                  }
+                }
+                if (found) break;
+              }
+              break;
+
+            case 'dxcduoi': // Đảo Xỉu Chủ Đuôi
+            case 'daoduoi':
+            case 'daodui':
+            case 'dduoi':
+            case 'ddui':
+              // Chỉ kiểm tra giải đặc biệt với mọi hoán vị
+              for (const perm of permutations) {
+                for (const prizeNum of tailPrizes[region] || []) {
+                  if (prizeNum && prizeNum.endsWith(perm)) {
+                    isWinning = true;
+                    matchedNumbers.push(perm);
+                    prizeLevels.push('special_prize');
+                    found = true;
+                    break;
+                  }
+                }
+                if (found) break;
+              }
+              break;
           }
         }
       } else {
-        // Default check for exact matches
-        for (const num of betNumbers) {
-          for (const prizeNum of allPrizeNumbers) {
-            if (prizeNum.endsWith(num)) {
-              isWinning = true;
-              matchedNumbers.push(num);
-              prizeLevels.push(
-                getPrizeLevel(prizeNum, allPrizeNumbers, lotteryResult)
-              );
-              break;
+        // Xử lý các trường hợp đặc biệt khác
+        switch (betTypeAlias) {
+          case 'nt': // Nhất To (First prize in North)
+          case 'nto':
+          case 'nhatto':
+            if (region === 'north') {
+              // Chỉ kiểm tra giải nhất của Miền Bắc
+              for (const num of betNumbers) {
+                for (const prizeNum of prizes.first) {
+                  if (prizeNum && prizeNum.endsWith(num)) {
+                    isWinning = true;
+                    matchedNumbers.push(num);
+                    prizeLevels.push('first_prize');
+                    break;
+                  }
+                }
+              }
             }
-          }
+            break;
+
+          default:
+            // Mặc định kiểm tra khớp chính xác với tất cả các giải
+            for (const num of betNumbers) {
+              for (const prizeNum of allPrizes) {
+                if (prizeNum && prizeNum.endsWith(num)) {
+                  isWinning = true;
+                  matchedNumbers.push(num);
+                  prizeLevels.push(
+                    getPrizeLevel(prizeNum, allPrizes, lotteryResult)
+                  );
+                  break;
+                }
+              }
+            }
         }
       }
   }
 
-  // Calculate winning amount if this is a winner
-  if (isWinning) {
-    // Tính toán theo công thức mới:
-    // Tổng số tiền thắng = số lượng số trúng * tiền thắng tiềm năng
+  // Tính số tiền thưởng nếu trúng
+  // Trường hợp đặc biệt cho Đá đã được xử lý riêng
+  if (isWinning && betTypeAlias !== 'da' && betTypeAlias !== 'dv') {
     winAmount = matchedNumbers.length * (bet.potential_winning || 0);
   }
 
@@ -617,21 +958,45 @@ function checkIfBetWon(bet, lotteryResult, betType) {
 
 // Helper function to determine which prize level a number belongs to
 function getPrizeLevel(matchedNumber, allPrizeNumbers, lotteryResult) {
-  if (lotteryResult.special_prize.includes(matchedNumber)) {
+  if (
+    lotteryResult.special_prize &&
+    lotteryResult.special_prize.includes(matchedNumber)
+  ) {
     return 'special_prize';
-  } else if (lotteryResult.first_prize.includes(matchedNumber)) {
+  } else if (
+    lotteryResult.first_prize &&
+    lotteryResult.first_prize.includes(matchedNumber)
+  ) {
     return 'first_prize';
-  } else if (lotteryResult.second_prize.includes(matchedNumber)) {
+  } else if (
+    lotteryResult.second_prize &&
+    lotteryResult.second_prize.includes(matchedNumber)
+  ) {
     return 'second_prize';
-  } else if (lotteryResult.third_prize.includes(matchedNumber)) {
+  } else if (
+    lotteryResult.third_prize &&
+    lotteryResult.third_prize.includes(matchedNumber)
+  ) {
     return 'third_prize';
-  } else if (lotteryResult.fourth_prize.includes(matchedNumber)) {
+  } else if (
+    lotteryResult.fourth_prize &&
+    lotteryResult.fourth_prize.includes(matchedNumber)
+  ) {
     return 'fourth_prize';
-  } else if (lotteryResult.fifth_prize.includes(matchedNumber)) {
+  } else if (
+    lotteryResult.fifth_prize &&
+    lotteryResult.fifth_prize.includes(matchedNumber)
+  ) {
     return 'fifth_prize';
-  } else if (lotteryResult.sixth_prize.includes(matchedNumber)) {
+  } else if (
+    lotteryResult.sixth_prize &&
+    lotteryResult.sixth_prize.includes(matchedNumber)
+  ) {
     return 'sixth_prize';
-  } else if (lotteryResult.seventh_prize.includes(matchedNumber)) {
+  } else if (
+    lotteryResult.seventh_prize &&
+    lotteryResult.seventh_prize.includes(matchedNumber)
+  ) {
     return 'seventh_prize';
   } else if (
     lotteryResult.eighth_prize &&
@@ -640,6 +1005,27 @@ function getPrizeLevel(matchedNumber, allPrizeNumbers, lotteryResult) {
     return 'eighth_prize';
   }
   return 'unknown';
+}
+
+// Helper function to get head prize level based on region
+function getHeadPrizeLevel(region, digits = 2) {
+  if (digits === 2) {
+    return region === 'north' ? 'seventh_prize' : 'eighth_prize';
+  } else {
+    return region === 'north' ? 'sixth_prize' : 'seventh_prize';
+  }
+}
+
+// Helper function to get region code from region id
+function getRegionCodeFromId(regionId) {
+  // Giả định ID của các vùng:
+  // 1: 'north', 2: 'central', 3: 'south'
+  const regionMap = {
+    1: 'north',
+    2: 'central',
+    3: 'south',
+  };
+  return regionMap[regionId] || 'unknown';
 }
 
 // Helper function to generate permutations of a number
