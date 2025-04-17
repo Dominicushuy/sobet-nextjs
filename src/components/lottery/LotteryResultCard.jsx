@@ -25,11 +25,11 @@ export function LotteryResultCard({ result, highlightNumber }) {
 
     return (
       <div
-        className={`border-b py-2 ${hasHighlightedNumber ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
+        className={`border-b py-2 ${hasHighlightedNumber ? 'bg-amber-50 dark:bg-amber-900/20' : ''}`}
       >
         <div className="grid grid-cols-12">
           <div
-            className={`col-span-3 flex items-center font-medium ${hasHighlightedNumber ? 'text-green-700 dark:text-green-400' : ''}`}
+            className={`col-span-3 flex items-center font-medium ${hasHighlightedNumber ? 'text-amber-700 dark:text-amber-400' : ''}`}
           >
             {label}
           </div>
@@ -37,19 +37,37 @@ export function LotteryResultCard({ result, highlightNumber }) {
             className={`col-span-9 grid gap-2 ${numbers.length > 3 ? 'grid-cols-3' : numbers.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
           >
             {numbers.map((num, index) => {
-              // Kiểm tra xem số này có phải là số trúng không
+              // Check if this number matches the highlight
               const isHighlighted =
                 highlightNumber && num.endsWith(highlightNumber);
-              return (
-                <div
-                  key={index}
-                  className={`text-center ${largeFont ? 'text-2xl md:text-3xl font-bold' : 'text-base md:text-lg'} 
-                    ${isHighlighted ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 font-bold rounded-md' : ''} 
-                    ${customClasses}`}
-                >
-                  {num}
-                </div>
-              );
+
+              if (isHighlighted) {
+                // Split the number into non-matching part and matching part
+                const matchIndex = num.length - highlightNumber.length;
+                const prefix = num.substring(0, matchIndex);
+                const match = num.substring(matchIndex);
+
+                return (
+                  <div
+                    key={index}
+                    className={`text-center ${largeFont ? 'text-2xl md:text-3xl font-bold' : 'text-base md:text-lg'} ${customClasses}`}
+                  >
+                    {prefix}
+                    <span className="bg-amber-200 dark:bg-amber-700 text-amber-800 dark:text-amber-200 font-bold px-0.5 rounded">
+                      {match}
+                    </span>
+                  </div>
+                );
+              } else {
+                return (
+                  <div
+                    key={index}
+                    className={`text-center ${largeFont ? 'text-2xl md:text-3xl font-bold' : 'text-base md:text-lg'} ${customClasses}`}
+                  >
+                    {num}
+                  </div>
+                );
+              }
             })}
           </div>
         </div>
@@ -113,7 +131,6 @@ export function LotteryResultCard({ result, highlightNumber }) {
               {result.station.name}
             </h3>
             <div className="text-sm">{formattedDate}</div>
-            {/* <Badge variant="outline">{result.day_of_week}</Badge> */}
           </div>
         </div>
       </CardHeader>
