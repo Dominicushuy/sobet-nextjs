@@ -52,8 +52,14 @@ export const betCodeService = {
       }
 
       if (parseResult.success) {
-        // Add draw date to parse result
         parseResult.drawDate = formattedDrawDate;
+
+        // SPECIAL HANDLING for virtual stations
+        if (parseResult.station && parseResult.station.isVirtualStation) {
+          // Ensure we can process bets for virtual stations
+          // Make sure all required properties are available
+          parseResult.station.id = null; // Set to null since it doesn't exist in the stations table
+        }
 
         // Check for permutation types and ensure the permutations are generated
         for (const line of parseResult.lines) {

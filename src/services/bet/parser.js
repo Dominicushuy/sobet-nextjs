@@ -492,7 +492,7 @@ export function isStationOnlyLine(line, betConfig) {
   }
 
   // Fallback cho các mẫu 2dmn, 3mt
-  if (/^\d+d(mn|mt|n|t|nam|trung)$/i.test(line)) {
+  if (/^\d+d(mn|mt|n|t|nam|trung|bac|b)$/i.test(line)) {
     return true;
   }
 
@@ -501,9 +501,23 @@ export function isStationOnlyLine(line, betConfig) {
     return true;
   }
 
-  // Kiểm tra region aliases từ betConfig
+  // SPECIAL CASE: Check specifically for north region aliases
+  const northRegion = betConfig.regions.find(
+    (region) => region.code === 'north'
+  );
+  if (
+    northRegion &&
+    northRegion.aliases &&
+    northRegion.aliases.some(
+      (alias) => alias.toLowerCase() === line.toLowerCase()
+    )
+  ) {
+    return true;
+  }
+
+  // Check region aliases from betConfig
   for (const region of betConfig.regions) {
-    if (region.aliases.includes(line.toLowerCase())) {
+    if (region.aliases && region.aliases.includes(line.toLowerCase())) {
       return true;
     }
   }
@@ -646,7 +660,10 @@ function parseStation(stationString, betConfig) {
     }
 
     // Kiểm tra alias chính xác
-    if (station.aliases.some((alias) => alias.toLowerCase() === stationText)) {
+    if (
+      station.aliases &&
+      station.aliases.some((alias) => alias.toLowerCase() === stationText)
+    ) {
       return {
         success: true,
         data: {
@@ -658,25 +675,25 @@ function parseStation(stationString, betConfig) {
     }
   }
 
-  // Kiểm tra đài miền Bắc từ region aliases
+  // SPECIAL CASE: For the North region (Miền Bắc) which might not exist as a station
   const northRegion = betConfig.regions.find(
     (region) => region.code === 'north'
   );
-  if (northRegion && northRegion.aliases.includes(stationText)) {
-    const northStation = betConfig.accessibleStations.find(
-      (station) => station.name === 'Miền Bắc'
-    );
-
-    if (northStation) {
-      return {
-        success: true,
-        data: {
-          name: northStation.name,
-          region: northStation.region.code,
-          multiStation: false,
-        },
-      };
-    }
+  if (
+    northRegion &&
+    northRegion.aliases &&
+    northRegion.aliases.includes(stationText)
+  ) {
+    // Create a virtual station for the north region
+    return {
+      success: true,
+      data: {
+        name: 'Miền Bắc',
+        region: 'north',
+        multiStation: false,
+        isVirtualStation: true, // Flag to indicate this is not from the stations table
+      },
+    };
   }
 
   // Kiểm tra đài miền Nam/Trung nhiều đài từ region patterns

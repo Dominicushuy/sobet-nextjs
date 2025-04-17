@@ -64,10 +64,6 @@ BEGIN
     ('Quảng Ngãi', central_id, ARRAY['qngai', 'quangngai', 'quang ngai', 'quảng ngãi'], TRUE),
     ('Đắk Nông', central_id, ARRAY['dn', 'dnong', 'daknong', 'dak nong', 'đắk nông'], TRUE),
     ('Kon Tum', central_id, ARRAY['kt', 'ktum', 'kontum', 'kon tum'], TRUE);
-
-    -- Thêm đài Miền Bắc
-    INSERT INTO stations (name, region_id, aliases, is_active) VALUES
-    ('Miền Bắc', north_id, ARRAY['mb', 'mienbac', 'miền bắc', 'hanoi', 'hn', 'hà nội', 'daibac', 'dbac', 'đài bắc', 'đài miền bắc', 'db'], TRUE);
     
     -- Thêm các đài con của Miền Bắc
     INSERT INTO stations (name, region_id, aliases, is_active) VALUES
