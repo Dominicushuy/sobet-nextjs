@@ -55,6 +55,8 @@ const betCodeReducer = (state, action) => {
         status: 'pending',
       };
 
+      console.log('Adding new draft code:', newCode);
+
       // Make sure permutation information is correctly included
       if (action.payload.lines) {
         for (const line of action.payload.lines) {

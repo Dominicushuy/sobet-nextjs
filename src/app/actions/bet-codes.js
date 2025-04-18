@@ -118,7 +118,7 @@ export async function fetchBetConfig(userId) {
       regions,
       betTypes,
       numberCombinations,
-      stationSchedules, // Add station schedules to returned data
+      stationSchedules,
       commissionSettings: {
         priceRate,
         exportPriceRate,

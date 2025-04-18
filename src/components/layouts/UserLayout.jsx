@@ -20,7 +20,6 @@ import {
   Ticket,
   MessageCircle,
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { toast } from 'sonner';
 
 // Navigation items for user role
@@ -73,7 +73,7 @@ const navItems = [
 
 export default function UserLayout({ children }) {
   const pathname = usePathname();
-  const { user, signOut, loading } = useAuth();
+  const { user, userData, role, signOut, loading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -101,6 +101,9 @@ export default function UserLayout({ children }) {
   // Lấy chữ cái đầu tiên của tên hoặc email người dùng
   const getInitials = () => {
     if (!user) return '?';
+    if (userData?.full_name) {
+      return userData.full_name.charAt(0).toUpperCase();
+    }
     if (user.user_metadata?.full_name) {
       return user.user_metadata.full_name.charAt(0).toUpperCase();
     }
@@ -113,6 +116,17 @@ export default function UserLayout({ children }) {
       return pathname === '/dashboard';
     }
     return pathname.startsWith(href);
+  };
+
+  // Lấy tên hiển thị của user
+  const getDisplayName = () => {
+    if (userData?.full_name) {
+      return userData.full_name;
+    }
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    return user?.email || 'Người dùng';
   };
 
   return (
@@ -135,8 +149,11 @@ export default function UserLayout({ children }) {
             </Link>
           </div>
 
-          {/* User dropdown */}
-          <div>
+          {/* Header Right Items */}
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="hidden md:flex" />
+
+            {/* User dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -198,7 +215,7 @@ export default function UserLayout({ children }) {
             }
           )}
         >
-          <nav className="flex flex-col gap-2 p-4">
+          <nav className="flex h-[calc(100%-80px)] flex-col gap-2 p-4">
             {navItems.map((item) => {
               const isActive = isMenuItemActive(item.href);
               return (
@@ -224,26 +241,44 @@ export default function UserLayout({ children }) {
                 </Link>
               );
             })}
-            <Separator className="my-2" />
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-            >
-              {isSigningOut ? (
-                <span className="flex items-center">
-                  <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
-                  Đang đăng xuất...
-                </span>
-              ) : (
-                <>
-                  <LogOut className="mr-2 h-5 w-5" />
-                  Đăng xuất
-                </>
-              )}
-            </Button>
           </nav>
+
+          {/* User info section */}
+          <div className="absolute bottom-0 left-0 right-0 border-t p-4">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>{getInitials()}</AvatarFallback>
+              </Avatar>
+              <div className="text-sm">
+                <div className="font-medium truncate">{getDisplayName()}</div>
+                <div className="text-xs text-muted-foreground capitalize">
+                  {role || 'user'}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <ThemeToggle />
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? (
+                  <span className="flex items-center">
+                    <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Đang đăng xuất...</span>
+                  </span>
+                ) : (
+                  <>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Đăng xuất</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </aside>
 
         {/* Overlay cho mobile */}

@@ -1,4 +1,4 @@
-// src/services/bet/stakeCalculator.js - Fixed permutation handling
+// src/services/bet/stakeCalculator.js
 
 import { generatePermutations } from '@/utils/bet';
 
@@ -71,12 +71,16 @@ export function calculateStake(parsedResult, betConfig) {
 
       hasValidLine = true;
 
-      // Tính tiền cược với hệ số nhân
+      // Get multiplier for this bet type
+      const multiplier = betTypeInfo.multiplier || 1;
+
+      // Tính tiền cược với hệ số nhân và multiplier
       const originalStake = lineStake.stake;
-      lineStake.stake = originalStake * priceRate;
+      lineStake.stake = originalStake * priceRate * multiplier;
       lineStake.originalStake = originalStake;
       lineStake.priceRate = priceRate;
-      lineStake.formula = `(${lineStake.formula}) × ${priceRate}`;
+      lineStake.multiplier = multiplier;
+      lineStake.formula = `(${lineStake.formula}) × ${priceRate} × ${multiplier}`;
 
       // Important: If this is a permutation bet, make sure to carry the information forward
       if (line.isPermutation || numberInfo.isPermutation) {
@@ -135,12 +139,17 @@ export function calculateStake(parsedResult, betConfig) {
             continue;
           }
 
-          // Tính tiền cược với hệ số nhân
+          // Get multiplier for this additional bet type
+          const additionalMultiplier = additionalBetTypeInfo.multiplier || 1;
+
+          // Tính tiền cược với hệ số nhân và multiplier
           const additionalOriginalStake = additionalLineStake.stake;
-          additionalLineStake.stake = additionalOriginalStake * priceRate;
+          additionalLineStake.stake =
+            additionalOriginalStake * priceRate * additionalMultiplier;
           additionalLineStake.originalStake = additionalOriginalStake;
           additionalLineStake.priceRate = priceRate;
-          additionalLineStake.formula = `(${additionalLineStake.formula}) × ${priceRate}`;
+          additionalLineStake.multiplier = additionalMultiplier;
+          additionalLineStake.formula = `(${additionalLineStake.formula}) × ${priceRate} × ${additionalMultiplier}`;
           additionalLineStake.betTypeAlias = additionalBetTypeInfo.alias;
 
           // Include permutation information if this is a permutation bet
@@ -321,6 +330,8 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
       bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
   );
 
+  console.log(betType);
+
   if (!betType) {
     return {
       id: betTypeId,
@@ -329,6 +340,7 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
       payoutRate: 0,
       combined: false,
       isPermutation: line.isPermutation || false,
+      multiplier: 1, // Default multiplier if not found
     };
   }
 
@@ -349,6 +361,7 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
         alias: betTypeAlias || '',
         payoutRate: 0,
         combined: false,
+        multiplier: betType.multiplier || 1, // Include multiplier even in error case
         error: `Kiểu cược ${betTypeAlias} chỉ chấp nhận ${allowedDigitRules.join(
           ', '
         )}, không hỗ trợ số ${digitCount} chữ số`,
@@ -412,6 +425,7 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
     combined: betType.combined || false,
     specialCalc: betType.special_calc || null,
     isPermutation: line.isPermutation || betType.is_permutation || false,
+    multiplier: betType.multiplier || 1, // Get multiplier from betType
   };
 }
 
