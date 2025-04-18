@@ -129,7 +129,7 @@ export default function AdminLayout({ children }) {
       roles: ['admin', 'super_admin'],
     },
     {
-      href: '/admin/verifications',
+      href: '/admin/reconciliation',
       label: 'Đối soát',
       icon: <CheckCircle size={20} />,
       roles: ['admin', 'super_admin'],
