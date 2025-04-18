@@ -3,6 +3,11 @@
 
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { revalidatePath } from 'next/cache';
+import {
+  createVerification,
+  updateVerification,
+  getVerificationDetailStats,
+} from './verifications';
 
 // Fetch confirmed bet entries for reconciliation
 export async function fetchBetsForReconciliation(date) {
@@ -370,27 +375,16 @@ export async function reconcileBets(betIds, adminId, date) {
       };
     }
 
-    // Prepare verification data
-    const verificationData = {
-      date: dateStr,
-      admin_id: adminId,
-      verification_data: {
-        total_processed: results.processed,
-        winners: results.winners,
-        losers: results.losers,
-        total_win_amount: results.totalWinAmount,
-      },
-      total_bet_codes: results.processed,
-      total_stake_amount: bets.reduce(
-        (sum, bet) => sum + Number(bet.stake || 0),
-        0
-      ),
-      total_winning_amount: results.totalWinAmount,
-      status: 'completed',
-      updated_at: new Date().toISOString(),
-    };
+    // Lấy thống kê chi tiết cho tất cả các vùng
+    const { data: verificationStats, error: statsError } =
+      await getVerificationDetailStats(adminId, dateStr);
 
-    // Check if verification record already exists for this date and admin
+    if (statsError) {
+      console.error('Error getting verification stats:', statsError);
+      // Vẫn tiếp tục xử lý với dữ liệu tóm tắt cơ bản
+    }
+
+    // Kiểm tra xem đã có bản ghi verification cho ngày và admin này chưa
     const { data: existingVerification, error: checkError } =
       await supabaseAdmin
         .from('verifications')
@@ -403,32 +397,49 @@ export async function reconcileBets(betIds, adminId, date) {
       console.error('Error checking for existing verification:', checkError);
     }
 
+    // Dữ liệu cơ bản nếu không lấy được stats chi tiết
+    const basicVerificationData = {
+      total_entries: results.processed,
+      winning_entries: results.winners,
+      losing_entries: results.losers,
+      total_stake_amount: bets.reduce(
+        (sum, bet) => sum + Number(bet.stake || 0),
+        0
+      ),
+      total_winning_amount: results.totalWinAmount,
+      total_profit_amount:
+        results.totalWinAmount -
+        bets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0),
+    };
+
+    // Cập nhật hoặc tạo mới bản ghi verification
     let verificationError;
-
     if (existingVerification) {
-      // Update existing verification record
-      console.log(`Updating existing verification record for date ${dateStr}`);
-      const { error } = await supabaseAdmin
-        .from('verifications')
-        .update(verificationData)
-        .eq('id', existingVerification.id);
-
+      // Cập nhật bản ghi đã tồn tại
+      const { error } = await updateVerification(
+        existingVerification.id,
+        adminId,
+        dateStr,
+        verificationStats || basicVerificationData
+      );
       verificationError = error;
     } else {
-      // Create new verification record
-      console.log(`Creating new verification record for date ${dateStr}`);
-      const { error } = await supabaseAdmin
-        .from('verifications')
-        .insert(verificationData);
-
+      // Tạo bản ghi mới
+      const { error } = await createVerification(
+        adminId,
+        dateStr,
+        verificationStats || basicVerificationData
+      );
       verificationError = error;
     }
 
     if (verificationError) {
       console.error('Error with verification record:', verificationError);
-      // We continue as the main task is already complete
+      // Vẫn tiếp tục vì nhiệm vụ chính đã hoàn thành
     }
 
+    // Cập nhật path để làm mới dữ liệu
+    revalidatePath('/admin/verifications');
     revalidatePath('/admin/bet-codes');
     return {
       data: {

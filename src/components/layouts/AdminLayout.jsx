@@ -17,6 +17,7 @@ import {
   Shield,
   List,
   Ticket,
+  CheckCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -131,6 +132,12 @@ export default function AdminLayout({ children }) {
       href: '/lottery-results',
       label: 'Kết quả xổ số',
       icon: <Ticket size={20} />,
+      roles: ['admin', 'super_admin'],
+    },
+    {
+      href: '/admin/verifications',
+      label: 'Đối soát',
+      icon: <CheckCircle size={20} />,
       roles: ['admin', 'super_admin'],
     },
     {

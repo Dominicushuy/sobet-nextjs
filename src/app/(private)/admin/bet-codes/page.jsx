@@ -18,7 +18,6 @@ import { toast } from 'sonner';
 import { getStationName } from '@/utils/displayUtils';
 
 // Import components
-import { FilterCard } from '@/components/bet-codes/FilterCard';
 import { StatusDisplay } from '@/components/bet-codes/StatusDisplay';
 import { UserEntriesCard } from '@/components/bet-codes/UserEntriesCard';
 import { EmptyState } from '@/components/bet-codes/EmptyState';
@@ -27,6 +26,7 @@ import { ReconciliationDialog } from '@/components/bet-codes/ReconciliationDialo
 import { Button } from '@/components/ui/button';
 import { CheckSquare } from 'lucide-react';
 import moment from 'moment/moment';
+import { FilterCard } from '@/components/shared/FilterCard';
 
 export default function AdminBetCodesPage() {
   const { user } = useAuth();
@@ -336,37 +336,17 @@ export default function AdminBetCodesPage() {
 
       {/* Unified Filter Card with Tabs and Action Buttons */}
       <FilterCard
+        title="Bộ lọc mã cược"
+        description="Lọc mã cược theo người dùng và ngày tháng"
         users={usersData?.data || []}
         isLoadingUsers={isLoadingUsers}
         selectedUserIds={selectedUserIds}
         setSelectedUserIds={setSelectedUserIds}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
-        selectedEntryIds={selectedEntryIds}
-        draftCount={draftCount}
-        isConfirming={isConfirming}
-        isDeleting={isDeleting}
-        isLoadingEntries={isLoadingEntries}
-        onConfirmEntries={() => {
-          setDialogAction('confirm');
-          setShowConfirmDialog(true);
-        }}
-        onDeleteEntries={() => {
-          setDialogAction('delete');
-          setShowDeleteDialog(true);
-        }}
         onRefresh={refetchEntries}
         onResetFilters={resetFilters}
-        onSelectAllDrafts={handleSelectAllDrafts}
-        isAllDraftsSelected={
-          draftCount > 0 &&
-          filteredEntries.filter((e) => e.status === 'draft').length ===
-            filteredEntries.filter(
-              (e) => e.status === 'draft' && selectedEntryIds.includes(e.id)
-            ).length
-        }
+        isLoading={isLoadingEntries}
       />
 
       {/* Status info */}

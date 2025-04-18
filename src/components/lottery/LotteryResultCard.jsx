@@ -85,6 +85,26 @@ export function LotteryResultCard({ result, highlightNumber }) {
     );
   };
 
+  // Hàm render giải bảy (miền Bắc)
+  const renderSeventhPrize = () => {
+    return renderPrize(
+      'Giải bảy',
+      result.seventh_prize,
+      true,
+      'text-blue-800 dark:text-blue-500'
+    );
+  };
+
+  // Hàm render giải tám (miền còn lại)
+  const renderEighthPrize = () => {
+    return renderPrize(
+      'Giải tám',
+      result.eighth_prize,
+      true,
+      'text-blue-800 dark:text-blue-500'
+    );
+  };
+
   // Xác định thứ tự render các giải dựa trên miền
   const renderPrizes = () => {
     if (isNorth) {
@@ -97,13 +117,13 @@ export function LotteryResultCard({ result, highlightNumber }) {
           {renderPrize('Giải tư', result.fourth_prize)}
           {renderPrize('Giải năm', result.fifth_prize)}
           {renderPrize('Giải sáu', result.sixth_prize)}
-          {renderPrize('Giải bảy', result.seventh_prize)}
+          {renderSeventhPrize()}
         </>
       );
     } else {
       return (
         <>
-          {renderPrize('Giải tám', result.eighth_prize)}
+          {renderEighthPrize()}
           {renderPrize('Giải bảy', result.seventh_prize)}
           {renderPrize('Giải sáu', result.sixth_prize)}
           {renderPrize('Giải năm', result.fifth_prize)}
