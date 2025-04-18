@@ -290,19 +290,6 @@ CREATE POLICY "all_users_view_lottery_results" ON lottery_results
     USING (true);
 
 --------------------------
--- Policies cho Verifications
---------------------------
--- Super admin có toàn quyền
-CREATE POLICY "super_admin_all_verifications" ON verifications
-    USING (public.is_super_admin())
-    WITH CHECK (public.is_super_admin());
-
--- Admin chỉ có thể xem và tạo đối soát của chính mình
-CREATE POLICY "admin_manage_own_verifications" ON verifications
-    USING (public.is_admin() AND admin_id = auth.uid())
-    WITH CHECK (public.is_admin() AND admin_id = auth.uid());
-
---------------------------
 -- Policies cho User Station Access
 --------------------------
 -- Super admin có toàn quyền
