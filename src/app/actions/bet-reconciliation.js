@@ -82,6 +82,7 @@ export async function fetchBetsForReconciliation(date) {
         betTypes,
         statistics,
         date: dateStr,
+        userId: confirmedBets?.[0]?.user_id, // Add the user ID for reference
       },
       error: null,
     };
@@ -89,6 +90,69 @@ export async function fetchBetsForReconciliation(date) {
     console.error('Unexpected error in fetchBetsForReconciliation:', error);
     return { data: null, error: 'Internal server error' };
   }
+}
+
+// Helper function to determine the region of a bet
+function getBetRegion(bet) {
+  // First check if there's a direct region in station_data
+  if (bet.station_data && bet.station_data.region) {
+    return bet.station_data.region;
+  }
+
+  // If there's a station with region information
+  if (bet.station && bet.station.region && bet.station.region.code) {
+    return bet.station.region.code;
+  }
+
+  // If there's a station_data with region nested inside
+  if (
+    bet.station_data &&
+    bet.station_data.station &&
+    bet.station_data.station.region
+  ) {
+    return bet.station_data.station.region.code;
+  }
+
+  // For multi-station in the same region
+  if (
+    bet.station_data &&
+    bet.station_data.stations &&
+    bet.station_data.stations.length > 0
+  ) {
+    // Just take the region of the first station as they should all be in the same region
+    if (bet.station_data.stations[0].region) {
+      return bet.station_data.stations[0].region;
+    }
+  }
+
+  // Handle virtual stations or other special cases
+  if (bet.station_data && bet.station_data.isVirtualStation) {
+    // For virtual stations like "Miền Bắc"
+    const name = bet.station_data.name?.toLowerCase() || '';
+    if (name.includes('bắc') || name === 'mb') return 'north';
+    if (name.includes('trung') || name === 'mt') return 'central';
+    if (name.includes('nam') || name === 'mn') return 'south';
+  }
+
+  // If we can't determine the region, default to checking the name
+  if (bet.station_data && bet.station_data.name) {
+    const name = bet.station_data.name.toLowerCase();
+    if (name.includes('bắc') || name === 'mb') return 'north';
+    if (name.includes('trung') || name === 'mt') return 'central';
+    if (name.includes('nam') || name === 'mn') return 'south';
+  }
+
+  // Last resort - check for station ID mapping
+  if (bet.station_id) {
+    // Map station IDs to regions (based on your database)
+    // These are approximations - adjust the ranges based on your actual database
+    if (bet.station_id >= 1 && bet.station_id <= 21) return 'south';
+    if (bet.station_id >= 22 && bet.station_id <= 35) return 'central';
+    if (bet.station_id >= 36) return 'north';
+  }
+
+  // If all else fails, return unknown
+  return 'unknown';
 }
 
 // Process reconciliation of bets
@@ -117,6 +181,10 @@ export async function reconcileBets(betIds, adminId, date) {
       return { data: null, error: betError.message };
     }
 
+    if (!bets || bets.length === 0) {
+      return { data: null, error: 'No bets found to reconcile' };
+    }
+
     // 2. Get lottery results for the date
     const { data: lotteryResults, error: lotteryError } = await supabaseAdmin
       .from('lottery_results')
@@ -128,6 +196,11 @@ export async function reconcileBets(betIds, adminId, date) {
       return { data: null, error: lotteryError.message };
     }
 
+    // If no lottery results for the date
+    if (!lotteryResults || lotteryResults.length === 0) {
+      return { data: null, error: 'No lottery results found for this date' };
+    }
+
     // 3. Get bet types for reference
     const { data: betTypes, error: betTypesError } = await supabaseAdmin
       .from('bet_types')
@@ -136,11 +209,6 @@ export async function reconcileBets(betIds, adminId, date) {
     if (betTypesError) {
       console.error('Error fetching bet types:', betTypesError);
       return { data: null, error: betTypesError.message };
-    }
-
-    // If no lottery results for the date
-    if (!lotteryResults || lotteryResults.length === 0) {
-      return { data: null, error: 'No lottery results found for this date' };
     }
 
     // 3.5. Get station schedules for handling multi-station bets
@@ -160,6 +228,14 @@ export async function reconcileBets(betIds, adminId, date) {
       winners: 0,
       losers: 0,
       totalWinAmount: 0,
+      totalStakeAmount: 0,
+      // Region-specific stats
+      northStake: 0,
+      northWin: 0,
+      centralStake: 0,
+      centralWin: 0,
+      southStake: 0,
+      southWin: 0,
     };
 
     // Determine day of week for the draw date
@@ -177,6 +253,23 @@ export async function reconcileBets(betIds, adminId, date) {
     const dayOfWeek = daysOfWeek[dayOfWeekIndex];
 
     for (const bet of bets) {
+      // Add to total stake amount
+      const stakeAmount = Number(bet.original_stake || 0);
+      results.totalStakeAmount += stakeAmount;
+
+      // Determine region using our more robust function
+      const region = getBetRegion(bet);
+      // console.log(`Processing bet ${bet.id} for region: ${region}`);
+
+      // Track region-specific stakes
+      if (region === 'north') {
+        results.northStake += stakeAmount;
+      } else if (region === 'central') {
+        results.centralStake += stakeAmount;
+      } else if (region === 'south') {
+        results.southStake += stakeAmount;
+      }
+
       // Find bet type details
       const betType = betTypes.find(
         (type) => type.id === bet.bet_type_id || type.name === bet.bet_type_name
@@ -343,6 +436,15 @@ export async function reconcileBets(betIds, adminId, date) {
       if (isWinning) {
         results.winners++;
         results.totalWinAmount += winAmount;
+
+        // Track region-specific wins
+        if (region === 'north') {
+          results.northWin += winAmount;
+        } else if (region === 'central') {
+          results.centralWin += winAmount;
+        } else if (region === 'south') {
+          results.southWin += winAmount;
+        }
       } else {
         results.losers++;
       }
@@ -375,14 +477,91 @@ export async function reconcileBets(betIds, adminId, date) {
       };
     }
 
-    // Lấy thống kê chi tiết cho tất cả các vùng
-    const { data: verificationStats, error: statsError } =
-      await getVerificationDetailStats(adminId, dateStr);
+    // Calculate profit for each region
+    const northProfit = results.northWin - results.northStake;
+    const centralProfit = results.centralWin - results.centralStake;
+    const southProfit = results.southWin - results.southStake;
+    const totalProfit = results.totalWinAmount - results.totalStakeAmount;
 
-    if (statsError) {
-      console.error('Error getting verification stats:', statsError);
-      // Vẫn tiếp tục xử lý với dữ liệu tóm tắt cơ bản
+    // Get user's commission settings for cost calculations
+    const { data: commissionSettings, error: commissionError } =
+      await supabaseAdmin
+        .from('user_commission_settings')
+        .select('price_rate, export_price_rate, return_price_rate')
+        .eq('user_id', adminId)
+        .maybeSingle();
+
+    if (commissionError) {
+      console.error('Error fetching commission settings:', commissionError);
     }
+
+    // Set default commission rates if not found
+    const exportPriceRate = commissionSettings?.export_price_rate || 0.74;
+    const returnPriceRate = commissionSettings?.return_price_rate || 0.95;
+
+    // Calculate costs based on profit for each region
+    const northCost =
+      northProfit > 0
+        ? northProfit * exportPriceRate
+        : Math.abs(northProfit) * returnPriceRate;
+
+    const centralCost =
+      centralProfit > 0
+        ? centralProfit * exportPriceRate
+        : Math.abs(centralProfit) * returnPriceRate;
+
+    const southCost =
+      southProfit > 0
+        ? southProfit * exportPriceRate
+        : Math.abs(southProfit) * returnPriceRate;
+
+    const totalCost =
+      totalProfit > 0
+        ? totalProfit * exportPriceRate
+        : Math.abs(totalProfit) * returnPriceRate;
+
+    // console.log('Reconciliation statistics:', {
+    //   winners: results.winners,
+    //   losers: results.losers,
+    //   northStake: results.northStake,
+    //   northWin: results.northWin,
+    //   centralStake: results.centralStake,
+    //   centralWin: results.centralWin,
+    //   southStake: results.southStake,
+    //   southWin: results.southWin,
+    // });
+
+    // Create basic verification data
+    const basicVerificationData = {
+      total_bet_codes: results.processed,
+      total_stake_amount: results.totalStakeAmount,
+      total_winning_amount: results.totalWinAmount,
+      total_profit_amount: totalProfit,
+      total_cost_amount: totalCost,
+
+      // Region-specific data
+      total_stake_amount_north: results.northStake,
+      total_winning_amount_north: results.northWin,
+      total_profit_amount_north: northProfit,
+      total_cost_amount_north: northCost,
+
+      total_stake_amount_central: results.centralStake,
+      total_winning_amount_central: results.centralWin,
+      total_profit_amount_central: centralProfit,
+      total_cost_amount_central: centralCost,
+
+      total_stake_amount_south: results.southStake,
+      total_winning_amount_south: results.southWin,
+      total_profit_amount_south: southProfit,
+      total_cost_amount_south: southCost,
+
+      // Store winners and losers in verification_data JSON
+      verification_data: {
+        winners: results.winners,
+        losers: results.losers,
+        additional_info: 'Reconciled on ' + new Date().toISOString(),
+      },
+    };
 
     // Kiểm tra xem đã có bản ghi verification cho ngày và admin này chưa
     const { data: existingVerification, error: checkError } =
@@ -397,21 +576,6 @@ export async function reconcileBets(betIds, adminId, date) {
       console.error('Error checking for existing verification:', checkError);
     }
 
-    // Dữ liệu cơ bản nếu không lấy được stats chi tiết
-    const basicVerificationData = {
-      total_entries: results.processed,
-      winning_entries: results.winners,
-      losing_entries: results.losers,
-      total_stake_amount: bets.reduce(
-        (sum, bet) => sum + Number(bet.stake || 0),
-        0
-      ),
-      total_winning_amount: results.totalWinAmount,
-      total_profit_amount:
-        results.totalWinAmount -
-        bets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0),
-    };
-
     // Cập nhật hoặc tạo mới bản ghi verification
     let verificationError;
     if (existingVerification) {
@@ -420,7 +584,7 @@ export async function reconcileBets(betIds, adminId, date) {
         existingVerification.id,
         adminId,
         dateStr,
-        verificationStats || basicVerificationData
+        basicVerificationData
       );
       verificationError = error;
     } else {
@@ -428,7 +592,7 @@ export async function reconcileBets(betIds, adminId, date) {
       const { error } = await createVerification(
         adminId,
         dateStr,
-        verificationStats || basicVerificationData
+        basicVerificationData
       );
       verificationError = error;
     }

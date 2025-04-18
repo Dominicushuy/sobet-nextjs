@@ -23,8 +23,6 @@ import { UserEntriesCard } from '@/components/bet-codes/UserEntriesCard';
 import { EmptyState } from '@/components/bet-codes/EmptyState';
 import { ConfirmDialogs } from '@/components/bet-codes/ConfirmDialogs';
 import { ReconciliationDialog } from '@/components/bet-codes/ReconciliationDialog';
-import { Button } from '@/components/ui/button';
-import { CheckSquare } from 'lucide-react';
 import moment from 'moment/moment';
 import { FilterCard } from '@/components/shared/FilterCard';
 
@@ -253,6 +251,20 @@ export default function AdminBetCodesPage() {
     }
   };
 
+  // Handle confirm entries action (with confirmation dialog)
+  const handleConfirmEntries = () => {
+    if (selectedEntryIds.length === 0) return;
+    setDialogAction('confirm');
+    setShowConfirmDialog(true);
+  };
+
+  // Handle delete entries action (with confirmation dialog)
+  const handleDeleteEntries = () => {
+    if (selectedEntryIds.length === 0) return;
+    setDialogAction('delete');
+    setShowDeleteDialog(true);
+  };
+
   // Filter bet entries by search term
   const filteredEntries = betEntriesData?.data
     ? betEntriesData.data.filter((entry) => {
@@ -293,6 +305,13 @@ export default function AdminBetCodesPage() {
   const confirmedCount = filteredEntries.filter(
     (entry) => entry.status === 'confirmed'
   ).length;
+
+  // Check if all draft entries are selected
+  const isAllDraftsSelected =
+    draftCount > 0 &&
+    filteredEntries
+      .filter((entry) => entry.status === 'draft')
+      .every((entry) => selectedEntryIds.includes(entry.id));
 
   // Group entries by user
   const entriesByUser = {};
@@ -349,7 +368,7 @@ export default function AdminBetCodesPage() {
         isLoading={isLoadingEntries}
       />
 
-      {/* Status info */}
+      {/* Status info with action buttons */}
       <div className="flex items-center justify-between bg-card p-4 rounded-lg shadow-sm border">
         <StatusDisplay
           isLoading={isLoadingEntries}
@@ -358,17 +377,16 @@ export default function AdminBetCodesPage() {
           draftCount={draftCount}
           userCount={Object.keys(entriesByUser).length}
           selectedEntryIds={selectedEntryIds}
+          confirmedCount={confirmedCount}
+          onSelectAllDrafts={handleSelectAllDrafts}
+          onConfirmEntries={handleConfirmEntries}
+          onDeleteEntries={handleDeleteEntries}
+          onRefresh={refetchEntries}
+          onOpenReconciliation={handleOpenReconciliation}
+          isAllDraftsSelected={isAllDraftsSelected}
+          isConfirming={isConfirming}
+          isDeleting={isDeleting}
         />
-
-        {confirmedCount > 0 && !isLoadingEntries && (
-          <Button
-            onClick={handleOpenReconciliation}
-            className="ml-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 h-10 font-medium shadow-sm"
-          >
-            <CheckSquare className="mr-2 h-5 w-5" />
-            Đối soát {confirmedCount} mã cược
-          </Button>
-        )}
       </div>
 
       {/* User bet groups */}

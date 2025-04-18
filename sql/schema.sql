@@ -175,19 +175,36 @@ CREATE TABLE lottery_results (
 );
 
 -- Bảng Verifications (Đối soát)
-CREATE TABLE verifications (
-  id SERIAL PRIMARY KEY,
-  date DATE NOT NULL,
-  admin_id UUID NOT NULL REFERENCES users(id),
-  verification_data JSONB NOT NULL,
-  total_bet_codes INTEGER NOT NULL,
-  total_stake_amount NUMERIC(12, 2) NOT NULL,
-  total_winning_amount NUMERIC(12, 2) NOT NULL,
-  status VARCHAR(50) NOT NULL DEFAULT 'completed',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (date, admin_id)
-);
+CREATE TABLE public.verifications (
+  id bigint primary key generated always as identity,
+  date date NOT NULL,
+  admin_id uuid NOT NULL,
+  verification_data jsonb NOT NULL,
+  total_bet_codes integer NOT NULL,
+  total_stake_amount numeric(12,2) NOT NULL,
+  total_winning_amount numeric(12,2) NOT NULL,
+  status character varying(50) NOT NULL DEFAULT 'completed',
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  total_profit_amount numeric(12,2) NULL,
+  total_cost_amount numeric(12,2) NULL,
+  total_stake_amount_north numeric(12,2) NULL,
+  total_winning_amount_north numeric(12,2) NULL,
+  total_profit_amount_north numeric(12,2) NULL,
+  total_cost_amount_north numeric(12,2) NULL,
+  total_stake_amount_central numeric(12,2) NULL,
+  total_winning_amount_central numeric(12,2) NULL,
+  total_profit_amount_central numeric(12,2) NULL,
+  total_cost_amount_central numeric(12,2) NULL,
+  total_stake_amount_south numeric(12,2) NULL,
+  total_winning_amount_south numeric(12,2) NULL,
+  total_profit_amount_south numeric(12,2) NULL,
+  total_cost_amount_south numeric(12,2) NULL,
+  CONSTRAINT verifications_date_admin_id_key UNIQUE (date, admin_id),
+  CONSTRAINT verifications_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES users(id)
+) WITH (OIDS=FALSE);
+
+ALTER TABLE public.verifications ENABLE ROW LEVEL SECURITY;
 
 -- Bảng quản lý quyền truy cập đài xổ số của người dùng
 CREATE TABLE user_station_access (

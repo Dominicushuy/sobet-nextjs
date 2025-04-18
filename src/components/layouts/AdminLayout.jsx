@@ -129,15 +129,15 @@ export default function AdminLayout({ children }) {
       roles: ['admin', 'super_admin'],
     },
     {
-      href: '/lottery-results',
-      label: 'Kết quả xổ số',
-      icon: <Ticket size={20} />,
-      roles: ['admin', 'super_admin'],
-    },
-    {
       href: '/admin/verifications',
       label: 'Đối soát',
       icon: <CheckCircle size={20} />,
+      roles: ['admin', 'super_admin'],
+    },
+    {
+      href: '/lottery-results',
+      label: 'Kết quả xổ số',
+      icon: <Ticket size={20} />,
       roles: ['admin', 'super_admin'],
     },
     {

@@ -330,7 +330,7 @@ function getBetTypeInfo(line, stationInfo, betConfig) {
       bt.aliases.some((a) => a.toLowerCase() === betTypeAlias)
   );
 
-  console.log(betType);
+  // console.log(betType);
 
   if (!betType) {
     return {

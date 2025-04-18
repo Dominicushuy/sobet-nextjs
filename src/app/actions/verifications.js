@@ -25,6 +25,20 @@ export async function fetchAdminsForFilter(adminId) {
       return { data: null, error: error.message };
     }
 
+    // Also include the admin themselves in the list
+    const { data: adminData, error: adminError } = await supabaseAdmin
+      .from('users')
+      .select('id, username, email, full_name, roles:roles(name)')
+      .eq('id', adminId)
+      .single();
+
+    if (!adminError && adminData) {
+      // If the admin isn't already in the list, add them
+      if (!data.some((user) => user.id === adminData.id)) {
+        data.push(adminData);
+      }
+    }
+
     return { data, error: null };
   } catch (error) {
     console.error('Unexpected error in fetchAdminsForFilter:', error);
@@ -37,6 +51,9 @@ export async function fetchAdminsForFilter(adminId) {
  */
 export async function fetchVerifications(date, adminIds = []) {
   try {
+    // For debug purposes
+    // console.log('Fetching verifications with:', { date, adminIds });
+
     if (!date) {
       const today = new Date();
       date = today.toISOString().split('T')[0];
@@ -45,6 +62,8 @@ export async function fetchVerifications(date, adminIds = []) {
     // Format date if it's a Date object
     const dateStr =
       typeof date === 'string' ? date : date.toISOString().split('T')[0];
+
+    // console.log('Formatted date:', dateStr);
 
     // Tạo query cơ bản
     let query = supabaseAdmin
@@ -60,6 +79,7 @@ export async function fetchVerifications(date, adminIds = []) {
     // Thêm filter theo adminIds nếu có
     if (adminIds && adminIds.length > 0) {
       query = query.in('admin_id', adminIds);
+      // console.log('Filtering by admin IDs:', adminIds);
     }
 
     // Thực hiện query
@@ -73,8 +93,11 @@ export async function fetchVerifications(date, adminIds = []) {
       return { data: null, error: verificationError.message };
     }
 
+    // console.log('Raw verification results:', verifications);
+
     // Nếu không có dữ liệu, trả về mảng rỗng
     if (!verifications || verifications.length === 0) {
+      // console.log('No verification data found for date:', dateStr);
       return { data: [], error: null };
     }
 
@@ -97,12 +120,30 @@ export async function fetchVerifications(date, adminIds = []) {
       commissionSettingsMap[setting.user_id] = setting;
     });
 
-    // Enhance verification data with commission settings
+    // Process verification data to extract winners and losers from verification_data JSON
     const enhancedVerifications = verifications.map((verification) => {
       const settings = commissionSettingsMap[verification.admin_id] || {};
 
+      // Extract winners and losers from verification_data if available
+      let winning_entries = 0;
+      let losing_entries = 0;
+
+      if (verification.verification_data) {
+        // Convert from stringified JSON if needed
+        const verificationData =
+          typeof verification.verification_data === 'string'
+            ? JSON.parse(verification.verification_data)
+            : verification.verification_data;
+
+        winning_entries = verificationData.winners || 0;
+        losing_entries = verificationData.losers || 0;
+      }
+
       return {
         ...verification,
+        // Add these as properties to match the component expectations
+        winning_entries,
+        losing_entries,
         commissionSettings: {
           priceRate: settings.price_rate || 0.8,
           exportPriceRate: settings.export_price_rate || 0.74,
@@ -110,6 +151,11 @@ export async function fetchVerifications(date, adminIds = []) {
         },
       };
     });
+
+    // console.log(
+    //   'Enhanced verifications (first item):',
+    //   enhancedVerifications.length > 0 ? enhancedVerifications[0] : 'No items'
+    // );
 
     return { data: enhancedVerifications, error: null };
   } catch (error) {
@@ -123,6 +169,8 @@ export async function fetchVerifications(date, adminIds = []) {
  */
 export async function getVerificationDetailStats(userId, date) {
   try {
+    // console.log('Getting verification stats for user:', userId, 'date:', date);
+
     // Get processed bet entries for this user on this date
     const { data: entries, error: entriesError } = await supabaseAdmin
       .from('bet_entries')
@@ -141,13 +189,18 @@ export async function getVerificationDetailStats(userId, date) {
       return { data: null, error: entriesError.message };
     }
 
+    console.log(
+      `Found ${entries.length} processed entries for statistics calculation`
+    );
+
     // Initialize statistics
     const stats = {
-      total_entries: entries.length,
-      winning_entries: 0,
-      losing_entries: 0,
+      // Calculate winners and losers for verification_data
+      winners: entries.filter((entry) => entry.winning_status === true).length,
+      losers: entries.filter((entry) => entry.winning_status === false).length,
 
-      // Overall statistics
+      // Overall statistics (actual columns in the verifications table)
+      total_bet_codes: entries.length,
       total_stake_amount: 0,
       total_winning_amount: 0,
       total_profit_amount: 0,
@@ -176,18 +229,10 @@ export async function getVerificationDetailStats(userId, date) {
     entries.forEach((entry) => {
       const stakeAmount = Number(entry.original_stake) || 0;
       const winningAmount = Number(entry.actual_winning) || 0;
-      const isWinning = entry.winning_status === true;
 
       // Update overall statistics
       stats.total_stake_amount += stakeAmount;
       stats.total_winning_amount += winningAmount;
-
-      // Count winning/losing entries
-      if (isWinning) {
-        stats.winning_entries++;
-      } else {
-        stats.losing_entries++;
-      }
 
       // Determine region and update region-specific statistics
       const regionCode = entry.station?.region?.code;
@@ -268,6 +313,7 @@ export async function getVerificationDetailStats(userId, date) {
         Math.abs(stats.total_profit_amount_south) * returnPriceRate;
     }
 
+    console.log('Calculated verification stats:', stats);
     return { data: stats, error: null };
   } catch (error) {
     console.error('Unexpected error in getVerificationDetailStats:', error);
@@ -281,17 +327,21 @@ export async function getVerificationDetailStats(userId, date) {
 export async function updateVerification(id, userId, date, stats) {
   try {
     if (!id || !userId || !date || !stats) {
+      console.error('Missing required information for updateVerification', {
+        id,
+        userId,
+        date,
+        stats: !!stats,
+      });
       return { data: null, error: 'Missing required information' };
     }
 
     // Prepare verification data with region-specific information
     const verificationData = {
       // Overall statistics
-      total_bet_codes: stats.total_entries || 0,
+      total_bet_codes: stats.total_bet_codes || 0,
       total_stake_amount: stats.total_stake_amount || 0,
       total_winning_amount: stats.total_winning_amount || 0,
-      winning_entries: stats.winning_entries || 0,
-      losing_entries: stats.losing_entries || 0,
       total_profit_amount: stats.total_profit_amount || 0,
       total_cost_amount: stats.total_cost_amount || 0,
 
@@ -313,13 +363,17 @@ export async function updateVerification(id, userId, date, stats) {
       total_profit_amount_south: stats.total_profit_amount_south || 0,
       total_cost_amount_south: stats.total_cost_amount_south || 0,
 
-      // Thông tin bổ sung vẫn lưu trong verification_data
+      // Store winners and losers in verification_data JSON
       verification_data: {
-        additional_info: 'Thông tin bổ sung nếu có',
+        winners: stats.winners || 0,
+        losers: stats.losers || 0,
+        additional_info: 'Updated verification data',
       },
 
       updated_at: new Date().toISOString(),
     };
+
+    console.log('Updating verification with data:', verificationData);
 
     // Update verification record
     const { data, error } = await supabaseAdmin
@@ -334,6 +388,7 @@ export async function updateVerification(id, userId, date, stats) {
       return { data: null, error: error.message };
     }
 
+    console.log('Verification updated successfully:', data);
     revalidatePath('/admin/verifications');
 
     return { data, error: null };
@@ -349,6 +404,11 @@ export async function updateVerification(id, userId, date, stats) {
 export async function createVerification(userId, date, stats) {
   try {
     if (!userId || !date || !stats) {
+      console.error('Missing required information for createVerification', {
+        userId,
+        date,
+        stats: !!stats,
+      });
       return { data: null, error: 'Missing required information' };
     }
 
@@ -358,11 +418,9 @@ export async function createVerification(userId, date, stats) {
       admin_id: userId,
 
       // Overall statistics
-      total_bet_codes: stats.total_entries || 0,
+      total_bet_codes: stats.total_bet_codes || 0,
       total_stake_amount: stats.total_stake_amount || 0,
       total_winning_amount: stats.total_winning_amount || 0,
-      winning_entries: stats.winning_entries || 0,
-      losing_entries: stats.losing_entries || 0,
       total_profit_amount: stats.total_profit_amount || 0,
       total_cost_amount: stats.total_cost_amount || 0,
 
@@ -384,15 +442,19 @@ export async function createVerification(userId, date, stats) {
       total_profit_amount_south: stats.total_profit_amount_south || 0,
       total_cost_amount_south: stats.total_cost_amount_south || 0,
 
-      // Thông tin bổ sung vẫn lưu trong verification_data
+      // Store winners and losers in verification_data JSON
       verification_data: {
-        additional_info: 'Thông tin bổ sung nếu có',
+        winners: stats.winners || 0,
+        losers: stats.losers || 0,
+        additional_info: 'Initial verification data',
       },
 
       status: 'completed',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
+    console.log('Creating new verification with data:', verificationData);
 
     // Create new verification record
     const { data, error } = await supabaseAdmin
@@ -406,6 +468,7 @@ export async function createVerification(userId, date, stats) {
       return { data: null, error: error.message };
     }
 
+    console.log('Verification created successfully:', data);
     revalidatePath('/admin/verifications');
     return { data, error: null };
   } catch (error) {

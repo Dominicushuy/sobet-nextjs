@@ -17,6 +17,7 @@ export default function AdminVerificationsPage() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Format date for API calls
   const formattedDate = selectedDate
@@ -61,11 +62,21 @@ export default function AdminVerificationsPage() {
     if (
       adminsData?.data &&
       adminsData.data.length > 0 &&
-      selectedUserIds.length === 0
+      selectedUserIds.length === 0 &&
+      !isInitialized
     ) {
       setSelectedUserIds(adminsData.data.map((admin) => admin.id));
+      setIsInitialized(true);
     }
-  }, [adminsData?.data, selectedUserIds.length]);
+  }, [adminsData?.data, selectedUserIds.length, isInitialized]);
+
+  // Log verification data for debugging
+  useEffect(() => {
+    // For debugging
+    if (verificationsData?.data) {
+      console.log('Verification data:', verificationsData.data);
+    }
+  }, [verificationsData]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -78,8 +89,27 @@ export default function AdminVerificationsPage() {
       setSelectedUserIds(adminsData.data.map((admin) => admin.id));
     }
     setSelectedDate(new Date());
-    refetch();
+    // Add a small delay to ensure state is updated before refetching
+    setTimeout(() => {
+      refetch();
+    }, 100);
   };
+
+  // Add user ID if it's missing from selectedUserIds
+  useEffect(() => {
+    if (user?.id && adminsData?.data && isInitialized) {
+      // Make sure the current user's ID is in the selection
+      // This is important because they might be viewing their own verifications
+      if (!selectedUserIds.includes(user.id)) {
+        const adminExists = adminsData.data.some(
+          (admin) => admin.id === user.id
+        );
+        if (adminExists) {
+          setSelectedUserIds((prev) => [...prev, user.id]);
+        }
+      }
+    }
+  }, [user?.id, adminsData?.data, selectedUserIds, isInitialized]);
 
   return (
     <div className="space-y-6">
